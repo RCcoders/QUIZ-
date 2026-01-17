@@ -495,6 +495,20 @@ export async function getGameSession(sessionId: string): Promise<GameSession | n
     return toGameSession(data);
 }
 
+export async function getGameSessionsByQuiz(quizId: string): Promise<GameSession[]> {
+    const { data, error } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('quiz_id', quizId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching game sessions:', error);
+        return [];
+    }
+    return (data || []).map(toGameSession);
+}
+
 export async function createGameSession(data: Omit<GameSession, 'id' | 'createdAt' | 'endedAt'>): Promise<string> {
     const dbData = {
         quiz_id: data.quizId,
@@ -534,6 +548,18 @@ export async function updateGameSession(sessionId: string, data: Partial<GameSes
 
     if (error) {
         console.error('Error updating game session:', error);
+        throw error;
+    }
+}
+
+export async function deleteGameSession(sessionId: string): Promise<void> {
+    const { error } = await supabase
+        .from('game_sessions')
+        .delete()
+        .eq('id', sessionId);
+
+    if (error) {
+        console.error('Error deleting game session:', error);
         throw error;
     }
 }
@@ -699,6 +725,19 @@ export function subscribeToGameSession(sessionId: string, callback: (session: Ga
 }
 
 export function subscribeToParticipants(sessionId: string, callback: (participants: GameParticipant[]) => void): () => void {
+    let currentParticipants: GameParticipant[] = [];
+    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isInitialFetchDone = false;
+
+    // Throttled notification to prevent UI thrashing
+    const notify = () => {
+        if (updateTimeout) return;
+        updateTimeout = setTimeout(() => {
+            callback([...currentParticipants]);
+            updateTimeout = null;
+        }, 500); // Update UI at most every 500ms
+    };
+
     const channel = supabase
         .channel(`participants_${sessionId}`)
         .on(
@@ -709,23 +748,59 @@ export function subscribeToParticipants(sessionId: string, callback: (participan
                 table: 'game_participants',
                 filter: `session_id=eq.${sessionId}`,
             },
-            async () => {
-                const participants = await getParticipants(sessionId);
-                callback(participants);
+            (payload) => {
+                if (!isInitialFetchDone) return; // Ignore events until initial fetch is ready
+
+                if (payload.eventType === 'INSERT') {
+                    const newParticipant = toGameParticipant(payload.new as Record<string, unknown>);
+                    // Avoid duplicates
+                    if (!currentParticipants.some(p => p.id === newParticipant.id)) {
+                        currentParticipants.push(newParticipant);
+                        notify();
+                    }
+                } else if (payload.eventType === 'UPDATE') {
+                    const updatedParticipant = toGameParticipant(payload.new as Record<string, unknown>);
+                    const index = currentParticipants.findIndex(p => p.id === updatedParticipant.id);
+                    if (index !== -1) {
+                        currentParticipants[index] = updatedParticipant;
+                        notify();
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    const deletedId = payload.old.id;
+                    currentParticipants = currentParticipants.filter(p => p.id !== deletedId);
+                    notify();
+                }
             }
         )
         .subscribe();
 
     // Fetch initial data
-    getParticipants(sessionId).then(callback);
+    getParticipants(sessionId).then(participants => {
+        currentParticipants = participants;
+        isInitialFetchDone = true;
+        callback(currentParticipants);
+    });
 
     // Return unsubscribe function
     return () => {
+        if (updateTimeout) clearTimeout(updateTimeout);
         supabase.removeChannel(channel);
     };
 }
 
 export function subscribeToGameAnswers(sessionId: string, callback: (answers: GameAnswer[]) => void): () => void {
+    let currentAnswers: GameAnswer[] = [];
+    let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isInitialFetchDone = false;
+
+    const notify = () => {
+        if (updateTimeout) return;
+        updateTimeout = setTimeout(() => {
+            callback([...currentAnswers]);
+            updateTimeout = null;
+        }, 500);
+    };
+
     const channel = supabase
         .channel(`game_answers_${sessionId}`)
         .on(
@@ -736,18 +811,41 @@ export function subscribeToGameAnswers(sessionId: string, callback: (answers: Ga
                 table: 'game_answers',
                 filter: `session_id=eq.${sessionId}`,
             },
-            async () => {
-                const answers = await getGameAnswers(sessionId);
-                callback(answers);
+            (payload) => {
+                if (!isInitialFetchDone) return;
+
+                if (payload.eventType === 'INSERT') {
+                    const newAnswer = toGameAnswer(payload.new as Record<string, unknown>);
+                    if (!currentAnswers.some(a => a.id === newAnswer.id)) {
+                        currentAnswers.push(newAnswer);
+                        notify();
+                    }
+                } else if (payload.eventType === 'UPDATE') {
+                    const updatedAnswer = toGameAnswer(payload.new as Record<string, unknown>);
+                    const index = currentAnswers.findIndex(a => a.id === updatedAnswer.id);
+                    if (index !== -1) {
+                        currentAnswers[index] = updatedAnswer;
+                        notify();
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    const deletedId = payload.old.id;
+                    currentAnswers = currentAnswers.filter(a => a.id !== deletedId);
+                    notify();
+                }
             }
         )
         .subscribe();
 
     // Fetch initial data
-    getGameAnswers(sessionId).then(callback);
+    getGameAnswers(sessionId).then(answers => {
+        currentAnswers = answers;
+        isInitialFetchDone = true;
+        callback(currentAnswers);
+    });
 
     // Return unsubscribe function
     return () => {
+        if (updateTimeout) clearTimeout(updateTimeout);
         supabase.removeChannel(channel);
     };
 }

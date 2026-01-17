@@ -6,13 +6,15 @@ import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
 import {
     Play, Users, CheckCircle, Clock, ArrowRight, Trophy,
-    Eye, Copy, Check
+    Eye, Copy, Check, Download, RefreshCw
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
     getQuiz,
     getQuestions,
     createGameSession,
     updateGameSession,
+    deleteGameSession,
     getParticipants,
     getGameAnswers,
     subscribeToParticipants,
@@ -39,6 +41,8 @@ export function GameHost() {
     const [answers, setAnswers] = useState<GameAnswer[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+
+    const [timeLeft, setTimeLeft] = useState(0);
 
     const currentQuestion = session ? questions[session.currentQuestionIndex] : null;
     const currentQuestionAnswers = answers.filter(
@@ -72,6 +76,55 @@ export function GameHost() {
             unsubscribeAnswers();
         };
     }, [session?.id]);
+
+    // Timer Logic
+    useEffect(() => {
+        if (!session || session.status !== 'question' || !quiz?.timerEnabled) return;
+
+        // Calculate initial time left based on start time
+        if (session.questionStartedAt) {
+            const startTime = new Date(session.questionStartedAt).getTime();
+            const now = Date.now();
+            const elapsed = Math.floor((now - startTime) / 1000);
+            const remaining = Math.max(0, quiz.timerSeconds - elapsed);
+            setTimeLeft(remaining);
+        }
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) return 0;
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [session?.status, session?.questionStartedAt, quiz?.timerEnabled, quiz?.timerSeconds]);
+
+    // Auto-Reveal Logic
+    useEffect(() => {
+        if (!session || session.status !== 'question') return;
+
+        const allAnswered = participants.length > 0 && currentQuestionAnswers.length === participants.length;
+
+        // Verify time up explicitly to avoid initial state issues
+        let isTimeUp = false;
+        if (quiz?.timerEnabled && session.questionStartedAt) {
+            const startTime = new Date(session.questionStartedAt).getTime();
+            const now = Date.now();
+            const elapsed = Math.floor((now - startTime) / 1000);
+            if (elapsed >= quiz.timerSeconds) {
+                isTimeUp = true;
+            }
+        }
+
+        // Only use timeLeft === 0 as a trigger if we confirmed time is actually up
+        // or if we trust the timer effect has run (but explicit check is safer)
+        const timeTrigger = quiz?.timerEnabled && timeLeft === 0 && isTimeUp;
+
+        if (allAnswered || timeTrigger) {
+            revealAnswer();
+        }
+    }, [session?.status, currentQuestionAnswers.length, participants.length, timeLeft, quiz?.timerEnabled, session?.questionStartedAt, quiz?.timerSeconds]);
 
     const initializeGame = async () => {
         if (!id || !user) return;
@@ -215,6 +268,70 @@ export function GameHost() {
         return distribution;
     };
 
+    const handleDownloadResults = async () => {
+        if (!quiz || !session) return;
+
+        // 1. Calculate total time and prepare data for each participant
+        const participantData = participants.map(p => {
+            const pAnswers = answers.filter(a => a.participantId === p.id);
+            const totalTimeMs = pAnswers.reduce((sum, a) => sum + a.timeTakenMs, 0);
+
+            return {
+                ...p,
+                totalTimeMs,
+                answers: pAnswers
+            };
+        });
+
+        // 2. Sort by Score (Desc) then Time (Asc)
+        participantData.sort((a, b) => {
+            if (b.score !== a.score) {
+                return b.score - a.score;
+            }
+            return a.totalTimeMs - b.totalTimeMs;
+        });
+
+        // 3. Generate Excel Data
+        const excelData = participantData.map((p, index) => {
+            const row: any = {
+                'Rank': index + 1,
+                'Student Name': p.name,
+                'Email': p.email,
+                'Joined At': new Date(p.joinedAt).toLocaleString(),
+                'Total Score': p.score,
+                'Total Time (s)': (p.totalTimeMs / 1000).toFixed(2)
+            };
+
+            // Add details for each question
+            questions.forEach((q, qIndex) => {
+                const answer = p.answers.find(a => a.questionIndex === qIndex);
+                row[`Q${qIndex + 1} Time (s)`] = answer ? (answer.timeTakenMs / 1000).toFixed(2) : '-';
+                row[`Q${qIndex + 1} Score`] = answer ? answer.pointsEarned : 0;
+            });
+
+            return row;
+        });
+
+        // 4. Create Workbook and Sheet
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Results");
+
+        // 5. Download File
+        XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Results.xlsx`);
+
+        // 6. Auto-delete data and navigate away
+        if (confirm('Results downloaded. The game data will now be cleared from the database to prevent overload. Continue?')) {
+            try {
+                await deleteGameSession(session.id);
+                navigate('/teacher');
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                alert('Failed to clear game data. Please try again.');
+            }
+        }
+    };
+
     const joinUrl = session ? `${window.location.origin}/join/${session.gameCode}` : '';
 
     if (loading) {
@@ -330,12 +447,31 @@ export function GameHost() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                         >
-                            {/* Progress */}
+                            {/* Header */}
                             <div className="flex justify-between items-center mb-lg">
                                 <span style={{ color: 'var(--text-muted)' }}>
                                     Question {session.currentQuestionIndex + 1} of {questions.length}
                                 </span>
                                 <div className="flex items-center gap-md">
+                                    {quiz?.timerEnabled && (
+                                        <div className={`timer ${timeLeft <= 5 ? 'danger' : timeLeft <= 10 ? 'warning' : ''}`}
+                                            style={{ width: '50px', height: '50px', fontSize: '1.2rem', marginRight: '1rem' }}>
+                                            {timeLeft}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={async () => {
+                                            const p = await getParticipants(session.id);
+                                            p.sort((a, b) => b.score - a.score);
+                                            setParticipants(p);
+                                            const a = await getGameAnswers(session.id);
+                                            setAnswers(a);
+                                        }}
+                                        className="btn btn-secondary btn-sm"
+                                        title="Refresh Data"
+                                    >
+                                        <RefreshCw size={16} />
+                                    </button>
                                     <span className="badge badge-live">
                                         {currentQuestionAnswers.length}/{participants.length} answered
                                     </span>
@@ -409,9 +545,10 @@ export function GameHost() {
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
                                             {participants
                                                 .filter(p => currentQuestionAnswers.some(a => a.participantId === p.id))
+                                                .slice(0, 50)
                                                 .map(p => (
                                                     <span key={p.id} style={{
-                                                        background: 'rgba(0, 255, 136, 0.1)',
+                                                        background: 'rgba(0, 223, 129, 0.1)',
                                                         color: 'var(--accent-success)',
                                                         padding: '0.25rem 0.75rem',
                                                         borderRadius: 'var(--radius-full)',
@@ -420,6 +557,17 @@ export function GameHost() {
                                                         {p.name}
                                                     </span>
                                                 ))}
+                                            {currentQuestionAnswers.length > 50 && (
+                                                <span style={{
+                                                    background: 'var(--bg-elevated)',
+                                                    color: 'var(--text-muted)',
+                                                    padding: '0.25rem 0.75rem',
+                                                    borderRadius: 'var(--radius-full)',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    +{currentQuestionAnswers.length - 50} more
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="card">
@@ -430,9 +578,10 @@ export function GameHost() {
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
                                             {participants
                                                 .filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id))
+                                                .slice(0, 50)
                                                 .map(p => (
                                                     <span key={p.id} style={{
-                                                        background: 'rgba(255, 170, 0, 0.1)',
+                                                        background: 'rgba(245, 158, 11, 0.1)',
                                                         color: 'var(--accent-warning)',
                                                         padding: '0.25rem 0.75rem',
                                                         borderRadius: 'var(--radius-full)',
@@ -441,6 +590,17 @@ export function GameHost() {
                                                         {p.name}
                                                     </span>
                                                 ))}
+                                            {(participants.length - currentQuestionAnswers.length) > 50 && (
+                                                <span style={{
+                                                    background: 'var(--bg-elevated)',
+                                                    color: 'var(--text-muted)',
+                                                    padding: '0.25rem 0.75rem',
+                                                    borderRadius: 'var(--radius-full)',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    +{(participants.length - currentQuestionAnswers.length) - 50} more
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -525,12 +685,15 @@ export function GameHost() {
                                 </div>
                             )}
 
-                            {/* Full Leaderboard */}
-                            <div className="card" style={{ maxWidth: '500px', margin: '0 auto 2rem' }}>
-                                <h3 style={{ marginBottom: '1rem' }}>Final Leaderboard</h3>
+                            {/* Top 5 */}
+                            <div className="card mb-xl">
+                                <h4 style={{ marginBottom: '1rem' }}>Top 5</h4>
                                 <div className="leaderboard">
-                                    {participants.map((p, i) => (
-                                        <div key={p.id} className={`leaderboard-item ${i < 3 ? `top-${i + 1}` : ''}`}>
+                                    {participants.slice(0, 5).map((p, i) => (
+                                        <div
+                                            key={p.id}
+                                            className={`leaderboard-item ${i < 3 ? `top-${i + 1}` : ''}`}
+                                        >
                                             <span className={`leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''
                                                 }`}>
                                                 {i + 1}
@@ -542,9 +705,71 @@ export function GameHost() {
                                 </div>
                             </div>
 
-                            <button onClick={() => navigate('/teacher')} className="btn btn-primary btn-lg">
-                                Back to Dashboard
-                            </button>
+                            {/* Detailed Results Table */}
+                            <div className="card mb-xl text-left" style={{ overflowX: 'auto' }}>
+                                <h4 style={{ marginBottom: '1rem' }}>Detailed Results</h4>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Rank</th>
+                                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Student</th>
+                                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Score</th>
+                                            {questions.map((q, i) => (
+                                                <th key={q.id} style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                                    Q{i + 1}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {participants.map((p, i) => (
+                                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                <td style={{ padding: '0.5rem' }}>{i + 1}</td>
+                                                <td style={{ padding: '0.5rem', fontWeight: '500' }}>{p.name}</td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'right' }}>{p.score.toLocaleString()}</td>
+                                                {questions.map((q, qIndex) => {
+                                                    const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
+                                                    const isCorrect = answer?.isCorrect;
+                                                    const time = answer ? (answer.timeTakenMs / 1000).toFixed(1) + 's' : '-';
+
+                                                    return (
+                                                        <td key={q.id} style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                alignItems: 'center',
+                                                                fontSize: '0.8rem'
+                                                            }}>
+                                                                {answer ? (
+                                                                    <span style={{
+                                                                        color: isCorrect ? 'var(--accent-success)' : 'var(--accent-error)',
+                                                                        fontWeight: 'bold'
+                                                                    }}>
+                                                                        {answer.answer}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ color: 'var(--text-muted)' }}>-</span>
+                                                                )}
+                                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{time}</span>
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex gap-md justify-center">
+                                <button onClick={handleDownloadResults} className="btn btn-secondary btn-lg">
+                                    <Download size={20} style={{ marginRight: '0.5rem' }} />
+                                    Download Excel
+                                </button>
+                                <button onClick={() => navigate('/teacher')} className="btn btn-primary btn-lg">
+                                    Back to Dashboard
+                                </button>
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Search, Download, BarChart2, CheckCircle, XCircle } from 'lucide-react';
-import { getQuiz, getResponsesByQuiz, type Quiz, type Response } from '../lib/database';
+import * as XLSX from 'xlsx';
+import {
+    getQuiz,
+    getResponsesByQuiz,
+    getGameSessionsByQuiz,
+    getParticipants,
+    getQuestions,
+    getGameAnswers,
+    type Quiz,
+    type Response
+} from '../lib/database';
 
 export function QuizResults() {
     const { id } = useParams();
@@ -23,10 +33,51 @@ export function QuizResults() {
                 setQuiz(quizData);
             }
 
+            // 1. Fetch Self-Paced Responses
             const responsesData = await getResponsesByQuiz(id);
+
+            // 2. Fetch Live Game Sessions & Participants (LATEST SESSION ONLY)
+            const sessions = await getGameSessionsByQuiz(id);
+            const questions = await getQuestions(id);
+            const totalQuestions = questions.length;
+
+            let liveGameResults: Response[] = [];
+
+            if (sessions.length > 0) {
+                // Sort sessions by creation date descending and take the most recent
+                const latestSession = sessions.sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                )[0];
+
+                const participants = await getParticipants(latestSession.id);
+                const gameAnswers = await getGameAnswers(latestSession.id);
+
+                // Map participants to Response format with CORRECT ANSWER COUNT
+                liveGameResults = participants.map(p => {
+                    // Count correct answers for this participant
+                    const participantAnswers = gameAnswers.filter(a => a.participantId === p.id);
+                    const correctCount = participantAnswers.filter(a => a.isCorrect).length;
+
+                    return {
+                        id: p.id,
+                        quizId: id,
+                        studentName: p.name,
+                        studentEmail: p.email,
+                        score: correctCount, // Use correct answer count, not points
+                        totalQuestions: totalQuestions,
+                        answers: [],
+                        startedAt: p.joinedAt,
+                        completedAt: latestSession.endedAt || null
+                    } as Response;
+                });
+            }
+
+            // 3. Combine and Sort
+            const allResults = [...responsesData, ...liveGameResults];
+
             // Sort by score descending
-            responsesData.sort((a, b) => b.score - a.score);
-            setResponses(responsesData);
+            allResults.sort((a, b) => b.score - a.score);
+            setResponses(allResults);
         } catch (error) {
             console.error('Error fetching results:', error);
         } finally {
@@ -43,24 +94,21 @@ export function QuizResults() {
         ? Math.round(responses.reduce((sum, r) => sum + (r.score / r.totalQuestions * 100), 0) / responses.length)
         : 0;
 
-    const exportCSV = () => {
-        const headers = ['Name', 'Email', 'Score', 'Total Questions', 'Percentage', 'Completed At'];
-        const rows = responses.map(r => [
-            r.studentName,
-            r.studentEmail,
-            r.score,
-            r.totalQuestions,
-            `${Math.round(r.score / r.totalQuestions * 100)}%`,
-            r.completedAt ? new Date(r.completedAt).toLocaleString() : 'In Progress'
-        ]);
+    const exportXLSX = () => {
+        const excelData = responses.map((r, index) => ({
+            'Rank': index + 1,
+            'Name': r.studentName,
+            'Email': r.studentEmail,
+            'Score': r.score,
+            'Total Questions': r.totalQuestions,
+            'Percentage': `${Math.round(r.score / r.totalQuestions * 100)}%`,
+            'Completed At': r.completedAt ? new Date(r.completedAt).toLocaleString() : 'In Progress'
+        }));
 
-        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${quiz?.title || 'quiz'}_results.csv`;
-        a.click();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Results");
+        XLSX.writeFile(wb, `${quiz?.title.replace(/[^a-z0-9]/gi, '_') || 'quiz'}_results.xlsx`);
     };
 
     if (loading) {
@@ -97,9 +145,9 @@ export function QuizResults() {
                             <h1 className="page-title">{quiz.title} - Results</h1>
                             <p className="page-subtitle">{responses.length} responses</p>
                         </div>
-                        <button onClick={exportCSV} className="btn btn-secondary" disabled={responses.length === 0}>
+                        <button onClick={exportXLSX} className="btn btn-secondary" disabled={responses.length === 0}>
                             <Download size={18} />
-                            Export CSV
+                            Export XLSX
                         </button>
                     </div>
                 </div>
@@ -124,7 +172,7 @@ export function QuizResults() {
                         className="card text-center"
                     >
                         <div style={{ fontSize: '2.5rem', fontWeight: '700', color: 'var(--accent-success)' }}>
-                            {averageScore}%
+                            {isNaN(averageScore) ? 0 : averageScore}%
                         </div>
                         <p style={{ color: 'var(--text-muted)' }}>Average Score</p>
                     </motion.div>
@@ -190,7 +238,9 @@ export function QuizResults() {
                             </thead>
                             <tbody>
                                 {filteredResponses.map((response, index) => {
-                                    const percentage = Math.round(response.score / response.totalQuestions * 100);
+                                    const percentage = response.totalQuestions > 0
+                                        ? Math.round(response.score / response.totalQuestions * 100)
+                                        : 0;
                                     return (
                                         <tr
                                             key={response.id}

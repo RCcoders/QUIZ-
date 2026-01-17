@@ -1,15 +1,18 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, User, Zap } from 'lucide-react';
 
 export function Navbar() {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleSignOut = async () => {
         await signOut();
         navigate('/');
     };
+
+    const isStudentPage = ['/student', '/join', '/play'].some(path => location.pathname.startsWith(path));
 
     return (
         <nav className="navbar">
@@ -21,10 +24,12 @@ export function Navbar() {
             <div className="navbar-nav">
                 {user ? (
                     <>
-                        <Link to="/teacher" className="btn btn-secondary btn-sm">
-                            <User size={16} />
-                            {profile?.name || 'Dashboard'}
-                        </Link>
+                        {!isStudentPage && (
+                            <Link to="/teacher" className="btn btn-secondary btn-sm">
+                                <User size={16} />
+                                {profile?.name || 'Dashboard'}
+                            </Link>
+                        )}
                         <button onClick={handleSignOut} className="btn btn-secondary btn-sm">
                             <LogOut size={16} />
                             Logout
