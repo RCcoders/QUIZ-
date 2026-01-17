@@ -314,8 +314,8 @@ export function PlayGame() {
         // Calculate points with granular speed bonus to prevent ties
         let points = 0;
         if (correct) {
-            const BASE_POINTS = 500;
-            const MAX_BONUS = 500;
+            const BASE_POINTS = 10;
+            const MAX_BONUS = 2;
 
             points = BASE_POINTS;
 
@@ -327,7 +327,8 @@ export function PlayGame() {
                 const effectiveTimeTaken = Math.min(timeTaken, totalTimeMs);
 
                 const bonusRatio = 1 - (effectiveTimeTaken / totalTimeMs);
-                const speedBonus = Math.round(MAX_BONUS * Math.max(0, bonusRatio));
+                // Calculate bonus with 1 decimal place precision (e.g. 0.1, 1.5, 2.0)
+                const speedBonus = Math.round((MAX_BONUS * Math.max(0, bonusRatio)) * 10) / 10;
 
                 points += speedBonus;
             }
@@ -336,8 +337,6 @@ export function PlayGame() {
         setSelectedAnswer(answer);
         setHasAnswered(true);
         setIsCorrect(correct);
-        setSelectedAnswer(answer);
-        setHasAnswered(true);
         setIsCorrect(correct);
         setPointsEarned(points);
 
