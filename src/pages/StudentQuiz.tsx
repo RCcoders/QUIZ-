@@ -552,32 +552,63 @@ export function StudentQuiz() {
                     </p>
 
                     {quiz.showResults && (
-                        <div style={{ marginBottom: '2rem' }}>
-                            <h4 style={{ marginBottom: '1rem' }}>Review</h4>
-                            {answers.map((answer, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.5rem',
-                                        background: answer.isCorrect ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 68, 68, 0.1)',
-                                        borderRadius: 'var(--radius-md)',
-                                        marginBottom: '0.5rem',
-                                        fontSize: '0.9rem'
-                                    }}
-                                >
-                                    {answer.isCorrect ? (
-                                        <CheckCircle size={18} color="var(--accent-success)" />
-                                    ) : (
-                                        <XCircle size={18} color="var(--accent-error)" />
-                                    )}
-                                    <span style={{ flex: 1, textAlign: 'left' }}>
-                                        Q{i + 1}: {answer.isCorrect ? 'Correct' : `Wrong (${answer.answer})`}
-                                    </span>
-                                </div>
-                            ))}
+                        <div className="text-left mb-xl">
+                            <h3 className="text-center mb-lg">Review Your Answers</h3>
+                            <div className="flex flex-col gap-md">
+                                {questions.map((q, i) => {
+                                    const userAnswer = answers.find(a => a.questionId === q.id);
+                                    const isCorrect = userAnswer?.isCorrect;
+                                    const userSelectedOption = userAnswer?.answer;
+
+                                    return (
+                                        <div
+                                            key={q.id}
+                                            className="card p-md"
+                                            style={{
+                                                borderLeft: `4px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-error)'}`,
+                                                background: 'var(--bg-elevated)'
+                                            }}
+                                        >
+                                            <div className="flex items-start gap-md">
+                                                <div className="mt-1">
+                                                    {isCorrect ? (
+                                                        <CheckCircle size={20} className="text-success" />
+                                                    ) : (
+                                                        <XCircle size={20} className="text-error" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="font-bold mb-sm">
+                                                        {i + 1}. {q.questionText}
+                                                    </p>
+
+                                                    <div className="text-sm space-y-xs">
+                                                        <div className={`flex items-center gap-xs ${isCorrect ? 'text-success' : 'text-error'}`}>
+                                                            <span className="font-medium">Your Answer:</span>
+                                                            <span>
+                                                                {userSelectedOption ? (
+                                                                    <>
+                                                                        <span className="font-bold">{userSelectedOption}</span>: {q[`option${userSelectedOption}` as keyof typeof q]}
+                                                                    </>
+                                                                ) : 'Skipped'}
+                                                            </span>
+                                                        </div>
+
+                                                        {!isCorrect && (
+                                                            <div className="flex items-center gap-xs text-success">
+                                                                <span className="font-medium">Correct Answer:</span>
+                                                                <span>
+                                                                    <span className="font-bold">{q.correctAnswer}</span>: {q[`option${q.correctAnswer}` as keyof typeof q]}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
 

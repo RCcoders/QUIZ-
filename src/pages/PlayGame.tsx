@@ -37,6 +37,11 @@ export function PlayGame() {
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const [pointsEarned, setPointsEarned] = useState(0);
     const [questionStartTime, setQuestionStartTime] = useState(0);
+    const [myAnswers, setMyAnswers] = useState<Array<{
+        questionIndex: number;
+        answer: string;
+        isCorrect: boolean;
+    }>>([]);
 
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerEnabled, setTimerEnabled] = useState(false);
@@ -350,6 +355,13 @@ export function PlayGame() {
         setHasAnswered(true);
         setIsCorrect(correct);
         setPointsEarned(points);
+
+        // Record answer locally for review
+        setMyAnswers(prev => [...prev, {
+            questionIndex: session.currentQuestionIndex,
+            answer: answer,
+            isCorrect: correct
+        }]);
 
         // Record answer
         try {
@@ -694,6 +706,68 @@ export function PlayGame() {
                                                 <span className="leaderboard-score">{p.score.toLocaleString()}</span>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* Review Section */}
+                                <div className="text-left mb-xl mt-xl">
+                                    <h3 className="text-center mb-lg">Review Your Answers</h3>
+                                    <div className="flex flex-col gap-md">
+                                        {questions.map((q, i) => {
+                                            const myAnswer = myAnswers.find(a => a.questionIndex === i);
+                                            const isCorrect = myAnswer?.isCorrect;
+                                            const userSelectedOption = myAnswer?.answer;
+
+                                            return (
+                                                <div
+                                                    key={q.id}
+                                                    className="card p-md"
+                                                    style={{
+                                                        borderLeft: `4px solid ${isCorrect ? 'var(--accent-success)' : userSelectedOption ? 'var(--accent-error)' : 'var(--text-muted)'}`,
+                                                        background: 'var(--bg-elevated)'
+                                                    }}
+                                                >
+                                                    <div className="flex items-start gap-md">
+                                                        <div className="mt-1">
+                                                            {isCorrect ? (
+                                                                <CheckCircle size={20} className="text-success" />
+                                                            ) : userSelectedOption ? (
+                                                                <XCircle size={20} className="text-error" />
+                                                            ) : (
+                                                                <Clock size={20} className="text-muted" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="font-bold mb-sm">
+                                                                {i + 1}. {q.questionText}
+                                                            </p>
+
+                                                            <div className="text-sm space-y-xs">
+                                                                <div className={`flex items-center gap-xs ${isCorrect ? 'text-success' : userSelectedOption ? 'text-error' : 'text-muted'}`}>
+                                                                    <span className="font-medium">Your Answer:</span>
+                                                                    <span>
+                                                                        {userSelectedOption ? (
+                                                                            <>
+                                                                                <span className="font-bold">{userSelectedOption}</span>: {q[`option${userSelectedOption}` as keyof typeof q]}
+                                                                            </>
+                                                                        ) : 'Did not answer'}
+                                                                    </span>
+                                                                </div>
+
+                                                                {!isCorrect && (
+                                                                    <div className="flex items-center gap-xs text-success">
+                                                                        <span className="font-medium">Correct Answer:</span>
+                                                                        <span>
+                                                                            <span className="font-bold">{q.correctAnswer}</span>: {q[`option${q.correctAnswer}` as keyof typeof q]}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
