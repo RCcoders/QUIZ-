@@ -1093,3 +1093,415 @@ a:hover {
   color: white;
   min-width: 40px;
 }
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+
+/* ---------- Mobile Breakpoints ---------- */
+/* 
+  Mobile-first approach:
+  - Base styles are for mobile (320px+)
+  - sm: 480px (landscape phones)
+  - md: 768px (tablets)
+  - lg: 1024px (desktops)
+*/
+
+/* ---------- Small Mobile Optimizations (max-width: 480px) ---------- */
+@media (max-width: 480px) {
+  /* Typography */
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  h4 {
+    font-size: 1.1rem;
+  }
+
+  /* Container */
+  .container {
+    padding: 0 var(--space-md);
+  }
+
+  /* Page Layout */
+  .page {
+    padding: var(--space-lg) 0;
+  }
+
+  /* Cards */
+  .card {
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Buttons */
+  .btn {
+    padding: var(--space-sm) var(--space-lg);
+    font-size: 0.9rem;
+  }
+
+  .btn-lg {
+    padding: var(--space-md) var(--space-lg);
+    font-size: 1rem;
+  }
+
+  .btn-sm {
+    padding: 0.375rem var(--space-sm);
+    font-size: 0.8rem;
+  }
+
+  /* Game Code Display */
+  .game-code {
+    font-size: 2.5rem;
+    letter-spacing: 0.3rem;
+    padding: var(--space-lg);
+  }
+
+  /* Timer */
+  .timer {
+    width: 80px;
+    height: 80px;
+    font-size: 1.75rem;
+    border-width: 3px;
+  }
+
+  /* Answer Buttons */
+  .answer-btn {
+    min-height: 70px;
+    padding: var(--space-md);
+    font-size: 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-sm);
+  }
+
+  .answer-btn span:first-child {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Leaderboard */
+  .leaderboard-item {
+    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
+    font-size: 0.9rem;
+  }
+
+  .leaderboard-rank {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .leaderboard-name {
+    font-size: 0.9rem;
+  }
+
+  .leaderboard-score {
+    font-size: 0.9rem;
+  }
+
+  /* Podium */
+  .podium {
+    padding: var(--space-lg);
+    gap: var(--space-sm);
+  }
+
+  .podium-place.first {
+    padding: var(--space-lg) var(--space-md);
+    min-height: 140px;
+  }
+
+  .podium-place.second {
+    padding: var(--space-md) var(--space-sm);
+    min-height: 110px;
+  }
+
+  .podium-place.third {
+    padding: var(--space-md) var(--space-sm);
+    min-height: 80px;
+  }
+
+  .podium-name {
+    font-size: 0.95rem;
+  }
+
+  .podium-score {
+    font-size: 0.85rem;
+  }
+
+  /* Navbar */
+  .navbar {
+    padding: var(--space-sm) var(--space-md);
+    flex-wrap: wrap;
+  }
+
+  .navbar-brand {
+    font-size: 1.25rem;
+  }
+
+  .navbar-nav {
+    gap: var(--space-sm);
+    font-size: 0.9rem;
+  }
+
+  /* Form Elements */
+  .form-input,
+  .form-textarea,
+  .form-select {
+    padding: var(--space-sm);
+    font-size: 0.95rem;
+  }
+
+  .form-label {
+    font-size: 0.9rem;
+  }
+
+  /* Grid System */
+  .grid {
+    gap: var(--space-md);
+  }
+
+  /* Hero Section */
+  .hero-title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Section Padding */
+  .section-padding {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  /* QR Container */
+  .qr-container {
+    padding: var(--space-md);
+  }
+
+  .qr-container svg {
+    width: 150px !important;
+    height: 150px !important;
+  }
+
+  /* Badge */
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Icon Circle */
+  .icon-circle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .icon-circle-sm {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Input Code */
+  .input-code {
+    font-size: 1.25rem;
+    letter-spacing: 0.15rem;
+  }
+
+  /* Spacing Utilities */
+  .gap-xl {
+    gap: var(--space-lg);
+  }
+
+  .mb-xl,
+  .mt-xl {
+    margin-bottom: var(--space-lg);
+    margin-top: var(--space-lg);
+  }
+
+  .mb-2xl,
+  .mt-2xl {
+    margin-bottom: var(--space-xl);
+    margin-top: var(--space-xl);
+  }
+
+  /* Table Responsiveness */
+  table {
+    font-size: 0.85rem;
+  }
+
+  table th,
+  table td {
+    padding: 0.375rem !important;
+  }
+}
+
+/* ---------- Tablet Optimizations (481px - 768px) ---------- */
+@media (min-width: 481px) and (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  .game-code {
+    font-size: 3rem;
+    letter-spacing: 0.4rem;
+  }
+
+  .timer {
+    width: 100px;
+    height: 100px;
+    font-size: 2rem;
+  }
+
+  .answer-btn {
+    min-height: 75px;
+    font-size: 1.1rem;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.125rem;
+  }
+
+  .qr-container svg {
+    width: 160px !important;
+    height: 160px !important;
+  }
+}
+
+/* ---------- Touch Optimization (All Mobile Devices) ---------- */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .answer-btn {
+    min-height: 70px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .card:hover {
+    transform: none;
+  }
+
+  .btn:hover {
+    transform: none;
+  }
+
+  /* Add active states for better touch feedback */
+  .btn:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+  }
+
+  .answer-btn:active {
+    transform: scale(0.98);
+  }
+
+  .card:active {
+    transform: translateY(-2px);
+  }
+}
+
+/* ---------- Landscape Phone Optimizations ---------- */
+@media (max-width: 768px) and (orientation: landscape) {
+  .page {
+    padding: var(--space-md) 0;
+  }
+
+  .timer {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+
+  .answer-btn {
+    min-height: 60px;
+    padding: var(--space-sm);
+  }
+
+  .podium {
+    padding: var(--space-md);
+  }
+}
+
+/* ---------- Utility Classes for Mobile ---------- */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  .mobile-full-width {
+    width: 100% !important;
+  }
+
+  .mobile-text-center {
+    text-align: center !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+
+  .mobile-no-gap {
+    gap: 0 !important;
+  }
+
+  .mobile-small-gap {
+    gap: var(--space-sm) !important;
+  }
+}
+
+/* ---------- Desktop Only ---------- */
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none !important;
+  }
+}
+
+/* ---------- Print Styles ---------- */
+@media print {
+  .navbar,
+  .btn,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .card {
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+}
