@@ -5,6 +5,7 @@ import { Users, ArrowRight, Zap } from 'lucide-react';
 import {
     getGameSessionByCode,
     getParticipantByEmail,
+    getParticipants,
     addParticipant,
     type GameSession
 } from '../lib/database';
@@ -83,13 +84,34 @@ export function JoinGame() {
         setError('');
 
         try {
+            // Check for ban
+            const isBanned = localStorage.getItem(`banned_session_${session.id}`);
+            if (isBanned) {
+                setError('You have been banned from this game session.');
+                setLoading(false);
+                return;
+            }
+
             // Check if already joined
             const existing = await getParticipantByEmail(session.id, email);
+
+            // Check for name uniqueness
+            if (!existing) {
+                const participants = await getParticipants(session.id);
+                const nameTaken = participants.some(p => p.name.toLowerCase() === name.trim().toLowerCase());
+                if (nameTaken) {
+                    setError('Name already taken. Please choose another name.');
+                    setLoading(false);
+                    return;
+                }
+            }
 
             let participantId: string;
 
             if (existing) {
                 participantId = existing.id;
+                // If resuming, ensure name matches or update it? 
+                // For now, we trust the email link.
             } else {
                 participantId = await addParticipant(session.id, {
                     name,

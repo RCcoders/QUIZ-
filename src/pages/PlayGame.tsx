@@ -48,6 +48,7 @@ export function PlayGame() {
     // Anti-Cheat State
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
+    const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
     const [showCheatWarning, setShowCheatWarning] = useState(false);
     const [cameraGranted, setCameraGranted] = useState(false);
     const [micGranted, setMicGranted] = useState(false);
@@ -86,7 +87,27 @@ export function PlayGame() {
         };
 
         const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+            const isNowFullscreen = !!document.fullscreenElement;
+            setIsFullscreen(isNowFullscreen);
+
+            // Track fullscreen exits during active game
+            if (!isNowFullscreen && session?.status === 'question') {
+                setFullscreenExitCount(prev => {
+                    const newCount = prev + 1;
+                    if (newCount >= 2) {
+                        alert('You have exited fullscreen mode more than 2 times. You will be removed from the game.');
+                        // Set ban flag
+                        if (session?.id) {
+                            localStorage.setItem(`banned_session_${session.id}`, 'true');
+                        }
+                        // Navigate back to join page
+                        navigate('/join');
+                    } else {
+                        alert(`Warning: Exiting fullscreen mode! (${newCount}/2) - One more exit will remove you from the game.`);
+                    }
+                    return newCount;
+                });
+            }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -96,7 +117,7 @@ export function PlayGame() {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, []);
+    }, [session?.status, navigate]);
 
     const enterFullscreen = async () => {
         try {
@@ -110,18 +131,16 @@ export function PlayGame() {
         setPermissionError(null);
 
         try {
-            // Request camera and microphone with specific constraints
+            // Request microphone only
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 },
+                video: false,
                 audio: true
             });
 
             setMediaStream(stream);
-            setCameraGranted(true);
             setMicGranted(true);
 
             console.log('Permissions granted:', {
-                video: stream.getVideoTracks().length > 0,
                 audio: stream.getAudioTracks().length > 0
             });
 
@@ -131,11 +150,11 @@ export function PlayGame() {
             console.error('Error requesting media permissions:', err);
 
             if (err.name === 'NotAllowedError') {
-                setPermissionError('You must allow camera and microphone access to join this game. Please click \"Allow\" when prompted.');
+                setPermissionError('You must allow microphone access to join this game. Please click "Allow" when prompted.');
             } else if (err.name === 'NotFoundError') {
-                setPermissionError('No camera or microphone found. Please connect a device and try again.');
+                setPermissionError('No microphone found. Please connect a device and try again.');
             } else {
-                setPermissionError('Camera and microphone access is required. Error: ' + err.message);
+                setPermissionError('Microphone access is required. Error: ' + err.message);
             }
         }
     };

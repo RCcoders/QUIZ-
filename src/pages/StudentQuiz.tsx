@@ -49,6 +49,7 @@ export function StudentQuiz() {
     const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
+    const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
 
     useEffect(() => {
         fetchQuiz();
@@ -91,13 +92,87 @@ export function StudentQuiz() {
     const fetchQuiz = async () => {
         if (!id) return;
 
-        // Handle Practice Quiz
-        if (id === 'practice-quiz') {
+        // Handle Practice Quizzes
+        if (id?.startsWith('practice-')) {
+            let title = '';
+            let description = '';
+            let quizQuestions: any[] = [];
+
+            switch (id) {
+                case 'practice-quiz': // Keeping original ID for ML for backward compatibility
+                    title = 'Machine Learning Practice Quiz';
+                    description = 'Test your knowledge of ML fundamentals with 10 questions.';
+                    quizQuestions = [
+                        { id: 'p1', quizId: 'practice-quiz', questionText: 'Which type of learning uses labeled data to train a model?', optionA: 'Unsupervised Learning', optionB: 'Reinforcement Learning', optionC: 'Supervised Learning', optionD: 'Semi-supervised Learning', correctAnswer: 'C', difficulty: 'easy', orderIndex: 0, createdAt: '' },
+                        { id: 'p2', quizId: 'practice-quiz', questionText: 'Which algorithm is mainly used for classification problems?', optionA: 'Linear Regression', optionB: 'K-Means', optionC: 'Decision Tree', optionD: 'Apriori', correctAnswer: 'C', difficulty: 'easy', orderIndex: 1, createdAt: '' },
+                        { id: 'p3', quizId: 'practice-quiz', questionText: 'What does overfitting mean in machine learning?', optionA: 'Model performs well on both training and test data', optionB: 'Model performs poorly on training data', optionC: 'Model memorizes training data and performs poorly on new data', optionD: 'Model has too little data', correctAnswer: 'C', difficulty: 'medium', orderIndex: 2, createdAt: '' },
+                        { id: 'p4', quizId: 'practice-quiz', questionText: 'Which evaluation metric is best for imbalanced datasets?', optionA: 'Accuracy', optionB: 'Precision-Recall / F1 Score', optionC: 'Mean Squared Error', optionD: 'R-squared', correctAnswer: 'B', difficulty: 'medium', orderIndex: 3, createdAt: '' },
+                        { id: 'p5', quizId: 'practice-quiz', questionText: 'Which algorithm groups similar data points together?', optionA: 'Logistic Regression', optionB: 'K-Means Clustering', optionC: 'Naive Bayes', optionD: 'Random Forest', correctAnswer: 'B', difficulty: 'medium', orderIndex: 4, createdAt: '' },
+                        { id: 'p6', quizId: 'practice-quiz', questionText: 'What is the main purpose of a loss function?', optionA: 'To visualize data', optionB: 'To measure model error', optionC: 'To increase accuracy manually', optionD: 'To normalize data', correctAnswer: 'B', difficulty: 'medium', orderIndex: 5, createdAt: '' },
+                        { id: 'p7', quizId: 'practice-quiz', questionText: 'Which technique helps reduce overfitting?', optionA: 'Increasing model complexity', optionB: 'Adding more irrelevant features', optionC: 'Regularization', optionD: 'Reducing training data', correctAnswer: 'C', difficulty: 'hard', orderIndex: 6, createdAt: '' },
+                        { id: 'p8', quizId: 'practice-quiz', questionText: 'Which activation function is commonly used in binary classification?', optionA: 'ReLU', optionB: 'Sigmoid', optionC: 'Tanh', optionD: 'Softmax', correctAnswer: 'B', difficulty: 'hard', orderIndex: 7, createdAt: '' },
+                        { id: 'p9', quizId: 'practice-quiz', questionText: 'What does "feature scaling" do?', optionA: 'Removes missing values', optionB: 'Converts labels to numbers', optionC: 'Brings features to similar range', optionD: 'Reduces dataset size', correctAnswer: 'C', difficulty: 'hard', orderIndex: 8, createdAt: '' },
+                        { id: 'p10', quizId: 'practice-quiz', questionText: 'Which algorithm works on Bayes Theorem?', optionA: 'Support Vector Machine', optionB: 'KNN', optionC: 'Naive Bayes', optionD: 'Decision Tree', correctAnswer: 'C', difficulty: 'hard', orderIndex: 9, createdAt: '' }
+                    ];
+                    break;
+
+                case 'practice-sql':
+                    title = 'SQL Fundamentals Quiz';
+                    description = 'Test your SQL knowledge with 10 essential questions.';
+                    quizQuestions = [
+                        { id: 'sql1', quizId: 'practice-sql', questionText: 'Which SQL command is used to remove all rows from a table but keep the structure?', optionA: 'DROP', optionB: 'DELETE', optionC: 'TRUNCATE', optionD: 'REMOVE', correctAnswer: 'C', difficulty: 'medium', orderIndex: 0, createdAt: '' },
+                        { id: 'sql2', quizId: 'practice-sql', questionText: 'Which clause is used to filter records?', optionA: 'ORDER BY', optionB: 'GROUP BY', optionC: 'WHERE', optionD: 'HAVING', correctAnswer: 'C', difficulty: 'easy', orderIndex: 1, createdAt: '' },
+                        { id: 'sql3', quizId: 'practice-sql', questionText: 'Which join returns only matching records from both tables?', optionA: 'LEFT JOIN', optionB: 'RIGHT JOIN', optionC: 'INNER JOIN', optionD: 'FULL JOIN', correctAnswer: 'C', difficulty: 'medium', orderIndex: 2, createdAt: '' },
+                        { id: 'sql4', quizId: 'practice-sql', questionText: 'Which constraint ensures a column cannot have NULL values?', optionA: 'UNIQUE', optionB: 'PRIMARY KEY', optionC: 'NOT NULL', optionD: 'CHECK', correctAnswer: 'C', difficulty: 'easy', orderIndex: 3, createdAt: '' },
+                        { id: 'sql5', quizId: 'practice-sql', questionText: 'What does GROUP BY do?', optionA: 'Sorts records', optionB: 'Filters records', optionC: 'Aggregates rows with same values', optionD: 'Deletes duplicates', correctAnswer: 'C', difficulty: 'medium', orderIndex: 4, createdAt: '' },
+                        { id: 'sql6', quizId: 'practice-sql', questionText: 'Which function returns the total number of rows?', optionA: 'SUM()', optionB: 'COUNT()', optionC: 'AVG()', optionD: 'TOTAL()', correctAnswer: 'B', difficulty: 'easy', orderIndex: 5, createdAt: '' },
+                        { id: 'sql7', quizId: 'practice-sql', questionText: 'Which command is used to modify existing records?', optionA: 'UPDATE', optionB: 'INSERT', optionC: 'ALTER', optionD: 'MODIFY', correctAnswer: 'A', difficulty: 'easy', orderIndex: 6, createdAt: '' },
+                        { id: 'sql8', quizId: 'practice-sql', questionText: 'Which keyword is used to eliminate duplicate values?', optionA: 'DISTINCT', optionB: 'UNIQUE', optionC: 'DIFFERENT', optionD: 'FILTER', correctAnswer: 'A', difficulty: 'medium', orderIndex: 7, createdAt: '' },
+                        { id: 'sql9', quizId: 'practice-sql', questionText: 'Which normal form removes transitive dependency?', optionA: '1NF', optionB: '2NF', optionC: '3NF', optionD: 'BCNF', correctAnswer: 'C', difficulty: 'hard', orderIndex: 8, createdAt: '' },
+                        { id: 'sql10', quizId: 'practice-sql', questionText: 'Which index improves SELECT query performance?', optionA: 'Clustered Index', optionB: 'Foreign Key', optionC: 'Trigger', optionD: 'View', correctAnswer: 'A', difficulty: 'hard', orderIndex: 9, createdAt: '' }
+                    ];
+                    break;
+
+                case 'practice-nn':
+                    title = 'Neural Networks Quiz';
+                    description = 'Challenge yourself with 10 Neural Network questions.';
+                    quizQuestions = [
+                        { id: 'nn1', quizId: 'practice-nn', questionText: 'What is a neuron in neural networks?', optionA: 'A dataset', optionB: 'A mathematical function', optionC: 'A storage unit', optionD: 'A database', correctAnswer: 'B', difficulty: 'easy', orderIndex: 0, createdAt: '' },
+                        { id: 'nn2', quizId: 'practice-nn', questionText: 'Which component adjusts during training?', optionA: 'Bias', optionB: 'Weights', optionC: 'Learning rate', optionD: 'Epoch', correctAnswer: 'B', difficulty: 'medium', orderIndex: 1, createdAt: '' },
+                        { id: 'nn3', quizId: 'practice-nn', questionText: 'What does backpropagation do?', optionA: 'Forward data flow', optionB: 'Error calculation and weight update', optionC: 'Data normalization', optionD: 'Feature extraction', correctAnswer: 'B', difficulty: 'hard', orderIndex: 2, createdAt: '' },
+                        { id: 'nn4', quizId: 'practice-nn', questionText: 'Which activation function is commonly used in hidden layers?', optionA: 'Sigmoid', optionB: 'ReLU', optionC: 'Softmax', optionD: 'Linear', correctAnswer: 'B', difficulty: 'medium', orderIndex: 3, createdAt: '' },
+                        { id: 'nn5', quizId: 'practice-nn', questionText: 'What is an epoch?', optionA: 'One neuron update', optionB: 'One forward pass', optionC: 'One complete pass through training data', optionD: 'One batch', correctAnswer: 'C', difficulty: 'easy', orderIndex: 4, createdAt: '' },
+                        { id: 'nn6', quizId: 'practice-nn', questionText: 'What problem does gradient descent solve?', optionA: 'Memory optimization', optionB: 'Minimizing loss function', optionC: 'Data cleaning', optionD: 'Feature selection', correctAnswer: 'B', difficulty: 'medium', orderIndex: 5, createdAt: '' },
+                        { id: 'nn7', quizId: 'practice-nn', questionText: 'Which layer produces final output?', optionA: 'Input layer', optionB: 'Hidden layer', optionC: 'Output layer', optionD: 'Dropout layer', correctAnswer: 'C', difficulty: 'easy', orderIndex: 6, createdAt: '' },
+                        { id: 'nn8', quizId: 'practice-nn', questionText: 'What causes vanishing gradient?', optionA: 'Large learning rate', optionB: 'Deep networks with sigmoid/tanh', optionC: 'Too much data', optionD: 'Too many neurons', correctAnswer: 'B', difficulty: 'hard', orderIndex: 7, createdAt: '' },
+                        { id: 'nn9', quizId: 'practice-nn', questionText: 'Which technique randomly disables neurons during training?', optionA: 'Batch normalization', optionB: 'Regularization', optionC: 'Dropout', optionD: 'Pooling', correctAnswer: 'C', difficulty: 'medium', orderIndex: 8, createdAt: '' },
+                        { id: 'nn10', quizId: 'practice-nn', questionText: 'Softmax activation is mainly used for:', optionA: 'Binary classification', optionB: 'Regression', optionC: 'Multi-class classification', optionD: 'Clustering', correctAnswer: 'C', difficulty: 'medium', orderIndex: 9, createdAt: '' }
+                    ];
+                    break;
+
+                case 'practice-vcs':
+                    title = 'Version Control (Git) Quiz';
+                    description = 'Test your Git and Version Control skills.';
+                    quizQuestions = [
+                        { id: 'vcs1', quizId: 'practice-vcs', questionText: 'What is Git?', optionA: 'Programming language', optionB: 'Database', optionC: 'Version control system', optionD: 'IDE', correctAnswer: 'C', difficulty: 'easy', orderIndex: 0, createdAt: '' },
+                        { id: 'vcs2', quizId: 'practice-vcs', questionText: 'Which command creates a new repository?', optionA: 'git clone', optionB: 'git init', optionC: 'git start', optionD: 'git create', correctAnswer: 'B', difficulty: 'easy', orderIndex: 1, createdAt: '' },
+                        { id: 'vcs3', quizId: 'practice-vcs', questionText: 'Which command checks repository status?', optionA: 'git log', optionB: 'git diff', optionC: 'git status', optionD: 'git info', correctAnswer: 'C', difficulty: 'easy', orderIndex: 2, createdAt: '' },
+                        { id: 'vcs4', quizId: 'practice-vcs', questionText: 'Which command saves changes to local repository?', optionA: 'git push', optionB: 'git commit', optionC: 'git merge', optionD: 'git pull', correctAnswer: 'B', difficulty: 'medium', orderIndex: 3, createdAt: '' },
+                        { id: 'vcs5', quizId: 'practice-vcs', questionText: 'Which command uploads local commits to remote repository?', optionA: 'git pull', optionB: 'git clone', optionC: 'git push', optionD: 'git fetch', correctAnswer: 'C', difficulty: 'medium', orderIndex: 4, createdAt: '' },
+                        { id: 'vcs6', quizId: 'practice-vcs', questionText: 'Which command downloads changes but doesn’t merge automatically?', optionA: 'git pull', optionB: 'git fetch', optionC: 'git clone', optionD: 'git merge', correctAnswer: 'B', difficulty: 'hard', orderIndex: 5, createdAt: '' },
+                        { id: 'vcs7', quizId: 'practice-vcs', questionText: 'Which command creates a new branch?', optionA: 'git checkout', optionB: 'git branch', optionC: 'git merge', optionD: 'git fork', correctAnswer: 'B', difficulty: 'medium', orderIndex: 6, createdAt: '' },
+                        { id: 'vcs8', quizId: 'practice-vcs', questionText: 'Which command switches branches?', optionA: 'git move', optionB: 'git branch', optionC: 'git checkout', optionD: 'git switch', correctAnswer: 'C', difficulty: 'medium', orderIndex: 7, createdAt: '' },
+                        { id: 'vcs9', quizId: 'practice-vcs', questionText: 'Which command removes a branch safely?', optionA: 'git branch -D', optionB: 'git branch -d', optionC: 'git delete', optionD: 'git remove', correctAnswer: 'B', difficulty: 'hard', orderIndex: 8, createdAt: '' },
+                        { id: 'vcs10', quizId: 'practice-vcs', questionText: 'What does git stash do?', optionA: 'Deletes files', optionB: 'Saves unfinished changes temporarily', optionC: 'Uploads code', optionD: 'Merges branches', correctAnswer: 'B', difficulty: 'medium', orderIndex: 9, createdAt: '' }
+                    ];
+                    break;
+            }
+
             setQuiz({
-                id: 'practice-quiz',
+                id: id,
                 teacherId: 'system',
-                title: 'General Knowledge Practice',
-                description: 'A quick 10-question quiz to test your knowledge.',
+                title: title,
+                description: description,
                 isActive: true,
                 timerEnabled: true,
                 timerSeconds: 30,
@@ -106,18 +181,7 @@ export function StudentQuiz() {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             });
-            setQuestions([
-                { id: 'p1', quizId: 'practice-quiz', questionText: 'What is the capital of France?', optionA: 'London', optionB: 'Berlin', optionC: 'Paris', optionD: 'Madrid', correctAnswer: 'C', difficulty: 'easy', orderIndex: 0, createdAt: '' },
-                { id: 'p2', quizId: 'practice-quiz', questionText: 'Which planet is known as the Red Planet?', optionA: 'Venus', optionB: 'Mars', optionC: 'Jupiter', optionD: 'Saturn', correctAnswer: 'B', difficulty: 'easy', orderIndex: 1, createdAt: '' },
-                { id: 'p3', quizId: 'practice-quiz', questionText: 'What is the largest mammal in the world?', optionA: 'African Elephant', optionB: 'Blue Whale', optionC: 'Giraffe', optionD: 'Great White Shark', correctAnswer: 'B', difficulty: 'medium', orderIndex: 2, createdAt: '' },
-                { id: 'p4', quizId: 'practice-quiz', questionText: 'Who wrote "Romeo and Juliet"?', optionA: 'Charles Dickens', optionB: 'William Shakespeare', optionC: 'Mark Twain', optionD: 'Jane Austen', correctAnswer: 'B', difficulty: 'medium', orderIndex: 3, createdAt: '' },
-                { id: 'p5', quizId: 'practice-quiz', questionText: 'What is the chemical symbol for Gold?', optionA: 'Ag', optionB: 'Fe', optionC: 'Au', optionD: 'Cu', correctAnswer: 'C', difficulty: 'medium', orderIndex: 4, createdAt: '' },
-                { id: 'p6', quizId: 'practice-quiz', questionText: 'Which element has the atomic number 1?', optionA: 'Helium', optionB: 'Oxygen', optionC: 'Hydrogen', optionD: 'Carbon', correctAnswer: 'C', difficulty: 'hard', orderIndex: 5, createdAt: '' },
-                { id: 'p7', quizId: 'practice-quiz', questionText: 'In which year did World War II end?', optionA: '1943', optionB: '1944', optionC: '1945', optionD: '1946', correctAnswer: 'C', difficulty: 'hard', orderIndex: 6, createdAt: '' },
-                { id: 'p8', quizId: 'practice-quiz', questionText: 'What is the hardest natural substance on Earth?', optionA: 'Gold', optionB: 'Iron', optionC: 'Diamond', optionD: 'Platinum', correctAnswer: 'C', difficulty: 'medium', orderIndex: 7, createdAt: '' },
-                { id: 'p9', quizId: 'practice-quiz', questionText: 'Which is the longest river in the world?', optionA: 'Amazon', optionB: 'Nile', optionC: 'Yangtze', optionD: 'Mississippi', correctAnswer: 'B', difficulty: 'hard', orderIndex: 8, createdAt: '' },
-                { id: 'p10', quizId: 'practice-quiz', questionText: 'How many bones are in the adult human body?', optionA: '206', optionB: '208', optionC: '210', optionD: '212', correctAnswer: 'A', difficulty: 'hard', orderIndex: 9, createdAt: '' }
-            ]);
+            setQuestions(quizQuestions);
             setLoading(false);
             return;
         }
@@ -152,7 +216,7 @@ export function StudentQuiz() {
         }
 
         // Handle Practice Quiz - No DB
-        if (id === 'practice-quiz') {
+        if (id?.startsWith('practice-')) {
             setStarted(true);
             setQuestionStartTime(Date.now());
             if (quiz?.timerEnabled) {
@@ -218,8 +282,28 @@ export function StudentQuiz() {
     // Monitor fullscreen and tab switching
     useEffect(() => {
         const handleFullscreenChange = () => {
-            if (!document.fullscreenElement && started) {
-                alert('Warning: Exiting fullscreen mode during a quiz may be considered cheating!');
+            if (!document.fullscreenElement && started && !completed) {
+                // Don't count exits for practice quiz
+                if (id?.startsWith('practice-')) {
+                    alert('Warning: Exiting fullscreen mode during a quiz may be considered cheating!');
+                    return;
+                }
+
+                setFullscreenExitCount(prev => {
+                    const newCount = prev + 1;
+                    if (newCount >= 2) {
+                        alert('You have exited fullscreen mode more than 2 times. Your test will now end.');
+                        // Force complete the quiz
+                        setCompleted(true);
+                        // Exit fullscreen
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        }
+                    } else {
+                        alert(`Warning: Exiting fullscreen mode! (${newCount}/2) - One more exit will end your test.`);
+                    }
+                    return newCount;
+                });
             }
         };
 
@@ -240,7 +324,7 @@ export function StudentQuiz() {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [started]);
+    }, [started, completed, id]);
 
     // Cleanup media stream on unmount
     useEffect(() => {
@@ -277,7 +361,7 @@ export function StudentQuiz() {
             // Complete quiz
             const score = answers.filter(a => a.isCorrect).length + (selectedAnswer === questions[currentIndex].correctAnswer ? 1 : 0);
 
-            if (responseId && id !== 'practice-quiz') {
+            if (responseId && !id?.startsWith('practice-')) {
                 await updateResponse(responseId, {
                     score,
                     answers: [...answers, {

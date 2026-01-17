@@ -17,7 +17,8 @@ export function StudentBrowse() {
     const MAX_RETRIES = 2;
 
     useEffect(() => {
-        fetchActiveQuizzes();
+        // fetchActiveQuizzes();
+        setLoading(false);
     }, []);
 
     const fetchActiveQuizzes = async (isRetry = false) => {
@@ -146,45 +147,79 @@ export function StudentBrowse() {
                 </div>
 
                 {quizzes.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="grid grid-1 max-w-2xl mx-auto"
-                    >
-                        <Link
-                            to="/student/quiz/practice-quiz"
-                            className="card group hover:border-primary transition-all duration-300"
-                            style={{
-                                border: '2px dashed var(--text-muted)',
-                                background: 'var(--gradient-card)'
-                            }}
-                        >
-                            <div className="flex flex-col items-center text-center p-lg">
-                                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-md"
-                                    style={{ background: 'var(--accent-primary-glow)', borderRadius: '50%', width: '64px', height: '64px', marginBottom: '1.5rem' }}>
-                                    <HelpCircle size={32} className="text-blue-400" style={{ color: 'var(--accent-primary)' }} />
-                                </div>
+                    <div className="grid grid-2 gap-lg">
+                        {[
+                            {
+                                id: 'practice-quiz',
+                                title: 'Machine Learning Practice',
+                                description: 'Test your ML fundamentals with 10 questions.',
+                                icon: <HelpCircle size={24} className="text-blue-400" />,
+                                color: 'var(--accent-primary)'
+                            },
+                            {
+                                id: 'practice-sql',
+                                title: 'SQL Fundamentals',
+                                description: 'Master database queries with 10 SQL questions.',
+                                icon: <HelpCircle size={24} className="text-emerald-400" />,
+                                color: 'var(--accent-success)'
+                            },
+                            {
+                                id: 'practice-nn',
+                                title: 'Neural Networks',
+                                description: 'Deep dive into neurons, layers, and training.',
+                                icon: <HelpCircle size={24} className="text-purple-400" />,
+                                color: 'var(--accent-secondary)'
+                            },
+                            {
+                                id: 'practice-vcs',
+                                title: 'Version Control (Git)',
+                                description: 'Check your Git command knowledge.',
+                                icon: <HelpCircle size={24} className="text-orange-400" />,
+                                color: 'var(--accent-warning)'
+                            }
+                        ].map((quiz, index) => (
+                            <motion.div
+                                key={quiz.id}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                <Link
+                                    to={`/student/quiz/${quiz.id}`}
+                                    className="card group hover:border-primary transition-all duration-300 h-full flex flex-col"
+                                    style={{
+                                        border: '2px dashed var(--text-muted)',
+                                        background: 'var(--gradient-card)'
+                                    }}
+                                >
+                                    <div className="flex flex-col items-center text-center p-lg flex-1">
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-md"
+                                            style={{ background: `${quiz.color}20`, borderRadius: '50%', width: '48px', height: '48px', marginBottom: '1rem' }}>
+                                            {quiz.icon}
+                                        </div>
 
-                                <h3 className="text-2xl font-bold mb-sm">General Knowledge Practice</h3>
-                                <p className="text-gray-400 mb-lg max-w-md">
-                                    No active quizzes from your teacher right now? Keep your mind sharp with our 10-question general knowledge challenge!
-                                </p>
+                                        <h3 className="text-xl font-bold mb-sm">{quiz.title}</h3>
+                                        <p className="text-gray-400 mb-lg text-sm">
+                                            {quiz.description}
+                                        </p>
 
-                                <div className="flex gap-xl text-sm font-medium text-gray-300">
-                                    <span className="flex items-center gap-xs">
-                                        <HelpCircle size={16} className="mr-1" /> 10 Questions
-                                    </span>
-                                    <span className="flex items-center gap-xs">
-                                        <Clock size={16} className="mr-1" /> 30s / question
-                                    </span>
-                                </div>
+                                        <div className="mt-auto flex gap-md text-xs font-medium text-gray-300">
+                                            <span className="flex items-center gap-xs">
+                                                <HelpCircle size={14} className="mr-1" /> 10 Qs
+                                            </span>
+                                            <span className="flex items-center gap-xs">
+                                                <Clock size={14} className="mr-1" /> 30s
+                                            </span>
+                                        </div>
 
-                                <div className="mt-lg btn btn-secondary w-full max-w-xs">
-                                    Start Practice Quiz
-                                </div>
-                            </div>
-                        </Link>
-                    </motion.div>
+                                        <div className="mt-md btn btn-secondary w-full text-sm">
+                                            Start Quiz
+                                        </div>
+                                    </div>
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </div>
                 ) : (
                     <div className="grid grid-2 gap-lg">
                         {quizzes.map((quiz, index) => (
