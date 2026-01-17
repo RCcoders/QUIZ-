@@ -311,14 +311,25 @@ export function PlayGame() {
         const correct = answer === currentQuestion.correctAnswer;
 
         // Calculate points with speed bonus
+        // Calculate points with granular speed bonus to prevent ties
         let points = 0;
         if (correct) {
-            points = 10; // Base points
+            const BASE_POINTS = 500;
+            const MAX_BONUS = 500;
+
+            points = BASE_POINTS;
+
             if (timerEnabled && timerSeconds > 0) {
-                const timeRatio = timeTaken / (timerSeconds * 1000);
-                if (timeRatio <= 0.25) points += 5;
-                else if (timeRatio <= 0.5) points += 3;
-                else if (timeRatio <= 0.75) points += 1;
+                // Linear decay: Full bonus at 0s, 0 bonus at timerSeconds
+                // Formula: Bonus * (1 - (timeTaken / totalTime))
+                const totalTimeMs = timerSeconds * 1000;
+                // Clamp timeTaken to not exceed totalTimeMs (though it shouldn't)
+                const effectiveTimeTaken = Math.min(timeTaken, totalTimeMs);
+
+                const bonusRatio = 1 - (effectiveTimeTaken / totalTimeMs);
+                const speedBonus = Math.round(MAX_BONUS * Math.max(0, bonusRatio));
+
+                points += speedBonus;
             }
         }
 
