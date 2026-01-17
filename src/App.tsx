@@ -12,11 +12,13 @@ import { StudentBrowse } from './pages/StudentBrowse';
 import { StudentQuiz } from './pages/StudentQuiz';
 import { JoinGame } from './pages/JoinGame';
 import { PlayGame } from './pages/PlayGame';
+import { Background3D } from './components/Background3D';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Background3D />
         <Navbar />
         <Routes>
           {/* Public Routes */}

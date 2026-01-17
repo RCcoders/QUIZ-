@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock, Trophy, Camera, Mic } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Trophy, Loader } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { StreakCounter } from '../components/StreakCounter';
 import {
     getGameSession,
     getQuiz,
@@ -42,6 +43,7 @@ export function PlayGame() {
         answer: string;
         isCorrect: boolean;
     }>>([]);
+    const [currentStreak, setCurrentStreak] = useState(0);
 
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerEnabled, setTimerEnabled] = useState(false);
@@ -55,10 +57,6 @@ export function PlayGame() {
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
     const [showCheatWarning, setShowCheatWarning] = useState(false);
-    const [cameraGranted, setCameraGranted] = useState(false);
-    const [micGranted, setMicGranted] = useState(false);
-    const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-    const [permissionError, setPermissionError] = useState<string | null>(null);
 
     // Helper to manage local question start time
     const getOrSetLocalStartTime = (sId: string, qIndex: number) => {
@@ -85,7 +83,16 @@ export function PlayGame() {
             if (document.hidden) {
                 setTabSwitchCount(prev => {
                     const newCount = prev + 1;
-                    if (newCount >= 1) setShowCheatWarning(true);
+                    if (newCount >= 2) {
+                        alert('Violation: You have switched tabs too many times. You will be removed from the game.');
+                        if (session?.id) {
+                            localStorage.setItem(`banned_session_${session.id}`, 'true');
+                        }
+                        navigate('/join');
+                    } else {
+                        alert(`Warning: Tab switching is not allowed! (${newCount}/2)`);
+                        setShowCheatWarning(true);
+                    }
                     return newCount;
                 });
             }
@@ -132,46 +139,10 @@ export function PlayGame() {
         }
     };
 
-    const requestPermissions = async () => {
-        setPermissionError(null);
 
-        try {
-            // Request microphone only
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: true
-            });
-
-            setMediaStream(stream);
-            setMicGranted(true);
-
-            console.log('Permissions granted:', {
-                audio: stream.getAudioTracks().length > 0
-            });
-
-            // Also enter fullscreen
-            await enterFullscreen();
-        } catch (err: any) {
-            console.error('Error requesting media permissions:', err);
-
-            if (err.name === 'NotAllowedError') {
-                setPermissionError('You must allow microphone access to join this game. Please click "Allow" when prompted.');
-            } else if (err.name === 'NotFoundError') {
-                setPermissionError('No microphone found. Please connect a device and try again.');
-            } else {
-                setPermissionError('Microphone access is required. Error: ' + err.message);
-            }
-        }
-    };
 
     // Cleanup media stream on unmount
-    useEffect(() => {
-        return () => {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, [mediaStream]);
+
 
     const initializeGame = async () => {
         if (!sessionId || !participantId) return;
@@ -354,7 +325,16 @@ export function PlayGame() {
         setSelectedAnswer(answer);
         setHasAnswered(true);
         setIsCorrect(correct);
+        setSelectedAnswer(answer);
+        setHasAnswered(true);
+        setIsCorrect(correct);
         setPointsEarned(points);
+
+        if (correct) {
+            setCurrentStreak(prev => prev + 1);
+        } else {
+            setCurrentStreak(0);
+        }
 
         // Record answer locally for review
         setMyAnswers(prev => [...prev, {
@@ -424,67 +404,10 @@ export function PlayGame() {
     return (
         <div className="page">
             <div className="container container-md">
-                {/* Permission Check Screen */}
-                {(!cameraGranted || !micGranted) && (
-                    <div className="min-h-screen flex items-center justify-center">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="card"
-                            style={{ width: '100%', maxWidth: '450px' }}
-                        >
-                            <h2 style={{ marginBottom: '0.5rem', textAlign: 'center' }}>Anti-Cheat Requirements</h2>
-                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>
-                                To ensure fair play, we need access to your camera and microphone
-                            </p>
 
-                            <div style={{
-                                background: 'var(--bg-elevated)',
-                                padding: 'var(--space-lg)',
-                                borderRadius: 'var(--radius-lg)',
-                                marginBottom: '1.5rem'
-                            }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <Camera size={20} color={cameraGranted ? 'var(--accent-success)' : 'var(--text-muted)'} />
-                                        <span style={{ flex: 1 }}>Camera Access</span>
-                                        {cameraGranted ? (
-                                            <CheckCircle size={20} color="var(--accent-success)" />
-                                        ) : (
-                                            <XCircle size={20} color="var(--text-muted)" />
-                                        )}
-                                    </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <Mic size={20} color={micGranted ? 'var(--accent-success)' : 'var(--text-muted)'} />
-                                        <span style={{ flex: 1 }}>Microphone Access</span>
-                                        {micGranted ? (
-                                            <CheckCircle size={20} color="var(--accent-success)" />
-                                        ) : (
-                                            <XCircle size={20} color="var(--text-muted)" />
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={requestPermissions}
-                                className="btn btn-primary btn-lg w-full"
-                            >
-                                Grant Permissions & Join Game
-                            </button>
-
-                            {permissionError && (
-                                <p style={{ color: 'var(--accent-error)', marginTop: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>
-                                    {permissionError}
-                                </p>
-                            )}
-                        </motion.div>
-                    </div>
-                )}
-
-                {/* Game Content - Only show if permissions granted */}
-                {cameraGranted && micGranted && (
+                {/* Game Content */}
+                {(true) && (
                     <AnimatePresence mode="wait">
                         {/* Waiting for game to start */}
                         {session.status === 'waiting' && (
@@ -493,24 +416,60 @@ export function PlayGame() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="text-center"
-                                style={{ paddingTop: '4rem' }}
+                                className="min-h-screen flex flex-col items-center justify-center text-center p-md"
+                                style={{ marginTop: '-4rem' }} // Offset for navbar if needed, or just center
                             >
-                                <h2 style={{ marginBottom: '1rem' }}>Welcome, {playerName}!</h2>
-                                <div style={{
-                                    background: 'var(--bg-card)',
-                                    borderRadius: 'var(--radius-xl)',
-                                    padding: '3rem',
-                                    marginBottom: '2rem'
-                                }}>
-                                    <div className="waiting-dots" style={{ justifyContent: 'center', fontSize: '2rem', marginBottom: '1rem' }}>
-                                        <span></span><span></span><span></span>
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="card"
+                                    style={{
+                                        maxWidth: '450px',
+                                        width: '100%',
+                                        padding: '3rem 2rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '1.5rem',
+                                        background: 'rgba(255, 255, 255, 0.05)', // Glass effect enhancement
+                                        backdropFilter: 'blur(10px)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                                    }}
+                                >
+                                    <div style={{ position: 'relative' }}>
+                                        <motion.div
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                        >
+                                            <Loader size={48} className="text-primary" />
+                                        </motion.div>
                                     </div>
-                                    <h3 style={{ color: 'var(--text-secondary)' }}>Waiting for host to start...</h3>
-                                    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                                        {allParticipants.length} players in lobby
-                                    </p>
-                                </div>
+
+                                    <div>
+                                        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem' }}>Welcome, {playerName}!</h2>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
+                                            You're all set.
+                                        </p>
+                                    </div>
+
+                                    <div style={{
+                                        background: 'var(--bg-elevated)',
+                                        padding: '1rem 1.5rem',
+                                        borderRadius: 'var(--radius-lg)',
+                                        width: '100%'
+                                    }}>
+                                        <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Waiting for Host</h3>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                            The quiz will start soon...
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-sm text-muted text-sm">
+                                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                                        <span>{allParticipants.length} players in lobby</span>
+                                    </div>
+                                </motion.div>
                             </motion.div>
                         )}
 
@@ -530,9 +489,12 @@ export function PlayGame() {
                                 >
                                     {/* Header */}
                                     <div className="flex justify-between items-center mb-lg">
-                                        <span style={{ color: 'var(--text-muted)' }}>
-                                            Question {session.currentQuestionIndex + 1} of {questions.length}
-                                        </span>
+                                        <div className="flex items-center gap-md">
+                                            <span style={{ color: 'var(--text-muted)' }}>
+                                                Question {session.currentQuestionIndex + 1} of {questions.length}
+                                            </span>
+                                            <StreakCounter streak={currentStreak} />
+                                        </div>
                                         {timerEnabled && !hasAnswered && (
                                             <div className={`timer ${timeLeft <= 5 ? 'danger' : timeLeft <= 10 ? 'warning' : ''}`}
                                                 style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>

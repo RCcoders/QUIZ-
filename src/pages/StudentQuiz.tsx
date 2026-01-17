@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle, XCircle, Trophy, RotateCcw, Camera, Mic, Maximize } from 'lucide-react';
+import { StreakCounter } from '../components/StreakCounter';
 import {
     getQuiz,
     getQuestions,
@@ -37,17 +38,14 @@ export function StudentQuiz() {
     const [showResult, setShowResult] = useState(false);
     const [completed, setCompleted] = useState(false);
     const [responseId, setResponseId] = useState<string | null>(null);
+    const [currentStreak, setCurrentStreak] = useState(0);
 
     // Timer
     const [timeLeft, setTimeLeft] = useState(0);
     const [questionStartTime, setQuestionStartTime] = useState(0);
 
     // Anti-cheat permissions
-    const [cameraGranted, setCameraGranted] = useState(false);
-    const [micGranted, setMicGranted] = useState(false);
     const [fullscreenGranted, setFullscreenGranted] = useState(false);
-    const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-    const [permissionError, setPermissionError] = useState<string | null>(null);
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
 
@@ -248,36 +246,7 @@ export function StudentQuiz() {
         }
     };
 
-    const requestPermissions = async () => {
-        setPermissionError(null);
 
-        try {
-            // Request camera and microphone with specific constraints
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 },
-                audio: true
-            });
-
-            setMediaStream(stream);
-            setCameraGranted(true);
-            setMicGranted(true);
-
-            console.log('Permissions granted:', {
-                video: stream.getVideoTracks().length > 0,
-                audio: stream.getAudioTracks().length > 0
-            });
-        } catch (err: any) {
-            console.error('Error requesting media permissions:', err);
-
-            if (err.name === 'NotAllowedError') {
-                setPermissionError('You must allow camera and microphone access to take this quiz. Please click "Allow" when prompted.');
-            } else if (err.name === 'NotFoundError') {
-                setPermissionError('No camera or microphone found. Please connect a device and try again.');
-            } else {
-                setPermissionError('Camera and microphone access is required. Error: ' + err.message);
-            }
-        }
-    };
 
     // Monitor fullscreen and tab switching
     useEffect(() => {
@@ -327,13 +296,7 @@ export function StudentQuiz() {
     }, [started, completed, id]);
 
     // Cleanup media stream on unmount
-    useEffect(() => {
-        return () => {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, [mediaStream]);
+
 
     const selectAnswer = (answer: 'A' | 'B' | 'C' | 'D') => {
         if (showResult) return;
@@ -434,29 +397,9 @@ export function StudentQuiz() {
                             borderRadius: 'var(--radius-lg)',
                             marginBottom: '1.5rem'
                         }}>
-                            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Anti-Cheat Requirements</h3>
+                            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Quiz Requirements</h3>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <Camera size={20} color={cameraGranted ? 'var(--accent-success)' : 'var(--text-muted)'} />
-                                    <span style={{ flex: 1 }}>Camera Access</span>
-                                    {cameraGranted ? (
-                                        <CheckCircle size={20} color="var(--accent-success)" />
-                                    ) : (
-                                        <XCircle size={20} color="var(--text-muted)" />
-                                    )}
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <Mic size={20} color={micGranted ? 'var(--accent-success)' : 'var(--text-muted)'} />
-                                    <span style={{ flex: 1 }}>Microphone Access</span>
-                                    {micGranted ? (
-                                        <CheckCircle size={20} color="var(--accent-success)" />
-                                    ) : (
-                                        <XCircle size={20} color="var(--text-muted)" />
-                                    )}
-                                </div>
-
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                     <Maximize size={20} color="var(--text-muted)" />
                                     <span style={{ flex: 1 }}>Fullscreen Mode</span>
@@ -465,23 +408,6 @@ export function StudentQuiz() {
                                     </span>
                                 </div>
                             </div>
-
-                            {!cameraGranted || !micGranted ? (
-                                <button
-                                    type="button"
-                                    onClick={requestPermissions}
-                                    className="btn btn-secondary w-full"
-                                    style={{ marginTop: '1rem' }}
-                                >
-                                    Grant Permissions
-                                </button>
-                            ) : null}
-
-                            {permissionError && (
-                                <p style={{ color: 'var(--accent-error)', marginTop: '0.75rem', fontSize: '0.9rem' }}>
-                                    {permissionError}
-                                </p>
-                            )}
                         </div>
 
                         <div className="form-group">
@@ -511,7 +437,6 @@ export function StudentQuiz() {
                         <button
                             type="submit"
                             className="btn btn-primary btn-lg w-full"
-                            disabled={!cameraGranted || !micGranted}
                         >
                             Start Quiz
                         </button>
