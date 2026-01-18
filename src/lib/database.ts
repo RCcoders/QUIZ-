@@ -76,6 +76,7 @@ export interface GameParticipant {
     score: number;
     answersCount: number;
     joinedAt: string;
+    status: 'active' | 'left' | 'kicked';
 }
 
 export interface GameAnswer {
@@ -176,6 +177,7 @@ function toGameParticipant(row: Record<string, unknown>): GameParticipant {
         score: row.score as number,
         answersCount: row.answers_count as number,
         joinedAt: row.joined_at as string,
+        status: (row.status as 'active' | 'left' | 'kicked') || 'active',
     };
 }
 
@@ -595,7 +597,7 @@ export async function getParticipantByEmail(sessionId: string, email: string): P
     return toGameParticipant(data);
 }
 
-export async function addParticipant(sessionId: string, data: Omit<GameParticipant, 'id' | 'sessionId' | 'joinedAt'>): Promise<string> {
+export async function addParticipant(sessionId: string, data: Omit<GameParticipant, 'id' | 'sessionId' | 'joinedAt' | 'status'>): Promise<string> {
     const dbData = {
         session_id: sessionId,
         name: data.name,
@@ -603,6 +605,7 @@ export async function addParticipant(sessionId: string, data: Omit<GameParticipa
         score: data.score,
         answers_count: data.answersCount,
         joined_at: new Date().toISOString(),
+        // status: 'active', // Removed to fix DB error
     };
 
     const { data: result, error } = await supabase
@@ -622,6 +625,7 @@ export async function updateParticipant(sessionId: string, participantId: string
     const dbData: Record<string, unknown> = {};
     if (data.score !== undefined) dbData.score = data.score;
     if (data.answersCount !== undefined) dbData.answers_count = data.answersCount;
+    // if (data.status !== undefined) dbData.status = data.status; // Removed to fix DB error
 
     const { error } = await supabase
         .from('game_participants')

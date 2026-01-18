@@ -85,8 +85,9 @@ export function PlayGame() {
                     const newCount = prev + 1;
                     if (newCount >= 2) {
                         alert('Violation: You have switched tabs too many times. You will be removed from the game.');
-                        if (session?.id) {
+                        if (session?.id && participantId) {
                             localStorage.setItem(`banned_session_${session.id}`, 'true');
+                            updateParticipant(session.id, participantId, { status: 'kicked' });
                         }
                         navigate('/join');
                     } else {
@@ -109,8 +110,9 @@ export function PlayGame() {
                     if (newCount >= 2) {
                         alert('You have exited fullscreen mode more than 2 times. You will be removed from the game.');
                         // Set ban flag
-                        if (session?.id) {
+                        if (session?.id && participantId) {
                             localStorage.setItem(`banned_session_${session.id}`, 'true');
+                            updateParticipant(session.id, participantId, { status: 'kicked' });
                         }
                         // Navigate back to join page
                         navigate('/join');
@@ -129,7 +131,21 @@ export function PlayGame() {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
-    }, [session?.status, navigate]);
+    }, [session?.status, navigate, session?.id, participantId]);
+
+    // Handle leaving the game (unmount)
+    useEffect(() => {
+        return () => {
+            // If we are unmounting and the game is not ended, and we weren't kicked (checked via localStorage or state), set status to left
+            // Note: This runs on navigation.
+            if (session?.id && participantId && session.status !== 'ended') {
+                const isBanned = localStorage.getItem(`banned_session_${session.id}`) === 'true';
+                if (!isBanned) {
+                    updateParticipant(session.id, participantId, { status: 'left' });
+                }
+            }
+        };
+    }, [session?.id, participantId, session?.status]);
 
     const enterFullscreen = async () => {
         try {
@@ -156,7 +172,10 @@ export function PlayGame() {
                 return;
             }
             setSession(sessionData);
-            setPreviousQuestionIndex(sessionData.currentQuestionIndex);
+            // Only set previous index if game is active, otherwise keep at -1 so transition to Q0 triggers start time
+            if (sessionData.status !== 'waiting') {
+                setPreviousQuestionIndex(sessionData.currentQuestionIndex);
+            }
 
             // Fetch quiz settings
             const quizData = await getQuiz(sessionData.quizId);

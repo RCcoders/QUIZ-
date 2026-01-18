@@ -63,7 +63,7 @@ export function QuizResults() {
                         quizId: id,
                         studentName: p.name,
                         studentEmail: p.email,
-                        score: correctCount, // Use correct answer count, not points
+                        score: p.score, // Use stored score (includes speed bonus)
                         totalQuestions: totalQuestions,
                         answers: [],
                         startedAt: p.joinedAt,

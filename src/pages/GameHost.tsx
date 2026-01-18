@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
 import {
     Play, Users, CheckCircle, Clock, ArrowRight, Trophy,
-    Eye, Copy, Check, Download, RefreshCw
+    Eye, Copy, Check, Download, RefreshCw, XCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -415,13 +415,17 @@ export function GameHost() {
                                             <span
                                                 key={p.id}
                                                 style={{
-                                                    background: 'var(--bg-elevated)',
+                                                    background: p.status === 'kicked' ? 'rgba(239, 68, 68, 0.2)' : p.status === 'left' ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg-elevated)',
+                                                    color: p.status === 'kicked' ? 'var(--accent-error)' : p.status === 'left' ? 'var(--accent-warning)' : 'inherit',
                                                     padding: '0.5rem 1rem',
                                                     borderRadius: 'var(--radius-full)',
                                                     fontSize: '0.9rem',
+                                                    border: p.status === 'kicked' ? '1px solid var(--accent-error)' : p.status === 'left' ? '1px solid var(--accent-warning)' : 'none'
                                                 }}
                                             >
                                                 {p.name}
+                                                {p.status === 'kicked' && ' (Kicked)'}
+                                                {p.status === 'left' && ' (Left)'}
                                             </span>
                                         ))}
                                     </div>
@@ -536,7 +540,7 @@ export function GameHost() {
 
                             {/* Answer Tracking */}
                             {session.status === 'question' && (
-                                <div className="grid grid-2 gap-xl mb-xl">
+                                <div className="grid grid-3 gap-xl mb-xl">
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-success)', marginBottom: '1rem' }}>
                                             <CheckCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
@@ -573,11 +577,11 @@ export function GameHost() {
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-warning)', marginBottom: '1rem' }}>
                                             <Clock size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Waiting ({participants.length - currentQuestionAnswers.length})
+                                            Waiting ({participants.filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left').length})
                                         </h4>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
                                             {participants
-                                                .filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id))
+                                                .filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left')
                                                 .slice(0, 50)
                                                 .map(p => (
                                                     <span key={p.id} style={{
@@ -590,17 +594,28 @@ export function GameHost() {
                                                         {p.name}
                                                     </span>
                                                 ))}
-                                            {(participants.length - currentQuestionAnswers.length) > 50 && (
-                                                <span style={{
-                                                    background: 'var(--bg-elevated)',
-                                                    color: 'var(--text-muted)',
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: 'var(--radius-full)',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    +{(participants.length - currentQuestionAnswers.length) - 50} more
-                                                </span>
-                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="card">
+                                        <h4 style={{ color: 'var(--accent-error)', marginBottom: '1rem' }}>
+                                            <XCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
+                                            Left/Kicked ({participants.filter(p => p.status === 'kicked' || p.status === 'left').length})
+                                        </h4>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
+                                            {participants
+                                                .filter(p => p.status === 'kicked' || p.status === 'left')
+                                                .map(p => (
+                                                    <span key={p.id} style={{
+                                                        background: 'rgba(239, 68, 68, 0.1)',
+                                                        color: 'var(--accent-error)',
+                                                        padding: '0.25rem 0.75rem',
+                                                        borderRadius: 'var(--radius-full)',
+                                                        fontSize: '0.85rem',
+                                                        border: '1px solid var(--accent-error)'
+                                                    }}>
+                                                        {p.name} ({p.status})
+                                                    </span>
+                                                ))}
                                         </div>
                                     </div>
                                 </div>
