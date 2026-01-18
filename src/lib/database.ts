@@ -625,7 +625,7 @@ export async function updateParticipant(sessionId: string, participantId: string
     const dbData: Record<string, unknown> = {};
     if (data.score !== undefined) dbData.score = data.score;
     if (data.answersCount !== undefined) dbData.answers_count = data.answersCount;
-    // if (data.status !== undefined) dbData.status = data.status; // Removed to fix DB error
+    if (data.status !== undefined) dbData.status = data.status;
 
     const { error } = await supabase
         .from('game_participants')

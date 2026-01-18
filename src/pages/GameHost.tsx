@@ -16,6 +16,7 @@ import {
     updateGameSession,
     deleteGameSession,
     getParticipants,
+    updateParticipant,
     getGameAnswers,
     subscribeToParticipants,
     subscribeToGameAnswers,
@@ -260,6 +261,17 @@ export function GameHost() {
         navigate('/teacher');
     };
 
+    const handleKickParticipant = async (participantId: string, participantName: string) => {
+        if (!session || !confirm(`Are you sure you want to kick ${participantName}?`)) return;
+
+        try {
+            await updateParticipant(session.id, participantId, { status: 'kicked' });
+        } catch (error) {
+            console.error('Error kicking participant:', error);
+            alert('Failed to kick participant');
+        }
+    };
+
     const getAnswerDistribution = () => {
         const distribution = { A: 0, B: 0, C: 0, D: 0 };
         currentQuestionAnswers.forEach(a => {
@@ -412,9 +424,12 @@ export function GameHost() {
                                 ) : (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                         {participants.map((p) => (
-                                            <span
+                                            <div
                                                 key={p.id}
                                                 style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
                                                     background: p.status === 'kicked' ? 'rgba(239, 68, 68, 0.2)' : p.status === 'left' ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg-elevated)',
                                                     color: p.status === 'kicked' ? 'var(--accent-error)' : p.status === 'left' ? 'var(--accent-warning)' : 'inherit',
                                                     padding: '0.5rem 1rem',
@@ -423,10 +438,33 @@ export function GameHost() {
                                                     border: p.status === 'kicked' ? '1px solid var(--accent-error)' : p.status === 'left' ? '1px solid var(--accent-warning)' : 'none'
                                                 }}
                                             >
-                                                {p.name}
-                                                {p.status === 'kicked' && ' (Kicked)'}
-                                                {p.status === 'left' && ' (Left)'}
-                                            </span>
+                                                <span>
+                                                    {p.name}
+                                                    {p.status === 'kicked' && ' (Kicked)'}
+                                                    {p.status === 'left' && ' (Left)'}
+                                                </span>
+                                                {p.status !== 'kicked' && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleKickParticipant(p.id, p.name);
+                                                        }}
+                                                        className="btn-icon-sm"
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            color: 'var(--text-muted)',
+                                                            cursor: 'pointer',
+                                                            padding: 0,
+                                                            display: 'flex',
+                                                            alignItems: 'center'
+                                                        }}
+                                                        title="Kick Student"
+                                                    >
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -584,15 +622,33 @@ export function GameHost() {
                                                 .filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left')
                                                 .slice(0, 50)
                                                 .map(p => (
-                                                    <span key={p.id} style={{
+                                                    <div key={p.id} style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.5rem',
                                                         background: 'rgba(245, 158, 11, 0.1)',
                                                         color: 'var(--accent-warning)',
                                                         padding: '0.25rem 0.75rem',
                                                         borderRadius: 'var(--radius-full)',
                                                         fontSize: '0.85rem'
                                                     }}>
-                                                        {p.name}
-                                                    </span>
+                                                        <span>{p.name}</span>
+                                                        <button
+                                                            onClick={() => handleKickParticipant(p.id, p.name)}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                color: 'var(--accent-warning)',
+                                                                cursor: 'pointer',
+                                                                padding: 0,
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}
+                                                            title="Kick Student"
+                                                        >
+                                                            <XCircle size={14} />
+                                                        </button>
+                                                    </div>
                                                 ))}
                                         </div>
                                     </div>
@@ -605,7 +661,10 @@ export function GameHost() {
                                             {participants
                                                 .filter(p => p.status === 'kicked' || p.status === 'left')
                                                 .map(p => (
-                                                    <span key={p.id} style={{
+                                                    <div key={p.id} style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.5rem',
                                                         background: 'rgba(239, 68, 68, 0.1)',
                                                         color: 'var(--accent-error)',
                                                         padding: '0.25rem 0.75rem',
@@ -613,8 +672,8 @@ export function GameHost() {
                                                         fontSize: '0.85rem',
                                                         border: '1px solid var(--accent-error)'
                                                     }}>
-                                                        {p.name} ({p.status})
-                                                    </span>
+                                                        <span>{p.name} ({p.status})</span>
+                                                    </div>
                                                 ))}
                                         </div>
                                     </div>

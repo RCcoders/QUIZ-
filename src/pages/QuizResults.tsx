@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Search, Download, BarChart2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Search, Download, BarChart2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
     getQuiz,
@@ -17,7 +17,7 @@ import {
 export function QuizResults() {
     const { id } = useParams();
     const [quiz, setQuiz] = useState<Quiz | null>(null);
-    const [responses, setResponses] = useState<Response[]>([]);
+    const [responses, setResponses] = useState<(Response & { status?: string })[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -67,8 +67,9 @@ export function QuizResults() {
                         totalQuestions: totalQuestions,
                         answers: [],
                         startedAt: p.joinedAt,
-                        completedAt: latestSession.endedAt || null
-                    } as Response;
+                        completedAt: latestSession.endedAt || null,
+                        status: p.status // Include status
+                    } as Response & { status?: string };
                 });
             }
 
@@ -145,6 +146,9 @@ export function QuizResults() {
                             <h1 className="page-title">{quiz.title} - Results</h1>
                             <p className="page-subtitle">{responses.length} responses</p>
                         </div>
+                        <button onClick={fetchResults} className="btn btn-secondary mr-sm">
+                            <RefreshCw size={18} />
+                        </button>
                         <button onClick={exportXLSX} className="btn btn-secondary" disabled={responses.length === 0}>
                             <Download size={18} />
                             Export XLSX
@@ -269,10 +273,21 @@ export function QuizResults() {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                                {response.completedAt ? (
+                                                {response.status === 'kicked' ? (
+                                                    <span style={{
+                                                        color: 'var(--accent-error)',
+                                                        fontWeight: '600',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}>
+                                                        <XCircle size={16} />
+                                                        Kicked
+                                                    </span>
+                                                ) : response.completedAt ? (
                                                     <CheckCircle size={20} color="var(--accent-success)" />
                                                 ) : (
-                                                    <XCircle size={20} color="var(--accent-warning)" />
+                                                    <span style={{ color: 'var(--text-muted)' }}>In Progress</span>
                                                 )}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
