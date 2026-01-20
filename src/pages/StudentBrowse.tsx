@@ -59,7 +59,7 @@ export function StudentBrowse() {
 
             // Auto-retry on timeout
             if (err instanceof Error && err.message === 'Connection timed out' && retryCount < MAX_RETRIES) {
-                console.log(`Connection timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+                // Connection timeout, retry
                 setRetryCount(prev => prev + 1);
                 setTimeout(() => fetchActiveQuizzes(true), 1000);
                 return;

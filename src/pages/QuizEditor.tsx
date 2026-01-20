@@ -348,11 +348,26 @@ export function QuizEditor() {
                                 </div>
                                 <textarea
                                     className="form-textarea"
-                                    placeholder="Paste your syllabus, textbook content, or notes here..."
+                                    placeholder="Paste your syllabus, topic, notes, or any educational content here..."
                                     value={syllabusText}
                                     onChange={(e) => setSyllabusText(e.target.value)}
                                     style={{ minHeight: '200px' }}
                                 />
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--text-muted)',
+                                    marginTop: '0.5rem'
+                                }}>
+                                    <span>
+                                        {syllabusText.length < 50 ?
+                                            `Need ${50 - syllabusText.length} more characters` :
+                                            'Ready to generate ✓'
+                                        }
+                                    </span>
+                                    <span>{syllabusText.length.toLocaleString()} / 50,000 characters</span>
+                                </div>
                             </div>
 
                             <div className="flex gap-md">

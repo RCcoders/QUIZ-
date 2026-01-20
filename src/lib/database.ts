@@ -68,6 +68,7 @@ export interface GameSession {
     endedAt: string | null;
 }
 
+
 export interface GameParticipant {
     id: string;
     sessionId: string;
@@ -77,7 +78,10 @@ export interface GameParticipant {
     answersCount: number;
     joinedAt: string;
     status: 'active' | 'left' | 'kicked';
+    violationCount?: number; // Track number of anti-cheat violations
+    kickReason?: string | null; // Reason for kick (e.g., "Anti-cheat violations")
 }
+
 
 export interface GameAnswer {
     id: string;
@@ -178,6 +182,8 @@ function toGameParticipant(row: Record<string, unknown>): GameParticipant {
         answersCount: row.answers_count as number,
         joinedAt: row.joined_at as string,
         status: (row.status as 'active' | 'left' | 'kicked') || 'active',
+        violationCount: row.violation_count as number | undefined,
+        kickReason: row.kick_reason as string | null | undefined,
     };
 }
 
@@ -605,7 +611,7 @@ export async function addParticipant(sessionId: string, data: Omit<GameParticipa
         score: data.score,
         answers_count: data.answersCount,
         joined_at: new Date().toISOString(),
-        // status: 'active', // Removed to fix DB error
+        status: 'active', // Ensure participants start as active
     };
 
     const { data: result, error } = await supabase
@@ -638,6 +644,54 @@ export async function updateParticipant(sessionId: string, participantId: string
         throw error;
     }
 }
+
+/**
+ * Atomically increment participant score to prevent race conditions.
+ * Uses database-level increment to ensure consistency.
+ * @param sessionId - Game session ID
+ * @param participantId - Participant ID
+ * @param pointsDelta - Points to add (can be decimal)
+ * @param incrementAnswerCount - Whether to also increment answers_count
+ */
+export async function incrementParticipantScore(
+    sessionId: string,
+    participantId: string,
+    pointsDelta: number,
+    incrementAnswerCount: boolean = true
+): Promise<void> {
+    // First, get current values
+    const { data: current, error: fetchError } = await supabase
+        .from('game_participants')
+        .select('score, answers_count')
+        .eq('id', participantId)
+        .eq('session_id', sessionId)
+        .single();
+
+    if (fetchError) {
+        console.error('Error fetching participant for increment:', fetchError);
+        throw fetchError;
+    }
+
+    // Calculate new values with proper decimal handling
+    const newScore = parseFloat((current.score + pointsDelta).toFixed(1));
+    const newAnswerCount = incrementAnswerCount ? current.answers_count + 1 : current.answers_count;
+
+    // Update with new calculated values
+    const { error: updateError } = await supabase
+        .from('game_participants')
+        .update({
+            score: newScore,
+            answers_count: newAnswerCount,
+        })
+        .eq('id', participantId)
+        .eq('session_id', sessionId);
+
+    if (updateError) {
+        console.error('Error incrementing participant score:', updateError);
+        throw updateError;
+    }
+}
+
 
 // ==================== Game Answer Operations ====================
 

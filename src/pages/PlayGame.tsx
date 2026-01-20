@@ -12,13 +12,16 @@ import {
     getParticipantAnswer,
     addGameAnswer,
     updateParticipant,
+    incrementParticipantScore,
     subscribeToGameSession,
     subscribeToParticipants,
     type GameSession,
     type Question,
     type GameParticipant
 } from '../lib/database';
-import { supabase } from '../lib/supabase';
+import { useAntiCheat, type ViolationType } from '../hooks/useAntiCheat';
+import { calculateScore } from '../utils/scoring';
+import { ANTI_CHEAT_CONFIG, SCORING_CONFIG } from '../config/performance';
 
 export function PlayGame() {
     const { sessionId } = useParams();
@@ -52,11 +55,48 @@ export function PlayGame() {
     const [loading, setLoading] = useState(true);
     const [previousQuestionIndex, setPreviousQuestionIndex] = useState(-1);
 
-    // Anti-Cheat State
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [tabSwitchCount, setTabSwitchCount] = useState(0);
-    const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
-    const [showCheatWarning, setShowCheatWarning] = useState(false);
+    // Anti-Cheat Hook
+    const antiCheat = useAntiCheat({
+        enableFullscreen: ANTI_CHEAT_CONFIG.AUTO_FULLSCREEN,
+        enableCopyProtection: ANTI_CHEAT_CONFIG.ENABLE_COPY_PROTECTION,
+        enableTabSwitchDetection: ANTI_CHEAT_CONFIG.ENABLE_TAB_DETECTION,
+        maxViolations: ANTI_CHEAT_CONFIG.MAX_VIOLATIONS,
+        onViolation: (type, count) => {
+            const remaining = ANTI_CHEAT_CONFIG.MAX_VIOLATIONS - count;
+            if (remaining > 0) {
+                alert(`⚠️ Warning ${count}/${ANTI_CHEAT_CONFIG.MAX_VIOLATIONS}: ${getViolationMessage(type)}\n\n${remaining} warnings remaining before you are removed from the quiz.`);
+            }
+        },
+        onMaxViolationsReached: () => {
+            alert('You have been removed from the quiz due to multiple violations.');
+            if (session?.id && participantId) {
+                localStorage.setItem(`banned_session_${session.id}`, 'true');
+                // Update participant with kick reason and violation count
+                updateParticipant(session.id, participantId, {
+                    status: 'kicked',
+                    violationCount: antiCheat.state.totalViolations,
+                    kickReason: 'Anti-cheat violations'
+                });
+            }
+            navigate('/join');
+        },
+    });
+
+    // Helper function for violation messages
+    const getViolationMessage = (type: ViolationType): string => {
+        switch (type) {
+            case 'tab_switch':
+                return 'Tab switching is not allowed during the quiz';
+            case 'fullscreen_exit':
+                return 'Exiting fullscreen mode is not allowed';
+            case 'copy_attempt':
+                return 'Copying quiz content is not allowed';
+            case 'devtools_open':
+                return 'Opening developer tools is not allowed';
+            default:
+                return 'Violation detected';
+        }
+    };
 
     // Helper to manage local question start time
     const getOrSetLocalStartTime = (sId: string, qIndex: number) => {
@@ -77,62 +117,6 @@ export function PlayGame() {
         initializeGame();
     }, [sessionId, participantId]);
 
-    // Anti-Cheat: Fullscreen & Visibility
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                setTabSwitchCount(prev => {
-                    const newCount = prev + 1;
-                    if (newCount >= 2) {
-                        alert('Violation: You have switched tabs too many times. You will be removed from the game.');
-                        if (session?.id && participantId) {
-                            localStorage.setItem(`banned_session_${session.id}`, 'true');
-                            updateParticipant(session.id, participantId, { status: 'kicked' });
-                        }
-                        navigate('/join');
-                    } else {
-                        alert(`Warning: Tab switching is not allowed! (${newCount}/2)`);
-                        setShowCheatWarning(true);
-                    }
-                    return newCount;
-                });
-            }
-        };
-
-        const handleFullscreenChange = () => {
-            const isNowFullscreen = !!document.fullscreenElement;
-            setIsFullscreen(isNowFullscreen);
-
-            // Track fullscreen exits during active game
-            if (!isNowFullscreen && session?.status === 'question') {
-                setFullscreenExitCount(prev => {
-                    const newCount = prev + 1;
-                    if (newCount >= 2) {
-                        alert('You have exited fullscreen mode more than 2 times. You will be removed from the game.');
-                        // Set ban flag
-                        if (session?.id && participantId) {
-                            localStorage.setItem(`banned_session_${session.id}`, 'true');
-                            updateParticipant(session.id, participantId, { status: 'kicked' });
-                        }
-                        // Navigate back to join page
-                        navigate('/join');
-                    } else {
-                        alert(`Warning: Exiting fullscreen mode! (${newCount}/2) - One more exit will remove you from the game.`);
-                    }
-                    return newCount;
-                });
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-        };
-    }, [session?.status, navigate, session?.id, participantId]);
-
     // Handle leaving the game (unmount)
     useEffect(() => {
         return () => {
@@ -147,13 +131,7 @@ export function PlayGame() {
         };
     }, [session?.id, participantId, session?.status]);
 
-    const enterFullscreen = async () => {
-        try {
-            await document.documentElement.requestFullscreen();
-        } catch (err) {
-            console.error('Error entering fullscreen:', err);
-        }
-    };
+
 
 
 
@@ -185,6 +163,11 @@ export function PlayGame() {
                 if (quizData.timerEnabled && sessionData.status === 'question') {
                     setTimeLeft(quizData.timerSeconds);
                 }
+            }
+
+            // Auto-enter fullscreen when quiz starts
+            if (sessionData.status === 'question' && ANTI_CHEAT_CONFIG.AUTO_FULLSCREEN) {
+                await antiCheat.enterFullscreen();
             }
 
             // Fetch questions
@@ -255,6 +238,11 @@ export function PlayGame() {
 
                     if (timerEnabled) {
                         setTimeLeft(timerSeconds);
+                    }
+
+                    // Auto-enter fullscreen for new question
+                    if (ANTI_CHEAT_CONFIG.AUTO_FULLSCREEN) {
+                        antiCheat.enterFullscreen();
                     }
                 }
             }
@@ -329,35 +317,18 @@ export function PlayGame() {
 
         const correct = answer === currentQuestion.correctAnswer;
 
-        // Calculate points with speed bonus
-        // Calculate points with granular speed bonus to prevent ties
-        let points = 0;
-        if (correct) {
-            const BASE_POINTS = 10;
-            const MAX_BONUS = 2;
-
-            points = BASE_POINTS;
-
-            if (timerEnabled && timerSeconds > 0) {
-                // Linear decay: Full bonus at 0s, 0 bonus at timerSeconds
-                // Formula: Bonus * (1 - (timeTaken / totalTime))
-                const totalTimeMs = timerSeconds * 1000;
-                // Clamp timeTaken to not exceed totalTimeMs (though it shouldn't)
-                const effectiveTimeTaken = Math.min(timeTaken, totalTimeMs);
-
-                const bonusRatio = 1 - (effectiveTimeTaken / totalTimeMs);
-                // Calculate bonus with 1 decimal place precision (e.g. 0.1, 1.5, 2.0)
-                const speedBonus = Math.round((MAX_BONUS * Math.max(0, bonusRatio)) * 10) / 10;
-
-                points += speedBonus;
-            }
-        }
+        // Calculate points using centralized scoring utility
+        const scoreResult = calculateScore(correct, timeTaken, {
+            basePoints: SCORING_CONFIG.BASE_POINTS,
+            maxBonus: SCORING_CONFIG.MAX_SPEED_BONUS,
+            timerEnabled,
+            timerSeconds,
+        });
 
         setSelectedAnswer(answer);
         setHasAnswered(true);
         setIsCorrect(correct);
-        setIsCorrect(correct);
-        setPointsEarned(points);
+        setPointsEarned(scoreResult.points);
 
         if (correct) {
             setCurrentStreak(prev => prev + 1);
@@ -380,25 +351,11 @@ export function PlayGame() {
                 answer,
                 isCorrect: correct,
                 timeTakenMs: timeTaken,
-                pointsEarned: points,
+                pointsEarned: scoreResult.points,
             });
 
-            // Fetch latest participant data to ensure score is accurate
-            // We can't rely on local state due to potential subscription delays
-            const { data: latestParticipant } = await supabase
-                .from('game_participants')
-                .select('score, answers_count')
-                .eq('id', participantId)
-                .single();
-
-            const currentScore = latestParticipant?.score || 0;
-            const currentAnswersCount = latestParticipant?.answers_count || 0;
-
-            // Update participant score
-            await updateParticipant(sessionId, participantId, {
-                score: currentScore + points,
-                answersCount: currentAnswersCount + 1,
-            });
+            // Use atomic increment to prevent race conditions
+            await incrementParticipantScore(sessionId, participantId, scoreResult.points, true);
 
         } catch (error: any) {
             console.error('Error submitting answer:', error);

@@ -62,8 +62,14 @@ export function GameHost() {
 
         // Subscribe to participants
         const unsubscribeParticipants = subscribeToParticipants(session.id, (data) => {
-            // Sort by score descending
-            data.sort((a, b) => b.score - a.score);
+            // Sort by score descending, then by joinedAt ascending (for ties)
+            data.sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                // Earlier join time wins for ties
+                return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+            });
             setParticipants(data);
         });
 
@@ -660,21 +666,29 @@ export function GameHost() {
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
                                             {participants
                                                 .filter(p => p.status === 'kicked' || p.status === 'left')
-                                                .map(p => (
-                                                    <div key={p.id} style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.5rem',
-                                                        background: 'rgba(239, 68, 68, 0.1)',
-                                                        color: 'var(--accent-error)',
-                                                        padding: '0.25rem 0.75rem',
-                                                        borderRadius: 'var(--radius-full)',
-                                                        fontSize: '0.85rem',
-                                                        border: '1px solid var(--accent-error)'
-                                                    }}>
-                                                        <span>{p.name} ({p.status})</span>
-                                                    </div>
-                                                ))}
+                                                .map(p => {
+                                                    const isCheatKick = p.kickReason === 'Anti-cheat violations';
+                                                    return (
+                                                        <div key={p.id} style={{
+                                                            display: 'inline-flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.25rem',
+                                                            background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                                            color: 'var(--accent-error)',
+                                                            padding: '0.5rem 0.75rem',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            fontSize: '0.85rem',
+                                                            border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
+                                                            minWidth: '150px'
+                                                        }}>
+                                                            <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                                                                {p.kickReason || p.status}
+                                                                {p.violationCount && ` (${p.violationCount} violations)`}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                         </div>
                                     </div>
                                 </div>
@@ -695,7 +709,7 @@ export function GameHost() {
                                                     {i + 1}
                                                 </span>
                                                 <span className="leaderboard-name">{p.name}</span>
-                                                <span className="leaderboard-score">{p.score.toLocaleString()}</span>
+                                                <span className="leaderboard-score">{p.score.toFixed(1)}</span>
                                             </div>
                                         ))}
                                     </div>
