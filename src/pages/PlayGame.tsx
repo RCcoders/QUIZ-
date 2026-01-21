@@ -118,6 +118,9 @@ export function PlayGame() {
     }, [sessionId, participantId]);
 
     // Handle leaving the game (unmount)
+    // DISABLED: Keep participants as "active" even if they refresh or navigate away
+    // This prevents false positives where students are marked as "left" during connection issues
+    /* 
     useEffect(() => {
         return () => {
             // If we are unmounting and the game is not ended, and we weren't kicked (checked via localStorage or state), set status to left
@@ -130,6 +133,8 @@ export function PlayGame() {
             }
         };
     }, [session?.id, participantId, session?.status]);
+    */
+
 
 
 

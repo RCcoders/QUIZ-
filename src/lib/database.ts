@@ -632,6 +632,8 @@ export async function updateParticipant(sessionId: string, participantId: string
     if (data.score !== undefined) dbData.score = data.score;
     if (data.answersCount !== undefined) dbData.answers_count = data.answersCount;
     if (data.status !== undefined) dbData.status = data.status;
+    if (data.violationCount !== undefined) dbData.violation_count = data.violationCount;
+    if (data.kickReason !== undefined) dbData.kick_reason = data.kickReason;
 
     const { error } = await supabase
         .from('game_participants')
