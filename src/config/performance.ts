@@ -40,14 +40,14 @@ export const ANTI_CHEAT_CONFIG = {
         devtools_open: 3,
     } as const,
 
-    // Auto-enter fullscreen when quiz starts
-    AUTO_FULLSCREEN: true,
+    // Auto-enter fullscreen when quiz starts - DISABLED to prevent false kicks
+    AUTO_FULLSCREEN: false,
 
     // Enable copy protection
     ENABLE_COPY_PROTECTION: true,
 
-    // Enable tab switch detection
-    ENABLE_TAB_DETECTION: true,
+    // Enable tab switch detection - DISABLED to prevent false kicks
+    ENABLE_TAB_DETECTION: false,
 } as const;
 
 export const SCORING_CONFIG = {

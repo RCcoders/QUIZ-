@@ -588,11 +588,11 @@ export function GameHost() {
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-success)', marginBottom: '1rem' }}>
                                             <CheckCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Answered ({currentQuestionAnswers.length})
+                                            Answered ({participants.filter(p => currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left').length})
                                         </h4>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
                                             {participants
-                                                .filter(p => currentQuestionAnswers.some(a => a.participantId === p.id))
+                                                .filter(p => currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left')
                                                 .slice(0, 50)
                                                 .map(p => (
                                                     <span key={p.id} style={{
