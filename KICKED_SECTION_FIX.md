@@ -1,47 +1,66 @@
-# Kicked Section Bug - Quick Fix Guide
+# Participant Status "left0" Bug - Fix Instructions
 
-## 🐛 The Problem
-Active participants are showing in the "Left/Kicked" section.
+## 🐛 Problem
+Students who are waiting/playing are incorrectly showing up in the "Left/Kicked" section with an invalid status value like "left0".
 
 ## 🔍 Root Cause
-The `status` column in `game_participants` table is missing or has incorrect default values for existing participants.
+The `game_participants` table has corrupted status values. Valid statuses are:
+- `'active'` - Student is actively participating
+- `'left'` - Student left the game  
+- `'kicked'` - Student was kicked by teacher
 
-## ✅ Solution - Run These Steps:
+The value "left0" is **corrupted/invalid data** in your Supabase database.
 
-### Step 1: Check Current Status in Supabase
-1. Open Supabase Dashboard
+## ✅ Solution Steps
+
+### Step 1: Fix the Database (REQUIRED)
+1. Open your Supabase Dashboard
 2. Go to **SQL Editor**
-3. Run `debug_status_check.sql`
-4. Look at the `status` column - it's probably NULL or 'left'
+3. Run the SQL script in `fix_corrupt_participant_status.sql`
 
-### Step 2: Fix Existing Data
-Run this UPDATE query in Supabase SQL Editor:
+This will:
+- Identify all participants with invalid statuses
+- Reset them to 'active'
+- Show you a summary of the fix
+
+### Step 2: Prevent Future Issues
+The code at `src/lib/database.ts` line 614 ensures new participants start with `status: 'active'`. This is correct and should prevent new corruption.
+
+### Step 3: Test
+1. After running the SQL fix, **refresh your teacher dashboard**
+2. The participant should now appear in the correct section ("Waiting" or "Answered")
+3. The console will warn if any invalid statuses are detected
+
+## 📋 Quick SQL Fix (Copy-Paste)
 
 ```sql
--- Fix all existing participants who are stuck in "left" status
+-- Fix all corrupted participant statuses
 UPDATE game_participants
 SET status = 'active'
-WHERE status IS NULL OR status = 'left';
+WHERE status NOT IN ('active', 'left', 'kicked')
+   OR status IS NULL;
 
--- Verify the fix
-SELECT status, COUNT(*) 
-FROM game_participants 
-GROUP BY status;
+-- Verify the fix worked
+SELECT status, COUNT(*) as count
+FROM game_participants
+GROUP BY status
+ORDER BY status;
 ```
 
-### Step 3: Ensure Schema Has Correct Default
-Run the full migration from `fix_participants_schema.sql` if you haven't already.
+## 🚨 If Problem Persists
 
-### Step 4: Test
-1. **Restart dev server** (important!)
-2. Create a new game session
-3. Join as a student
-4. Check teacher dashboard - you should be in "Active" section
+If participants still show in the wrong section after the SQL fix:
 
-## 🎯 Expected Result
-- New participants: status = 'active' (automatically)
-- Kicked participants: status = 'kicked' + violation_count + kick_reason
-- Left participants: status = 'left'
+1. Check the browser console for warnings about invalid statuses
+2. Clear your browser cache and reload
+3. Make sure you're looking at an active game session (not an old one)
+4. Share a screenshot of the Supabase `game_participants` table
 
-## 🚨 If Still Not Working
-The issue is that participants are being created without a status value. I'll need to patch the `joinParticipant` function in the code.
+## 📝 Technical Notes
+
+**Where the filtering happens** (`GameHost.tsx` lines 624, 664, 668):
+- **Answered**: Students who have submitted an answer for the current question
+- **Waiting**: Students who haven't answered yet AND status is NOT 'kicked' or 'left'  
+- **Left/Kicked**: Students where status = 'kicked' OR status = 'left'
+
+The invalid status "left0" causes students to incorrectly match the "Left/Kicked" filter because it's not 'active'.
