@@ -47,7 +47,7 @@ export const ANTI_CHEAT_CONFIG = {
     ENABLE_COPY_PROTECTION: true,
 
     // Enable tab switch detection - DISABLED to prevent false kicks
-    ENABLE_TAB_DETECTION: false,
+    ENABLE_TAB_DETECTION: true,
 } as const;
 
 export const SCORING_CONFIG = {

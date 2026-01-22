@@ -30,10 +30,12 @@ export function Navbar() {
                                 {profile?.name || 'Dashboard'}
                             </Link>
                         )}
-                        <button onClick={handleSignOut} className="btn btn-secondary btn-sm">
-                            <LogOut size={16} />
-                            Logout
-                        </button>
+                        {location.pathname.startsWith('/teacher') && (
+                            <button onClick={handleSignOut} className="btn btn-secondary btn-sm">
+                                <LogOut size={16} />
+                                Logout
+                            </button>
+                        )}
                     </>
                 ) : (
                     <>

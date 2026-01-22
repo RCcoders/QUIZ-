@@ -275,6 +275,7 @@ export function QuizEditor() {
                         <p className="page-subtitle">Build engaging quizzes for your students</p>
                     </div>
                     <div className="flex gap-md">
+                        {/* AI Generate Button - Temporarily Disabled
                         <button
                             onClick={() => setShowAIGenerator(!showAIGenerator)}
                             className="btn btn-secondary"
@@ -282,6 +283,7 @@ export function QuizEditor() {
                             <Sparkles size={18} />
                             AI Generate
                         </button>
+                        */}
                         <button onClick={handleSave} disabled={saving} className="btn btn-primary">
                             {saving ? (
                                 <div className="loading-spinner" style={{ width: '18px', height: '18px' }} />

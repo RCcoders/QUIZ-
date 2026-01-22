@@ -13,6 +13,7 @@ import {
     type Quiz,
     type Response
 } from '../lib/database';
+import { SCORING_CONFIG } from '../config/performance';
 
 export function QuizResults() {
     const { id } = useParams();
@@ -91,20 +92,30 @@ export function QuizResults() {
         r.studentEmail.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const maxPointsPerQuestion = SCORING_CONFIG.BASE_POINTS + SCORING_CONFIG.MAX_SPEED_BONUS;
+
     const averageScore = responses.length > 0
-        ? Math.round(responses.reduce((sum, r) => sum + (r.score / r.totalQuestions * 100), 0) / responses.length)
+        ? Math.round(responses.reduce((sum, r) => {
+            const maxPossible = r.totalQuestions * maxPointsPerQuestion;
+            return sum + (maxPossible > 0 ? (r.score / maxPossible * 100) : 0);
+        }, 0) / responses.length)
         : 0;
 
     const exportXLSX = () => {
-        const excelData = responses.map((r, index) => ({
-            'Rank': index + 1,
-            'Name': r.studentName,
-            'Email': r.studentEmail,
-            'Score': r.score,
-            'Total Questions': r.totalQuestions,
-            'Percentage': `${Math.round(r.score / r.totalQuestions * 100)}%`,
-            'Completed At': r.completedAt ? new Date(r.completedAt).toLocaleString() : 'In Progress'
-        }));
+        const excelData = responses.map((r, index) => {
+            const maxPossible = r.totalQuestions * maxPointsPerQuestion;
+            const percentage = maxPossible > 0 ? Math.round(r.score / maxPossible * 100) : 0;
+
+            return {
+                'Rank': index + 1,
+                'Name': r.studentName,
+                'Email': r.studentEmail,
+                'Score': r.score,
+                'Total Questions': r.totalQuestions,
+                'Percentage': `${percentage}%`,
+                'Completed At': r.completedAt ? new Date(r.completedAt).toLocaleString() : 'In Progress'
+            };
+        });
 
         const ws = XLSX.utils.json_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
@@ -242,8 +253,9 @@ export function QuizResults() {
                             </thead>
                             <tbody>
                                 {filteredResponses.map((response, index) => {
-                                    const percentage = response.totalQuestions > 0
-                                        ? Math.round(response.score / response.totalQuestions * 100)
+                                    const maxPossible = response.totalQuestions * maxPointsPerQuestion;
+                                    const percentage = maxPossible > 0
+                                        ? Math.round(response.score / maxPossible * 100)
                                         : 0;
                                     return (
                                         <tr

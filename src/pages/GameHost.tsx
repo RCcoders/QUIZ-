@@ -26,6 +26,7 @@ import {
     type GameParticipant,
     type GameAnswer
 } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 type GameStatus = 'waiting' | 'playing' | 'question' | 'results' | 'ended';
@@ -49,6 +50,31 @@ export function GameHost() {
     const currentQuestionAnswers = answers.filter(
         a => a.questionIndex === session?.currentQuestionIndex
     );
+
+    // Helper functions to categorize participants
+    const getActiveParticipants = () => {
+        return participants.filter(p => p.status === 'active');
+    };
+
+    const getKickedParticipants = () => {
+        return participants.filter(p => p.status === 'kicked');
+    };
+
+    const getLeftParticipants = () => {
+        return participants.filter(p => p.status === 'left');
+    };
+
+    const getAnsweredParticipants = () => {
+        return getActiveParticipants().filter(p =>
+            currentQuestionAnswers.some(a => a.participantId === p.id)
+        );
+    };
+
+    const getWaitingParticipants = () => {
+        return getActiveParticipants().filter(p =>
+            !currentQuestionAnswers.some(a => a.participantId === p.id)
+        );
+    };
 
     useEffect(() => {
         initializeGame();
@@ -78,9 +104,26 @@ export function GameHost() {
             setAnswers(data);
         });
 
+        // Polling fallback: Fetch participants every 3 seconds to ensure sync
+        const pollInterval = setInterval(async () => {
+            try {
+                const data = await getParticipants(session.id);
+                data.sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+                    return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+                });
+                setParticipants(data);
+            } catch (err) {
+                console.error('Error polling participants:', err);
+            }
+        }, 3000);
+
         return () => {
             unsubscribeParticipants();
             unsubscribeAnswers();
+            clearInterval(pollInterval);
         };
     }, [session?.id]);
 
@@ -271,10 +314,43 @@ export function GameHost() {
         if (!session || !confirm(`Are you sure you want to kick ${participantName}?`)) return;
 
         try {
-            await updateParticipant(session.id, participantId, { status: 'kicked' });
-        } catch (error) {
-            console.error('Error kicking participant:', error);
-            alert('Failed to kick participant');
+            await updateParticipant(session.id, participantId, {
+                status: 'kicked',
+                kickReason: 'Kicked by teacher'
+            });
+        } catch (error: any) {
+            console.error('Error kicking participant with reason:', error);
+
+            // Fallback: Try kicking without reason if column is missing (PGRST204)
+            if (error.message?.includes('kick_reason') || error.code === 'PGRST204') {
+                try {
+                    console.log('Attempting fallback kick (no reason)...');
+                    await updateParticipant(session.id, participantId, { status: 'kicked' });
+                    return;
+                } catch (fallbackError: any) {
+                    console.error('Fallback kick failed:', fallbackError);
+                    alert(`Failed to kick participant (fallback): ${fallbackError.message || fallbackError}`);
+                }
+            } else {
+                alert(`Failed to kick participant: ${error.message || error}`);
+            }
+        }
+
+        // VERIFICATION: Double check if the kick actually worked
+        try {
+            const { data: checkData, error: checkError } = await supabase
+                .from('game_participants')
+                .select('status')
+                .eq('id', participantId)
+                .single();
+
+            if (checkError) {
+                console.error('Verification failed:', checkError);
+            } else if (checkData?.status !== 'kicked') {
+                alert(`WARNING: Kick might have failed. Database status is still '${checkData?.status}'. Please try again.`);
+            }
+        } catch (verifyErr) {
+            console.error('Verification error:', verifyErr);
         }
     };
 
@@ -417,7 +493,14 @@ export function GameHost() {
                                         <Users size={20} style={{ display: 'inline', marginRight: '8px' }} />
                                         Students Joined
                                     </h3>
-                                    <span className="badge badge-live">{participants.length} joined</span>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <span className="badge badge-live">{getActiveParticipants().length} active</span>
+                                        {(getKickedParticipants().length + getLeftParticipants().length) > 0 && (
+                                            <span className="badge" style={{ background: 'var(--accent-error)', color: 'white' }}>
+                                                {getKickedParticipants().length + getLeftParticipants().length} removed
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {participants.length === 0 ? (
@@ -428,50 +511,100 @@ export function GameHost() {
                                         Waiting for students to join...
                                     </div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        {participants.map((p) => (
-                                            <div
-                                                key={p.id}
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.5rem',
-                                                    background: p.status === 'kicked' ? 'rgba(239, 68, 68, 0.2)' : p.status === 'left' ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg-elevated)',
-                                                    color: p.status === 'kicked' ? 'var(--accent-error)' : p.status === 'left' ? 'var(--accent-warning)' : 'inherit',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: 'var(--radius-full)',
-                                                    fontSize: '0.9rem',
-                                                    border: p.status === 'kicked' ? '1px solid var(--accent-error)' : p.status === 'left' ? '1px solid var(--accent-warning)' : 'none'
-                                                }}
-                                            >
-                                                <span>
-                                                    {p.name}
-                                                    {p.status === 'kicked' && ' (Kicked)'}
-                                                    {p.status === 'left' && ' (Left)'}
-                                                </span>
-                                                {p.status !== 'kicked' && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleKickParticipant(p.id, p.name);
-                                                        }}
-                                                        className="btn-icon-sm"
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: 'var(--text-muted)',
-                                                            cursor: 'pointer',
-                                                            padding: 0,
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
-                                                        title="Kick Student"
-                                                    >
-                                                        <XCircle size={14} />
-                                                    </button>
-                                                )}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {/* ACTIVE PARTICIPANTS */}
+                                        {getActiveParticipants().length > 0 && (
+                                            <div>
+                                                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--accent-success)' }}>
+                                                    Active ({getActiveParticipants().length})
+                                                </h4>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    {getActiveParticipants().map((p) => (
+                                                        <div
+                                                            key={p.id}
+                                                            style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.5rem',
+                                                                background: 'var(--bg-elevated)',
+                                                                padding: '0.5rem 1rem',
+                                                                borderRadius: 'var(--radius-full)',
+                                                                fontSize: '0.9rem',
+                                                            }}
+                                                        >
+                                                            <span>{p.name}</span>
+                                                            {p.violationCount !== undefined && p.violationCount > 0 && (
+                                                                <span style={{
+                                                                    background: 'rgba(245, 158, 11, 0.2)',
+                                                                    color: 'var(--accent-warning)',
+                                                                    padding: '0.1rem 0.4rem',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 'bold'
+                                                                }}>
+                                                                    <AlertTriangle size={10} style={{ display: 'inline', marginRight: '2px' }} />
+                                                                    {p.violationCount}
+                                                                </span>
+                                                            )}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleKickParticipant(p.id, p.name);
+                                                                }}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--text-muted)',
+                                                                    cursor: 'pointer',
+                                                                    padding: 0,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                                title="Kick Student"
+                                                            >
+                                                                <XCircle size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        ))}
+                                        )}
+
+                                        {/* KICKED/LEFT PARTICIPANTS */}
+                                        {(getKickedParticipants().length > 0 || getLeftParticipants().length > 0) && (
+                                            <div>
+                                                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--accent-error)' }}>
+                                                    Kicked/Left ({getKickedParticipants().length + getLeftParticipants().length})
+                                                </h4>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    {[...getKickedParticipants(), ...getLeftParticipants()].map((p) => {
+                                                        const isCheatKick = p.kickReason?.includes('cheat') || p.kickReason?.includes('violation');
+                                                        return (
+                                                            <div
+                                                                key={p.id}
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    flexDirection: 'column',
+                                                                    gap: '0.25rem',
+                                                                    background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                                                    color: 'var(--accent-error)',
+                                                                    padding: '0.5rem 0.75rem',
+                                                                    borderRadius: 'var(--radius-md)',
+                                                                    fontSize: '0.85rem',
+                                                                    border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
+                                                                }}
+                                                            >
+                                                                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                                                                    {p.kickReason || (p.status === 'left' ? 'Left game' : 'Kicked')}
+                                                                    {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount} violations)`}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -585,110 +718,99 @@ export function GameHost() {
                             {/* Answer Tracking */}
                             {session.status === 'question' && (
                                 <div className="grid grid-3 gap-xl mb-xl">
+                                    {/* ANSWERED */}
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-success)', marginBottom: '1rem' }}>
                                             <CheckCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Answered ({participants.filter(p => currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left').length})
+                                            Answered ({getAnsweredParticipants().length})
                                         </h4>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {participants
-                                                .filter(p => currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left')
-                                                .slice(0, 50)
-                                                .map(p => (
-                                                    <span key={p.id} style={{
-                                                        background: 'rgba(0, 223, 129, 0.1)',
-                                                        color: 'var(--accent-success)',
-                                                        padding: '0.25rem 0.75rem',
-                                                        borderRadius: 'var(--radius-full)',
-                                                        fontSize: '0.85rem'
-                                                    }}>
-                                                        {p.name}
-                                                    </span>
-                                                ))}
-                                            {currentQuestionAnswers.length > 50 && (
-                                                <span style={{
-                                                    background: 'var(--bg-elevated)',
-                                                    color: 'var(--text-muted)',
+                                            {getAnsweredParticipants().slice(0, 50).map(p => (
+                                                <span key={p.id} style={{
+                                                    background: 'rgba(0, 223, 129, 0.1)',
+                                                    color: 'var(--accent-success)',
                                                     padding: '0.25rem 0.75rem',
                                                     borderRadius: 'var(--radius-full)',
                                                     fontSize: '0.85rem'
                                                 }}>
-                                                    +{currentQuestionAnswers.length - 50} more
+                                                    {p.name}
                                                 </span>
-                                            )}
+                                            ))}
                                         </div>
                                     </div>
+
+                                    {/* WAITING */}
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-warning)', marginBottom: '1rem' }}>
                                             <Clock size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Waiting ({participants.filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left').length})
+                                            Waiting ({getWaitingParticipants().length})
                                         </h4>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {participants
-                                                .filter(p => !currentQuestionAnswers.some(a => a.participantId === p.id) && p.status !== 'kicked' && p.status !== 'left')
-                                                .slice(0, 50)
-                                                .map(p => (
-                                                    <div key={p.id} style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.5rem',
-                                                        background: 'rgba(245, 158, 11, 0.1)',
-                                                        color: 'var(--accent-warning)',
-                                                        padding: '0.25rem 0.75rem',
-                                                        borderRadius: 'var(--radius-full)',
-                                                        fontSize: '0.85rem'
-                                                    }}>
-                                                        <span>{p.name}</span>
-                                                        <button
-                                                            onClick={() => handleKickParticipant(p.id, p.name)}
-                                                            style={{
-                                                                background: 'none',
-                                                                border: 'none',
-                                                                color: 'var(--accent-warning)',
-                                                                cursor: 'pointer',
-                                                                padding: 0,
-                                                                display: 'flex',
-                                                                alignItems: 'center'
-                                                            }}
-                                                            title="Kick Student"
-                                                        >
-                                                            <XCircle size={14} />
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                            {getWaitingParticipants().slice(0, 50).map(p => (
+                                                <div key={p.id} style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    background: 'rgba(245, 158, 11, 0.1)',
+                                                    color: 'var(--accent-warning)',
+                                                    padding: '0.25rem 0.75rem',
+                                                    borderRadius: 'var(--radius-full)',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    <span>
+                                                        {p.name}
+                                                        {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount}⚠️)`}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => handleKickParticipant(p.id, p.name)}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            color: 'var(--accent-warning)',
+                                                            cursor: 'pointer',
+                                                            padding: 0,
+                                                            display: 'flex',
+                                                            alignItems: 'center'
+                                                        }}
+                                                        title="Kick Student"
+                                                    >
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
+
+                                    {/* KICKED/LEFT */}
                                     <div className="card">
                                         <h4 style={{ color: 'var(--accent-error)', marginBottom: '1rem' }}>
                                             <XCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Left/Kicked ({participants.filter(p => p.status === 'kicked' || p.status === 'left').length})
+                                            Left/Kicked ({getKickedParticipants().length + getLeftParticipants().length})
                                         </h4>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {participants
-                                                .filter(p => p.status === 'kicked' || p.status === 'left')
-                                                .map(p => {
-                                                    const isCheatKick = p.kickReason === 'Anti-cheat violations';
-                                                    return (
-                                                        <div key={p.id} style={{
-                                                            display: 'inline-flex',
-                                                            flexDirection: 'column',
-                                                            gap: '0.25rem',
-                                                            background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
-                                                            color: 'var(--accent-error)',
-                                                            padding: '0.5rem 0.75rem',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            fontSize: '0.85rem',
-                                                            border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
-                                                            minWidth: '150px'
-                                                        }}>
-                                                            <div style={{ fontWeight: 600 }}>{p.name}</div>
-                                                            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                                                                {p.kickReason || p.status}
-                                                                {p.violationCount && ` (${p.violationCount} violations)`}
-                                                            </div>
+                                            {[...getKickedParticipants(), ...getLeftParticipants()].map(p => {
+                                                const isCheatKick = p.kickReason?.includes('cheat') || p.kickReason?.includes('violation') || p.kickReason?.includes('tab');
+                                                return (
+                                                    <div key={p.id} style={{
+                                                        display: 'inline-flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.25rem',
+                                                        background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                                        color: 'var(--accent-error)',
+                                                        padding: '0.5rem 0.75rem',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        fontSize: '0.85rem',
+                                                        border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
+                                                        minWidth: '150px'
+                                                    }}>
+                                                        <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                                                            {p.kickReason || (p.status === 'left' ? 'Left game' : 'Kicked')}
+                                                            {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount} violations)`}
                                                         </div>
-                                                    );
-                                                })}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>

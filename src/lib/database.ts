@@ -181,7 +181,10 @@ function toGameParticipant(row: Record<string, unknown>): GameParticipant {
         score: row.score as number,
         answersCount: row.answers_count as number,
         joinedAt: row.joined_at as string,
-        status: (row.status as 'active' | 'left' | 'kicked') || 'active',
+        status: (row.status as 'active' | 'left' | 'kicked') || (() => {
+            console.warn('Participant status missing, defaulting to active. Row:', row);
+            return 'active';
+        })(),
         violationCount: row.violation_count as number | undefined,
         kickReason: row.kick_reason as string | null | undefined,
     };

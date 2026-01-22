@@ -118,6 +118,20 @@ export function useAntiCheat(config: AntiCheatConfig) {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [config.enableTabSwitchDetection, incrementViolation]);
 
+    // Window blur handler (alt-tab / click outside)
+    useEffect(() => {
+        if (!config.enableTabSwitchDetection) return;
+
+        const handleBlur = () => {
+            if (isQuizActiveRef.current) {
+                incrementViolation('tab_switch');
+            }
+        };
+
+        window.addEventListener('blur', handleBlur);
+        return () => window.removeEventListener('blur', handleBlur);
+    }, [config.enableTabSwitchDetection, incrementViolation]);
+
     // Copy protection
     useEffect(() => {
         if (!config.enableCopyProtection) return;

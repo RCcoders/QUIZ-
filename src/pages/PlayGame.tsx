@@ -47,6 +47,8 @@ export function PlayGame() {
         isCorrect: boolean;
     }>>([]);
     const [currentStreak, setCurrentStreak] = useState(0);
+    const [violationCount, setViolationCount] = useState(0);
+    const [isKicked, setIsKicked] = useState(false);
 
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerEnabled, setTimerEnabled] = useState(false);
@@ -59,7 +61,7 @@ export function PlayGame() {
     const antiCheat = useAntiCheat({
         enableFullscreen: ANTI_CHEAT_CONFIG.AUTO_FULLSCREEN,
         enableCopyProtection: ANTI_CHEAT_CONFIG.ENABLE_COPY_PROTECTION,
-        enableTabSwitchDetection: ANTI_CHEAT_CONFIG.ENABLE_TAB_DETECTION,
+        enableTabSwitchDetection: false, // Using custom logic below
         maxViolations: ANTI_CHEAT_CONFIG.MAX_VIOLATIONS,
         onViolation: (type, count) => {
             const remaining = ANTI_CHEAT_CONFIG.MAX_VIOLATIONS - count;
@@ -116,6 +118,99 @@ export function PlayGame() {
         }
         initializeGame();
     }, [sessionId, participantId]);
+
+    // Custom Anti-Cheat Logic (Tab Switching)
+    // Custom Anti-Cheat Logic (Tab Switching)
+    const tabSwitchesRef = React.useRef(0);
+    const hasInitializedRef = React.useRef(false);
+
+    useEffect(() => {
+        // Initialize from DB if available
+        if (participant?.violationCount && !hasInitializedRef.current) {
+            tabSwitchesRef.current = participant.violationCount;
+            setViolationCount(participant.violationCount);
+            hasInitializedRef.current = true;
+        }
+
+        // Check if kicked by teacher
+        if (participant?.status === 'kicked') {
+            setIsKicked(true);
+            // If we haven't set the violation count yet (e.g. manual kick), ensure we don't overwrite it with 0
+            if (participant.violationCount) {
+                setViolationCount(participant.violationCount);
+            }
+        }
+    }, [participant]);
+
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.hidden) {
+                tabSwitchesRef.current += 1;
+                const currentViolations = tabSwitchesRef.current;
+                setViolationCount(currentViolations);
+
+                // Update participant with violation count
+                if (session?.id && participantId) {
+                    try {
+                        await updateParticipant(session.id, participantId, {
+                            violationCount: currentViolations
+                        });
+                    } catch (err) {
+                        console.error('Failed to update violation count:', err);
+                    }
+                }
+
+                // Kick after 3 violations
+                if (currentViolations >= 3 && session?.id && participantId) {
+                    try {
+                        await updateParticipant(session.id, participantId, {
+                            status: 'kicked',
+                            kickReason: 'Anti-cheat: Tab switching (3 violations)',
+                            violationCount: currentViolations
+                        });
+                        setIsKicked(true);
+                    } catch (err: any) {
+                        console.error('Failed to kick participant with reason:', err);
+                        // Fallback for missing column
+                        if (err.message?.includes('kick_reason') || err.code === 'PGRST204') {
+                            try {
+                                await updateParticipant(session.id, participantId, { status: 'kicked' });
+                                setIsKicked(true);
+                            } catch (fallbackErr) {
+                                console.error('Fallback kick failed:', fallbackErr);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Polling fallback: Check status every 2 seconds
+        const pollInterval = setInterval(async () => {
+            if (session?.id && participantId && !isKicked) {
+                try {
+                    const latestParticipant = await getParticipants(session.id)
+                        .then(ps => ps.find(p => p.id === participantId));
+
+                    if (latestParticipant?.status === 'kicked') {
+                        setIsKicked(true);
+                        if (latestParticipant.violationCount) {
+                            setViolationCount(latestParticipant.violationCount);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error polling participant status:', err);
+                }
+            }
+        }, 2000);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearInterval(pollInterval);
+        };
+    }, [session?.id, participantId, isKicked]);
 
     // Handle leaving the game (unmount)
     // DISABLED: Keep participants as "active" even if they refresh or navigate away
@@ -307,6 +402,12 @@ export function PlayGame() {
     const submitAnswer = async (answer: 'A' | 'B' | 'C' | 'D') => {
         if (!session || !questions.length || hasAnswered || !sessionId || !participantId) return;
 
+        // STRICT ENFORCEMENT: Prevent kicked users from answering
+        if (isKicked || participant?.status === 'kicked') {
+            alert('You have been kicked from the game and cannot answer.');
+            return;
+        }
+
         const currentQuestion = questions[session.currentQuestionIndex];
 
         let timeTaken = 0;
@@ -392,8 +493,45 @@ export function PlayGame() {
         );
     }
 
+    if (isKicked) {
+        return (
+            <div className="page min-h-screen flex items-center justify-center">
+                <div className="card text-center" style={{ maxWidth: '500px' }}>
+                    <XCircle size={64} style={{ color: 'var(--accent-error)', margin: '0 auto 1rem' }} />
+                    <h2>You've Been Kicked</h2>
+                    <p>You were removed from the game for switching tabs/windows multiple times.</p>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>
+                        Total Violations: {violationCount}
+                    </p>
+                    <button onClick={() => navigate('/join')} className="btn btn-primary mt-lg">
+                        Back to Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="page">
+            {/* Violation Warning */}
+            {violationCount > 0 && violationCount < 3 && (
+                <div style={{
+                    position: 'fixed',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'var(--accent-warning)',
+                    color: 'white',
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    display: 'flex',
+                    alignItems: 'center'
+                }}>
+                    <div style={{ marginRight: '0.5rem' }}>⚠️</div>
+                    Warning: {violationCount}/3 violations. Don't switch tabs!
+                </div>
+            )}
             <div className="container container-md">
 
 
@@ -535,31 +673,19 @@ export function PlayGame() {
                                             animate={{ opacity: 1, scale: 1 }}
                                             className="card text-center"
                                             style={{
-                                                background: isCorrect ? 'rgba(0, 223, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                border: `2px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-error)'}`
+                                                background: 'var(--bg-elevated)',
+                                                border: '2px solid var(--border-color)'
                                             }}
                                         >
-                                            {isCorrect ? (
-                                                <>
-                                                    <CheckCircle size={64} style={{ color: 'var(--accent-success)', margin: '0 auto 1rem' }} />
-                                                    <h2 style={{ color: 'var(--accent-success)' }}>Correct!</h2>
-                                                    <p style={{ fontSize: '2rem', fontWeight: '700', marginTop: '0.5rem' }}>
-                                                        +{pointsEarned.toLocaleString()} points
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <XCircle size={64} style={{ color: 'var(--accent-error)', margin: '0 auto 1rem' }} />
-                                                    <h2 style={{ color: 'var(--accent-error)' }}>Not quite!</h2>
-                                                    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                                                        You answered {selectedAnswer}
-                                                    </p>
-                                                </>
-                                            )}
+                                            <CheckCircle size={64} style={{ color: 'var(--accent-primary)', margin: '0 auto 1rem' }} />
+                                            <h2 style={{ color: 'var(--text-normal)' }}>Answer Submitted!</h2>
+                                            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                                                Wait for the teacher to reveal the answer...
+                                            </p>
 
                                             <div style={{ marginTop: '1.5rem', color: 'var(--text-muted)' }}>
                                                 <Clock size={18} style={{ display: 'inline', marginRight: '0.5rem' }} />
-                                                Waiting for next question...
+                                                Good luck!
                                             </div>
                                         </motion.div>
                                     )}
@@ -576,6 +702,37 @@ export function PlayGame() {
                                 exit={{ opacity: 0 }}
                                 className="text-center"
                             >
+                                {/* Question Result Reveal */}
+                                {hasAnswered && (
+                                    <motion.div
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="card mb-xl"
+                                        style={{
+                                            background: isCorrect ? 'rgba(0, 223, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                            border: `2px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-error)'}`
+                                        }}
+                                    >
+                                        {isCorrect ? (
+                                            <>
+                                                <CheckCircle size={64} style={{ color: 'var(--accent-success)', margin: '0 auto 1rem' }} />
+                                                <h2 style={{ color: 'var(--accent-success)' }}>Correct!</h2>
+                                                <p style={{ fontSize: '2rem', fontWeight: '700', marginTop: '0.5rem' }}>
+                                                    +{pointsEarned.toLocaleString()} points
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <XCircle size={64} style={{ color: 'var(--accent-error)', margin: '0 auto 1rem' }} />
+                                                <h2 style={{ color: 'var(--accent-error)' }}>Not quite!</h2>
+                                                <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                                                    You answered {selectedAnswer}
+                                                </p>
+                                            </>
+                                        )}
+                                    </motion.div>
+                                )}
+
                                 <div className="card mb-xl">
                                     <h3 style={{ marginBottom: '1rem' }}>Your Position</h3>
                                     <div style={{
