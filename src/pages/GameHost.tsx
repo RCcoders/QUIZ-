@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
 import {
     Play, Users, CheckCircle, Clock, ArrowRight, Trophy,
-    Eye, Copy, Check, Download, RefreshCw, XCircle
+    Eye, Copy, Check, Download, RefreshCw, XCircle, AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
