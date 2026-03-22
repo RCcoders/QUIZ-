@@ -12,6 +12,7 @@ export const StreakCounter: React.FC<StreakCounterProps> = ({ streak }) => {
 
     useEffect(() => {
         if (streak > 0 && streak % 3 === 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShowMilestone(true);
             if (streak === 3) setMilestoneText("Heating Up! 🔥");
             else if (streak === 6) setMilestoneText("On Fire! 🔥🔥");

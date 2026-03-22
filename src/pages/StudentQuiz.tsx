@@ -1,16 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CheckCircle, XCircle, Trophy, RotateCcw, Camera, Mic, Maximize } from 'lucide-react';
-import { StreakCounter } from '../components/StreakCounter';
-import {
-    getQuiz,
-    getQuestions,
-    createResponse,
-    updateResponse,
-    type Quiz,
-    type Question
-} from '../lib/database';
+import { ArrowRight, CheckCircle, XCircle, Trophy, RotateCcw, Maximize } from 'lucide-react';
+
+interface Quiz {
+    id: string;
+    title: string;
+    description: string;
+    isActive: boolean;
+    timerEnabled: boolean;
+    timerSeconds: number;
+    showResults: boolean;
+    showLeaderboard: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface Question {
+    id: string;
+    quizId: string;
+    questionText: string;
+    optionA: string;
+    optionB: string;
+    optionC: string;
+    optionD: string;
+    correctAnswer: 'A' | 'B' | 'C' | 'D';
+    difficulty: 'easy' | 'medium' | 'hard';
+    orderIndex: number;
+    createdAt: string;
+}
 
 interface QuizAnswer {
     questionId: string;
@@ -37,20 +55,22 @@ export function StudentQuiz() {
     const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
     const [showResult, setShowResult] = useState(false);
     const [completed, setCompleted] = useState(false);
-    const [responseId, setResponseId] = useState<string | null>(null);
-    const [currentStreak, setCurrentStreak] = useState(0);
 
     // Timer
     const [timeLeft, setTimeLeft] = useState(0);
     const [questionStartTime, setQuestionStartTime] = useState(0);
 
     // Anti-cheat permissions
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [fullscreenGranted, setFullscreenGranted] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
 
     useEffect(() => {
         fetchQuiz();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     useEffect(() => {
@@ -68,6 +88,7 @@ export function StudentQuiz() {
         }, 1000);
 
         return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [quiz?.timerEnabled, started, showResult, currentIndex, completed]);
 
     const handleTimeUp = useCallback(() => {
@@ -85,6 +106,7 @@ export function StudentQuiz() {
             setAnswers([...answers, newAnswer]);
             setShowResult(true);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedAnswer, questions, currentIndex, quiz, answers]);
 
     const fetchQuiz = async () => {
@@ -94,6 +116,7 @@ export function StudentQuiz() {
         if (id?.startsWith('practice-')) {
             let title = '';
             let description = '';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let quizQuestions: any[] = [];
 
             switch (id) {
@@ -168,7 +191,6 @@ export function StudentQuiz() {
 
             setQuiz({
                 id: id,
-                teacherId: 'system',
                 title: title,
                 description: description,
                 isActive: true,
@@ -185,13 +207,8 @@ export function StudentQuiz() {
         }
 
         try {
-            const quizData = await getQuiz(id);
-            if (quizData) {
-                setQuiz(quizData);
-            }
-
-            const questionsData = await getQuestions(id);
-            setQuestions(questionsData);
+            // Non-practice quizzes are not supported without a database
+            setLoading(false);
         } catch (error) {
             console.error('Error fetching quiz:', error);
         } finally {
@@ -213,36 +230,10 @@ export function StudentQuiz() {
             return;
         }
 
-        // Handle Practice Quiz - No DB
-        if (id?.startsWith('practice-')) {
-            setStarted(true);
-            setQuestionStartTime(Date.now());
-            if (quiz?.timerEnabled) {
-                setTimeLeft(quiz.timerSeconds);
-            }
-            return;
-        }
-
-        try {
-            const newResponseId = await createResponse({
-                quizId: id,
-                studentName: name,
-                studentEmail: email,
-                score: 0,
-                totalQuestions: questions.length,
-                answers: [],
-                startedAt: new Date().toISOString(),
-                completedAt: null,
-            });
-
-            setResponseId(newResponseId);
-            setStarted(true);
-            setQuestionStartTime(Date.now());
-            if (quiz?.timerEnabled) {
-                setTimeLeft(quiz.timerSeconds);
-            }
-        } catch (error) {
-            console.error('Error starting quiz:', error);
+        setStarted(true);
+        setQuestionStartTime(Date.now());
+        if (quiz?.timerEnabled) {
+            setTimeLeft(quiz.timerSeconds);
         }
     };
 
@@ -322,21 +313,6 @@ export function StudentQuiz() {
     const nextQuestion = async () => {
         if (currentIndex + 1 >= questions.length) {
             // Complete quiz
-            const score = answers.filter(a => a.isCorrect).length + (selectedAnswer === questions[currentIndex].correctAnswer ? 1 : 0);
-
-            if (responseId && !id?.startsWith('practice-')) {
-                await updateResponse(responseId, {
-                    score,
-                    answers: [...answers, {
-                        questionId: questions[currentIndex].id,
-                        answer: selectedAnswer || 'A',
-                        isCorrect: selectedAnswer === questions[currentIndex].correctAnswer,
-                        timeTakenMs: Date.now() - questionStartTime,
-                    }],
-                    completedAt: new Date().toISOString(),
-                });
-            }
-
             setCompleted(true);
         } else {
             setCurrentIndex(currentIndex + 1);
@@ -376,67 +352,86 @@ export function StudentQuiz() {
     // Student Info Form
     if (!started) {
         return (
-            <div className="page min-h-screen flex items-center justify-center">
+            <div style={{
+                minHeight: '100vh', background: '#F5F5F5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: "'Inter', sans-serif", padding: '24px',
+            }}>
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="card"
-                    style={{ width: '100%', maxWidth: '450px' }}
+                    style={{
+                        background: '#FFFFFF', borderRadius: 16,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        padding: '36px 32px', width: '100%', maxWidth: 440,
+                    }}
                 >
-                    <h2 style={{ marginBottom: '0.5rem', textAlign: 'center' }}>{quiz.title}</h2>
-                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 6px', textAlign: 'center' }}>
+                        {quiz.title}
+                    </h2>
+                    <p style={{ color: '#6B7280', textAlign: 'center', marginBottom: 28, fontSize: 14 }}>
                         {questions.length} questions
                         {quiz.timerEnabled && ` • ${quiz.timerSeconds}s per question`}
                     </p>
 
                     <form onSubmit={startQuiz}>
-                        {/* Permission Status */}
+                        {/* Fullscreen requirement notice */}
                         <div style={{
-                            background: 'var(--bg-elevated)',
-                            padding: 'var(--space-lg)',
-                            borderRadius: 'var(--radius-lg)',
-                            marginBottom: '1.5rem'
+                            background: '#FFF3EE', borderRadius: 10, padding: '12px 16px',
+                            marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10,
                         }}>
-                            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Quiz Requirements</h3>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <Maximize size={20} color="var(--text-muted)" />
-                                    <span style={{ flex: 1 }}>Fullscreen Mode</span>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                        (Activated on start)
-                                    </span>
-                                </div>
+                            <Maximize size={18} color="#FF5C1A" />
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Fullscreen Mode</div>
+                                <div style={{ fontSize: 12, color: '#6B7280' }}>Activated automatically on start</div>
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Your Name</label>
+                        {/* Name */}
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Your Name
+                            </label>
                             <input
                                 type="text"
-                                className="form-input"
                                 placeholder="Enter your name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 required
+                                style={{
+                                    width: '100%', padding: '10px 14px', borderRadius: 8,
+                                    border: '1.5px solid #E5E7EB', fontSize: 14, color: '#111827',
+                                    outline: 'none', boxSizing: 'border-box', background: '#FAFAFA',
+                                }}
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Email</label>
+                        {/* Email */}
+                        <div style={{ marginBottom: 28 }}>
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Email
+                            </label>
                             <input
                                 type="email"
-                                className="form-input"
                                 placeholder="student@school.edu"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
+                                style={{
+                                    width: '100%', padding: '10px 14px', borderRadius: 8,
+                                    border: '1.5px solid #E5E7EB', fontSize: 14, color: '#111827',
+                                    outline: 'none', boxSizing: 'border-box', background: '#FAFAFA',
+                                }}
                             />
                         </div>
 
                         <button
                             type="submit"
-                            className="btn btn-primary btn-lg w-full"
+                            style={{
+                                width: '100%', padding: '12px', background: '#FF5C1A',
+                                color: '#fff', border: 'none', borderRadius: 10,
+                                fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                            }}
                         >
                             Start Quiz
                         </button>
@@ -449,37 +444,43 @@ export function StudentQuiz() {
     // Completed
     if (completed) {
         return (
-            <div className="page min-h-screen flex items-center justify-center">
+            <div style={{
+                minHeight: '100vh', background: '#F5F5F5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: "'Inter', sans-serif", padding: '24px',
+            }}>
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="card text-center"
-                    style={{ width: '100%', maxWidth: '500px' }}
+                    style={{
+                        background: '#FFFFFF', borderRadius: 16,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        padding: '36px 32px', width: '100%', maxWidth: 520,
+                        textAlign: 'center',
+                    }}
                 >
-                    <Trophy size={64} style={{ color: '#ffd700', margin: '0 auto 1rem' }} />
-                    <h2 style={{ marginBottom: '0.5rem' }}>Quiz Complete!</h2>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                    <Trophy size={56} style={{ color: '#FF5C1A', margin: '0 auto 16px' }} />
+                    <h2 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: '0 0 6px' }}>Quiz Complete!</h2>
+                    <p style={{ color: '#6B7280', marginBottom: 24, fontSize: 14 }}>
                         Great job, {name}!
                     </p>
 
                     <div style={{
-                        fontSize: '4rem',
-                        fontWeight: '800',
-                        background: 'var(--gradient-primary)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        marginBottom: '0.5rem'
+                        fontSize: 56, fontWeight: 800, color: '#FF5C1A',
+                        lineHeight: 1, marginBottom: 8,
                     }}>
                         {getPercentage()}%
                     </div>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                    <p style={{ color: '#6B7280', marginBottom: 32, fontSize: 14 }}>
                         {getScore()} out of {questions.length} correct
                     </p>
 
                     {quiz.showResults && (
-                        <div className="text-left mb-xl">
-                            <h3 className="text-center mb-lg">Review Your Answers</h3>
-                            <div className="flex flex-col gap-md">
+                        <div style={{ textAlign: 'left', marginBottom: 28 }}>
+                            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 14, textAlign: 'center' }}>
+                                Review Your Answers
+                            </h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {questions.map((q, i) => {
                                     const userAnswer = answers.find(a => a.questionId === q.id);
                                     const isCorrect = userAnswer?.isCorrect;
@@ -488,46 +489,37 @@ export function StudentQuiz() {
                                     return (
                                         <div
                                             key={q.id}
-                                            className="card p-md"
                                             style={{
-                                                borderLeft: `4px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-error)'}`,
-                                                background: 'var(--bg-elevated)'
+                                                background: '#FAFAFA',
+                                                borderRadius: 10,
+                                                padding: '12px 16px',
+                                                borderLeft: `4px solid ${isCorrect ? '#10B981' : '#EF4444'}`,
                                             }}
                                         >
-                                            <div className="flex items-start gap-md">
-                                                <div className="mt-1">
-                                                    {isCorrect ? (
-                                                        <CheckCircle size={20} className="text-success" />
-                                                    ) : (
-                                                        <XCircle size={20} className="text-error" />
-                                                    )}
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                                <div style={{ marginTop: 2, flexShrink: 0 }}>
+                                                    {isCorrect
+                                                        ? <CheckCircle size={18} color="#10B981" />
+                                                        : <XCircle size={18} color="#EF4444" />
+                                                    }
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="font-bold mb-sm">
+                                                <div style={{ flex: 1 }}>
+                                                    <p style={{ fontWeight: 600, color: '#111827', fontSize: 13, margin: '0 0 6px' }}>
                                                         {i + 1}. {q.questionText}
                                                     </p>
-
-                                                    <div className="text-sm space-y-xs">
-                                                        <div className={`flex items-center gap-xs ${isCorrect ? 'text-success' : 'text-error'}`}>
-                                                            <span className="font-medium">Your Answer:</span>
-                                                            <span>
-                                                                {userSelectedOption ? (
-                                                                    <>
-                                                                        <span className="font-bold">{userSelectedOption}</span>: {q[`option${userSelectedOption}` as keyof typeof q]}
-                                                                    </>
-                                                                ) : 'Skipped'}
-                                                            </span>
-                                                        </div>
-
-                                                        {!isCorrect && (
-                                                            <div className="flex items-center gap-xs text-success">
-                                                                <span className="font-medium">Correct Answer:</span>
-                                                                <span>
-                                                                    <span className="font-bold">{q.correctAnswer}</span>: {q[`option${q.correctAnswer}` as keyof typeof q]}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                    <div style={{ fontSize: 12, color: isCorrect ? '#10B981' : '#EF4444' }}>
+                                                        <span style={{ fontWeight: 600 }}>Your Answer: </span>
+                                                        {userSelectedOption
+                                                            ? <>{userSelectedOption}: {q[`option${userSelectedOption}` as keyof typeof q]}</>
+                                                            : 'Skipped'
+                                                        }
                                                     </div>
+                                                    {!isCorrect && (
+                                                        <div style={{ fontSize: 12, color: '#10B981', marginTop: 2 }}>
+                                                            <span style={{ fontWeight: 600 }}>Correct: </span>
+                                                            {q.correctAnswer}: {q[`option${q.correctAnswer}` as keyof typeof q]}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -537,12 +529,18 @@ export function StudentQuiz() {
                         </div>
                     )}
 
-                    <div className="flex gap-md justify-center">
-                        <Link to="/student" className="btn btn-primary">
-                            <RotateCcw size={18} />
-                            Take Another Quiz
-                        </Link>
-                    </div>
+                    <Link
+                        to="/student"
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 8,
+                            background: '#FF5C1A', color: '#fff',
+                            padding: '11px 28px', borderRadius: 10,
+                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
+                        }}
+                    >
+                        <RotateCcw size={16} />
+                        Take Another Quiz
+                    </Link>
                 </motion.div>
             </div>
         );

@@ -1,263 +1,293 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Users, ArrowRight, Zap } from 'lucide-react';
-import {
-    getGameSessionByCode,
-    getParticipantByEmail,
-    getParticipants,
-    addParticipant,
-    type GameSession
-} from '../lib/database';
+import { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Play, HelpCircle, User, Mail } from 'lucide-react';
 
 export function JoinGame() {
     const { code } = useParams();
     const navigate = useNavigate();
 
-    const [gameCode, setGameCode] = useState(code || '');
+    const [gameCode, setGameCode] = useState(() => code && code.length === 6 ? code.toUpperCase() : '');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [session, setSession] = useState<GameSession | null>(null);
-    const [step, setStep] = useState<'code' | 'info'>('code');
+    const [validationError, setValidationError] = useState('');
+    const [joiningSession, setJoiningSession] = useState(false);
 
-    useEffect(() => {
-        if (code) {
-            verifyCode(code);
-        }
-    }, [code]);
+    // Placeholder avatar colors for the avatar group
+    const avatarColors = ['#FF5C1A', '#6366F1', '#10B981', '#F59E0B'];
+    const placeholderAvatars = ['?', '?', '?'];
 
-    const verifyCode = async (inputCode: string) => {
-        setLoading(true);
-        setError('');
-
-        try {
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Request timed out')), 10000)
-            );
-
-            const queryPromise = getGameSessionByCode(inputCode);
-
-            const data = await Promise.race([queryPromise, timeoutPromise]);
-
-            if (!data) {
-                setError('Game not found. Check the code and try again.');
-                setLoading(false);
-                return;
-            }
-
-            // Check if game is still active
-            if (!['waiting', 'playing', 'question'].includes(data.status)) {
-                setError('This game is no longer active.');
-                setLoading(false);
-                return;
-            }
-
-            setSession(data);
-            setStep('info');
-        } catch (err) {
-            console.error('Error verifying code:', err);
-            if (err instanceof Error && err.message === 'Request timed out') {
-                setError('Connection timed out. Please try again.');
-            } else {
-                setError('Failed to verify game code. Please check your connection.');
-            }
-        } finally {
-            setLoading(false);
-        }
+    const handleGameCodeChange = (value: string) => {
+        const cleaned = value.replace(/\s/g, '').toUpperCase().slice(0, 6);
+        setGameCode(cleaned);
     };
 
-    const handleCodeSubmit = (e: React.FormEvent) => {
+    const handleJoin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (gameCode.length >= 6) {
-            verifyCode(gameCode);
+        setValidationError('');
+
+        if (!gameCode.trim()) {
+            setValidationError('Please enter a game code.');
+            return;
         }
-    };
-
-    const handleJoin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!session) return;
-
-        setLoading(true);
-        setError('');
-
-        try {
-            // Check for ban
-            const isBanned = localStorage.getItem(`banned_session_${session.id}`);
-            if (isBanned) {
-                setError('You have been banned from this game session.');
-                setLoading(false);
-                return;
-            }
-
-            // Check if already joined
-            const existing = await getParticipantByEmail(session.id, email);
-
-            // Check for name uniqueness
-            if (!existing) {
-                const participants = await getParticipants(session.id);
-                const nameTaken = participants.some(p => p.name.toLowerCase() === name.trim().toLowerCase());
-                if (nameTaken) {
-                    setError('Name already taken. Please choose another name.');
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            let participantId: string;
-
-            if (existing) {
-                participantId = existing.id;
-                // If resuming, ensure name matches or update it? 
-                // For now, we trust the email link.
-            } else {
-                participantId = await addParticipant(session.id, {
-                    name,
-                    email,
-                    score: 0,
-                    answersCount: 0,
-                });
-            }
-
-            // Navigate to play page with participant ID in state
-            navigate(`/play/${session.id}`, {
-                state: { participantId, name }
-            });
-        } catch (err) {
-            console.error('Error joining game:', err);
-            setError('Failed to join game');
-        } finally {
-            setLoading(false);
+        if (!name.trim()) {
+            setValidationError('Please enter a nickname.');
+            return;
         }
+
+        setJoiningSession(true);
+
+        // Navigate to play page with participant info in state
+        navigate(`/play/${gameCode}`, {
+            state: { participantId: crypto.randomUUID(), name }
+        });
     };
 
     return (
-        <div className="page min-h-screen flex items-center justify-center">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="card w-full max-w-md"
-            >
-                <div className="text-center mb-xl">
-                    <div className="icon-circle" style={{ background: 'linear-gradient(135deg, var(--answer-red), var(--answer-blue))' }}>
-                        <Users size={32} color="white" />
+        <div style={{
+            minHeight: '100vh',
+            background: '#F5F5F5',
+            display: 'flex',
+            flexDirection: 'column',
+        }}>
+            {/* Top Bar */}
+            <header style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 32px',
+                background: '#FFFFFF',
+                borderBottom: '1px solid #E5E7EB',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: '#FF5C1A',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        <Play size={18} color="#fff" fill="#fff" />
                     </div>
-                    <h2>Join Live Game</h2>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                        {step === 'code' ? 'Enter the game code from your teacher' : 'Enter your information to join'}
+                    <span style={{ fontWeight: 700, fontSize: 18, color: '#111827', fontFamily: 'Inter, sans-serif' }}>
+                        QuizMaster
+                    </span>
+                </div>
+                <button style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '8px 16px',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: 8,
+                    background: '#fff',
+                    color: '#6B7280',
+                    fontWeight: 500,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    fontFamily: 'Inter, sans-serif',
+                }}>
+                    <HelpCircle size={16} />
+                    Help
+                </button>
+            </header>
+
+            {/* Main content */}
+            <main style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '32px 16px',
+            }}>
+                <div style={{ width: '100%', maxWidth: 480 }}>
+                    {/* Card */}
+                    <div style={{
+                        background: '#FFFFFF',
+                        borderRadius: 14,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        padding: '40px 36px 32px',
+                        borderBottom: '4px solid #FF5C1A',
+                    }}>
+                        {/* Heading */}
+                        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                            <h1 style={{
+                                fontSize: 28, fontWeight: 700, color: '#111827',
+                                margin: '0 0 8px', fontFamily: 'Inter, sans-serif',
+                            }}>
+                                Ready to Play?
+                            </h1>
+                            <p style={{ color: '#6B7280', fontSize: 15, margin: 0, fontFamily: 'Inter, sans-serif' }}>
+                                Enter your details to hop into the game.
+                            </p>
+                        </div>
+
+                        {/* Validation error */}
+                        {validationError && (
+                            <div style={{
+                                background: '#FEF2F2', border: '1px solid #FECACA',
+                                borderRadius: 8, padding: '10px 14px',
+                                color: '#EF4444', fontSize: 14, marginBottom: 20,
+                                fontFamily: 'Inter, sans-serif',
+                            }}>
+                                {validationError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleJoin}>
+                            {/* Game Code */}
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 600,
+                                    color: '#6B7280', marginBottom: 8, textTransform: 'uppercase',
+                                    letterSpacing: '0.06em', fontFamily: 'Inter, sans-serif',
+                                }}>
+                                    Game Join Code
+                                </label>
+                                <input
+                                    type="text"
+                                    value={gameCode}
+                                    onChange={e => handleGameCodeChange(e.target.value)}
+                                    placeholder="000 000"
+                                    maxLength={6}
+                                    style={{
+                                        width: '100%', boxSizing: 'border-box',
+                                        padding: '12px 16px',
+                                        border: '1px solid #E5E7EB',
+                                        borderRadius: 8, fontSize: 22,
+                                        fontWeight: 700, letterSpacing: '0.2em',
+                                        textAlign: 'center', color: '#111827',
+                                        outline: 'none', fontFamily: 'Inter, sans-serif',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Nickname */}
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 600,
+                                    color: '#6B7280', marginBottom: 8, textTransform: 'uppercase',
+                                    letterSpacing: '0.06em', fontFamily: 'Inter, sans-serif',
+                                }}>
+                                    Nickname
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{
+                                        position: 'absolute', left: 12, top: '50%',
+                                        transform: 'translateY(-50%)', color: '#9CA3AF',
+                                        display: 'flex', alignItems: 'center',
+                                    }}>
+                                        <User size={16} />
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={e => setName(e.target.value)}
+                                        placeholder="E.g. SpeedRunner99"
+                                        style={{
+                                            width: '100%', boxSizing: 'border-box',
+                                            padding: '12px 16px 12px 38px',
+                                            border: '1px solid #E5E7EB',
+                                            borderRadius: 8, fontSize: 15,
+                                            color: '#111827', outline: 'none',
+                                            fontFamily: 'Inter, sans-serif',
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div style={{ marginBottom: 28 }}>
+                                <label style={{
+                                    display: 'block', fontSize: 12, fontWeight: 600,
+                                    color: '#6B7280', marginBottom: 8, textTransform: 'uppercase',
+                                    letterSpacing: '0.06em', fontFamily: 'Inter, sans-serif',
+                                }}>
+                                    Email Verification
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{
+                                        position: 'absolute', left: 12, top: '50%',
+                                        transform: 'translateY(-50%)', color: '#9CA3AF',
+                                        display: 'flex', alignItems: 'center',
+                                    }}>
+                                        <Mail size={16} />
+                                    </span>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        placeholder="student@school.edu"
+                                        style={{
+                                            width: '100%', boxSizing: 'border-box',
+                                            padding: '12px 16px 12px 38px',
+                                            border: '1px solid #E5E7EB',
+                                            borderRadius: 8, fontSize: 15,
+                                            color: '#111827', outline: 'none',
+                                            fontFamily: 'Inter, sans-serif',
+                                        }}
+                                    />
+                                </div>
+                                <p style={{
+                                    marginTop: 6, fontSize: 12, color: '#9CA3AF',
+                                    fontFamily: 'Inter, sans-serif',
+                                }}>
+                                    We'll send your results here after the quiz.
+                                </p>
+                            </div>
+
+                            {/* Submit button */}
+                            <button
+                                type="submit"
+                                disabled={joiningSession}
+                                style={{
+                                    width: '100%', padding: '14px',
+                                    background: joiningSession ? '#FDA07A' : '#FF5C1A',
+                                    color: '#fff', border: 'none', borderRadius: 8,
+                                    fontSize: 16, fontWeight: 600, cursor: joiningSession ? 'not-allowed' : 'pointer',
+                                    fontFamily: 'Inter, sans-serif',
+                                    transition: 'background 0.2s',
+                                }}
+                            >
+                                {joiningSession ? 'Joining...' : 'Join Game →'}
+                            </button>
+                        </form>
+
+                        {/* Avatar group + lobby count */}
+                        <div style={{ marginTop: 24, textAlign: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                                {placeholderAvatars.map((_, i) => (
+                                    <div key={i} style={{
+                                        width: 36, height: 36, borderRadius: '50%',
+                                        background: avatarColors[i % avatarColors.length],
+                                        border: '2px solid #fff',
+                                        marginLeft: i === 0 ? 0 : -10,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 13, fontWeight: 700, color: '#fff',
+                                        fontFamily: 'Inter, sans-serif',
+                                        zIndex: 4 - i,
+                                        position: 'relative',
+                                    }}>
+                                        ?
+                                    </div>
+                                ))}
+                            </div>
+                            <p style={{
+                                fontSize: 13, color: '#6B7280', fontWeight: 500,
+                                fontFamily: 'Inter, sans-serif', margin: 0,
+                            }}>
+                                Students waiting in lobby
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <p style={{
+                        textAlign: 'center', marginTop: 20, fontSize: 12,
+                        color: '#9CA3AF', fontFamily: 'Inter, sans-serif',
+                        lineHeight: 1.6,
+                    }}>
+                        By joining, you agree to our{' '}
+                        <Link to="/tos" style={{ color: '#6B7280', textDecoration: 'underline' }}>Terms of Service</Link>.
+                        {' '}No account registration required for students.
                     </p>
                 </div>
-
-                {error && (
-                    <div className="alert-error">
-                        {error}
-                    </div>
-                )}
-
-                {step === 'code' ? (
-                    <form onSubmit={handleCodeSubmit}>
-                        <div className="form-group">
-                            <label className="form-label">Game Code</label>
-                            <input
-                                type="text"
-                                className="form-input input-code"
-                                placeholder="Enter 6-digit code"
-                                value={gameCode}
-                                onChange={(e) => setGameCode(e.target.value.toUpperCase())}
-                                maxLength={6}
-                                required
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="btn btn-primary btn-lg w-full"
-                            disabled={loading || gameCode.length < 6}
-                        >
-                            {loading ? (
-                                <div className="loading-spinner" style={{ width: '20px', height: '20px' }} />
-                            ) : (
-                                <>
-                                    <ArrowRight size={20} />
-                                    Continue
-                                </>
-                            )}
-                        </button>
-                    </form>
-                ) : (
-                    <form onSubmit={handleJoin}>
-                        <div className="join-info">
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Joining game</span>
-                            <div className="join-code-display">
-                                {session?.gameCode}
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Your Name</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Enter your name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Email</label>
-                            <input
-                                type="email"
-                                className="form-input"
-                                placeholder="student@school.edu"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="btn btn-primary btn-lg w-full"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <div className="loading-spinner" style={{ width: '20px', height: '20px' }} />
-                            ) : (
-                                <>
-                                    <Zap size={20} />
-                                    Join Game
-                                </>
-                            )}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setStep('code');
-                                setSession(null);
-                                setGameCode('');
-                                setError('');
-                            }}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                marginTop: '1rem',
-                                width: '100%',
-                                fontSize: '0.9rem'
-                            }}
-                        >
-                            ← Enter different code
-                        </button>
-                    </form>
-                )}
-            </motion.div>
+            </main>
         </div>
     );
 }
-

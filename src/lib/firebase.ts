@@ -30,7 +30,7 @@ if (!isValidConfig) {
 // Initialize Firebase (prevent multiple initializations)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Export Firebase Auth only (database is now handled by Supabase)
+// Export Firebase Auth only
 export const auth = getAuth(app);
 
 // Export validation status for components to check

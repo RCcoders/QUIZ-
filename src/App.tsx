@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -16,6 +16,9 @@ const StudentBrowse = lazy(() => import('./pages/StudentBrowse').then(m => ({ de
 const StudentQuiz = lazy(() => import('./pages/StudentQuiz').then(m => ({ default: m.StudentQuiz })));
 const JoinGame = lazy(() => import('./pages/JoinGame').then(m => ({ default: m.JoinGame })));
 const PlayGame = lazy(() => import('./pages/PlayGame').then(m => ({ default: m.PlayGame })));
+const MyQuizzes = lazy(() => import('./pages/MyQuizzes').then(m => ({ default: m.MyQuizzes })));
+const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
+const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 
 // Loading component
 const PageLoader = () => (
@@ -27,66 +30,102 @@ const PageLoader = () => (
   </div>
 );
 
+const MainContent = () => {
+  const location = useLocation();
+  const hideNavbar = location.pathname === '/' || location.pathname.startsWith('/teacher') || location.pathname === '/library';
+
+  return (
+    <>
+      {!hideNavbar && <Navbar />}
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/student" element={<StudentBrowse />} />
+          <Route path="/student/quiz/:id" element={<StudentQuiz />} />
+          <Route path="/join" element={<JoinGame />} />
+          <Route path="/join/:code" element={<JoinGame />} />
+          <Route path="/play/:sessionId" element={<PlayGame />} />
+          <Route path="/library" element={<Library />} />
+
+          {/* Protected Teacher Routes */}
+          <Route
+            path="/teacher"
+            element={
+              <ProtectedRoute>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/quiz/new"
+            element={
+              <ProtectedRoute>
+                <QuizEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/quiz/:id/edit"
+            element={
+              <ProtectedRoute>
+                <QuizEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/quiz/:id/results"
+            element={
+              <ProtectedRoute>
+                <QuizResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/quiz/:id/host"
+            element={
+              <ProtectedRoute>
+                <GameHost />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/my-quizzes"
+            element={
+              <ProtectedRoute>
+                <MyQuizzes />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/library"
+            element={
+              <ProtectedRoute>
+                <Library />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Background3D />
-        <Navbar />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/student" element={<StudentBrowse />} />
-            <Route path="/student/quiz/:id" element={<StudentQuiz />} />
-            <Route path="/join" element={<JoinGame />} />
-            <Route path="/join/:code" element={<JoinGame />} />
-            <Route path="/play/:sessionId" element={<PlayGame />} />
-
-            {/* Protected Teacher Routes */}
-            <Route
-              path="/teacher"
-              element={
-                <ProtectedRoute>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/quiz/new"
-              element={
-                <ProtectedRoute>
-                  <QuizEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/quiz/:id/edit"
-              element={
-                <ProtectedRoute>
-                  <QuizEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/quiz/:id/results"
-              element={
-                <ProtectedRoute>
-                  <QuizResults />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/quiz/:id/host"
-              element={
-                <ProtectedRoute>
-                  <GameHost />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
+        <MainContent />
       </BrowserRouter>
     </AuthProvider>
   );

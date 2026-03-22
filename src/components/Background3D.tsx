@@ -5,6 +5,7 @@ interface Shape {
     id: number;
     type: string;
     initial: { x: string; y: string; rotate?: number; scale?: number };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     animate: any;
     transition: Transition;
     style: React.CSSProperties;
@@ -30,11 +31,11 @@ export const Background3D = () => {
             style: {
                 width: '100px',
                 height: '100px',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%)',
                 borderRadius: '16px',
                 backdropFilter: 'blur(5px)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                border: '1px solid rgba(255, 255, 255, 0.02)',
+                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.03)',
             }
         },
         {
@@ -53,7 +54,7 @@ export const Background3D = () => {
             style: {
                 width: '150px',
                 height: '150px',
-                background: 'radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05))',
+                background: 'radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.02))',
                 borderRadius: '50%',
                 filter: 'blur(20px)',
             }
@@ -74,10 +75,10 @@ export const Background3D = () => {
             style: {
                 width: '120px',
                 height: '120px',
-                background: 'linear-gradient(45deg, rgba(236, 72, 153, 0.08), rgba(219, 39, 119, 0.02))',
+                background: 'linear-gradient(45deg, rgba(236, 72, 153, 0.03), rgba(219, 39, 119, 0.01))',
                 transform: 'rotate(45deg)',
                 borderRadius: '20px',
-                border: '1px solid rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.01)',
             }
         },
         {
@@ -96,10 +97,10 @@ export const Background3D = () => {
             style: {
                 width: '60px',
                 height: '60px',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(5, 150, 105, 0.02) 100%)',
                 borderRadius: '12px',
                 backdropFilter: 'blur(3px)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.02)',
             }
         },
         {
@@ -150,7 +151,9 @@ export const Background3D = () => {
                     transition={shape.transition}
                     style={{
                         position: 'absolute',
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         left: shape.initial.x as any,
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         top: shape.initial.y as any,
                         ...shape.style
                     }}

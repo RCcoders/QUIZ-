@@ -143,7 +143,7 @@ Generate ${numQuestions} questions now:`;
                 .trim();
 
             questions = JSON.parse(cleanedText);
-        } catch (parseError) {
+        } catch {
             console.error('Failed to parse AI response:', textContent);
             throw new Error('AI generated invalid format. Please try again or rephrase your content.');
         }

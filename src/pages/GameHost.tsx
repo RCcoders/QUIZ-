@@ -1,35 +1,72 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-// @ts-ignore - canvas-confetti module resolution
 import confetti from 'canvas-confetti';
 import {
     Play, Users, CheckCircle, Clock, ArrowRight, Trophy,
-    Eye, Copy, Check, Download, RefreshCw, XCircle, AlertTriangle
+    Eye, Copy, Download, XCircle, Pause, Radio, Lock,
+    AlertTriangle, MessageSquare, Send, Medal, BarChart2,
+    Hash, UserCheck, Target
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import {
-    getQuiz,
-    getQuestions,
-    createGameSession,
-    updateGameSession,
-    deleteGameSession,
-    getParticipants,
-    updateParticipant,
-    getGameAnswers,
-    subscribeToParticipants,
-    subscribeToGameAnswers,
-    type Quiz,
-    type Question,
-    type GameSession,
-    type GameParticipant,
-    type GameAnswer
-} from '../lib/database';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-type GameStatus = 'waiting' | 'playing' | 'question' | 'results' | 'ended';
+// Local type definitions (previously from database.ts)
+interface Quiz {
+    id: string;
+    title: string;
+    timerEnabled: boolean;
+    timerSeconds: number;
+}
+
+interface Question {
+    id: string;
+    questionText: string;
+    optionA: string;
+    optionB: string;
+    optionC: string;
+    optionD: string;
+    correctAnswer: 'A' | 'B' | 'C' | 'D';
+}
+
+interface GameSession {
+    id: string;
+    quizId: string;
+    teacherId: string;
+    gameCode: string;
+    status: 'waiting' | 'playing' | 'question' | 'results' | 'ended';
+    currentQuestionIndex: number;
+    questionStartedAt: string | null;
+    createdAt: string;
+    endedAt: string | null;
+}
+
+interface GameParticipant {
+    id: string;
+    sessionId: string;
+    name: string;
+    email: string;
+    score: number;
+    answersCount: number;
+    joinedAt: string;
+    status: 'active' | 'left' | 'kicked';
+    violationCount?: number;
+    kickReason?: string | null;
+}
+
+interface GameAnswer {
+    id: string;
+    sessionId: string;
+    participantId: string;
+    questionIndex: number;
+    answer: 'A' | 'B' | 'C' | 'D';
+    isCorrect: boolean;
+    timeTakenMs: number;
+    pointsEarned: number;
+    answeredAt: string;
+}
+
 
 export function GameHost() {
     const { id } = useParams();
@@ -40,9 +77,9 @@ export function GameHost() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [session, setSession] = useState<GameSession | null>(null);
     const [participants, setParticipants] = useState<GameParticipant[]>([]);
-    const [answers, setAnswers] = useState<GameAnswer[]>([]);
+    const [answers] = useState<GameAnswer[]>([]);
     const [loading, setLoading] = useState(true);
-    const [copied, setCopied] = useState(false);
+    const [, setCopied] = useState(false);
 
     const [timeLeft, setTimeLeft] = useState(0);
 
@@ -54,14 +91,6 @@ export function GameHost() {
     // Helper functions to categorize participants
     const getActiveParticipants = () => {
         return participants.filter(p => p.status === 'active');
-    };
-
-    const getKickedParticipants = () => {
-        return participants.filter(p => p.status === 'kicked');
-    };
-
-    const getLeftParticipants = () => {
-        return participants.filter(p => p.status === 'left');
     };
 
     const getAnsweredParticipants = () => {
@@ -78,53 +107,11 @@ export function GameHost() {
 
     useEffect(() => {
         initializeGame();
-        return () => {
-            // Cleanup subscriptions
-        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     useEffect(() => {
-        if (!session?.id) return;
-
-        // Subscribe to participants
-        const unsubscribeParticipants = subscribeToParticipants(session.id, (data) => {
-            // Sort by score descending, then by joinedAt ascending (for ties)
-            data.sort((a, b) => {
-                if (b.score !== a.score) {
-                    return b.score - a.score;
-                }
-                // Earlier join time wins for ties
-                return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
-            });
-            setParticipants(data);
-        });
-
-        // Subscribe to answers
-        const unsubscribeAnswers = subscribeToGameAnswers(session.id, (data) => {
-            setAnswers(data);
-        });
-
-        // Polling fallback: Fetch participants every 3 seconds to ensure sync
-        const pollInterval = setInterval(async () => {
-            try {
-                const data = await getParticipants(session.id);
-                data.sort((a, b) => {
-                    if (b.score !== a.score) {
-                        return b.score - a.score;
-                    }
-                    return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
-                });
-                setParticipants(data);
-            } catch (err) {
-                console.error('Error polling participants:', err);
-            }
-        }, 3000);
-
-        return () => {
-            unsubscribeParticipants();
-            unsubscribeAnswers();
-            clearInterval(pollInterval);
-        };
+        // No real-time subscriptions — participants managed locally
     }, [session?.id]);
 
     // Timer Logic
@@ -148,6 +135,7 @@ export function GameHost() {
         }, 1000);
 
         return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session?.status, session?.questionStartedAt, quiz?.timerEnabled, quiz?.timerSeconds]);
 
     // Auto-Reveal Logic
@@ -174,51 +162,36 @@ export function GameHost() {
         if (allAnswered || timeTrigger) {
             revealAnswer();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session?.status, currentQuestionAnswers.length, participants.length, timeLeft, quiz?.timerEnabled, session?.questionStartedAt, quiz?.timerSeconds]);
 
-    const initializeGame = async () => {
+    const initializeGame = () => {
         if (!id || !user) return;
 
-        try {
-            // Fetch quiz and questions
-            const quizData = await getQuiz(id);
-            if (!quizData) {
-                console.error('Quiz not found');
-                setLoading(false);
-                return;
-            }
-            setQuiz(quizData);
+        // Build a mock quiz and session from the URL param
+        const mockQuiz: Quiz = {
+            id,
+            title: 'Quiz Session',
+            timerEnabled: true,
+            timerSeconds: 30,
+        };
+        setQuiz(mockQuiz);
+        setQuestions([]);
 
-            const questionsData = await getQuestions(id);
-            setQuestions(questionsData);
-
-            // Create new game session
-            const gameCode = generateGameCode();
-            const sessionId = await createGameSession({
-                quizId: id,
-                teacherId: user.uid,
-                gameCode,
-                status: 'waiting',
-                currentQuestionIndex: 0,
-                questionStartedAt: null,
-            });
-
-            setSession({
-                id: sessionId,
-                quizId: id,
-                teacherId: user.uid,
-                gameCode,
-                status: 'waiting',
-                currentQuestionIndex: 0,
-                questionStartedAt: null,
-                endedAt: null,
-                createdAt: null as any,
-            });
-        } catch (error) {
-            console.error('Error initializing game:', error);
-        } finally {
-            setLoading(false);
-        }
+        const gameCode = generateGameCode();
+        const newSession: GameSession = {
+            id: crypto.randomUUID(),
+            quizId: id,
+            teacherId: user.uid,
+            gameCode,
+            status: 'waiting',
+            currentQuestionIndex: 0,
+            questionStartedAt: null,
+            endedAt: null,
+            createdAt: new Date().toISOString(),
+        };
+        setSession(newSession);
+        setLoading(false);
     };
 
     const generateGameCode = () => {
@@ -238,120 +211,39 @@ export function GameHost() {
         }
     };
 
-    const startGame = async () => {
+    const startGame = () => {
         if (!session) return;
-
         const now = new Date().toISOString();
-        await updateGameSession(session.id, {
-            status: 'question',
-            currentQuestionIndex: 0,
-            questionStartedAt: now,
-        });
-
-        setSession({
-            ...session,
-            status: 'question',
-            currentQuestionIndex: 0,
-            questionStartedAt: now,
-        });
+        setSession({ ...session, status: 'question', currentQuestionIndex: 0, questionStartedAt: now });
     };
 
-    const revealAnswer = async () => {
+    const revealAnswer = () => {
         if (!session) return;
-        await updateGameSession(session.id, { status: 'results' });
         setSession({ ...session, status: 'results' });
     };
 
-    const nextQuestion = async () => {
+    const nextQuestion = () => {
         if (!session) return;
-
         const nextIndex = session.currentQuestionIndex + 1;
-
         if (nextIndex >= questions.length) {
-            // End game
-            await updateGameSession(session.id, {
-                status: 'ended',
-                endedAt: new Date().toISOString(),
-            });
-
-            setSession({ ...session, status: 'ended' });
-
-            // Celebrate!
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 },
-            });
+            setSession({ ...session, status: 'ended', endedAt: new Date().toISOString() });
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
             const now = new Date().toISOString();
-            await updateGameSession(session.id, {
-                status: 'question',
-                currentQuestionIndex: nextIndex,
-                questionStartedAt: now,
-            });
-
-            setSession({
-                ...session,
-                status: 'question',
-                currentQuestionIndex: nextIndex,
-                questionStartedAt: now,
-            });
+            setSession({ ...session, status: 'question', currentQuestionIndex: nextIndex, questionStartedAt: now });
         }
     };
 
-    const endGame = async () => {
+    const endGame = () => {
         if (!session || !confirm('Are you sure you want to end this game?')) return;
-
-        await updateGameSession(session.id, {
-            status: 'ended',
-            endedAt: new Date().toISOString(),
-        });
-
         navigate('/teacher');
     };
 
-    const handleKickParticipant = async (participantId: string, participantName: string) => {
-        if (!session || !confirm(`Are you sure you want to kick ${participantName}?`)) return;
-
-        try {
-            await updateParticipant(session.id, participantId, {
-                status: 'kicked',
-                kickReason: 'Kicked by teacher'
-            });
-        } catch (error: any) {
-            console.error('Error kicking participant with reason:', error);
-
-            // Fallback: Try kicking without reason if column is missing (PGRST204)
-            if (error.message?.includes('kick_reason') || error.code === 'PGRST204') {
-                try {
-                    console.log('Attempting fallback kick (no reason)...');
-                    await updateParticipant(session.id, participantId, { status: 'kicked' });
-                    return;
-                } catch (fallbackError: any) {
-                    console.error('Fallback kick failed:', fallbackError);
-                    alert(`Failed to kick participant (fallback): ${fallbackError.message || fallbackError}`);
-                }
-            } else {
-                alert(`Failed to kick participant: ${error.message || error}`);
-            }
-        }
-
-        // VERIFICATION: Double check if the kick actually worked
-        try {
-            const { data: checkData, error: checkError } = await supabase
-                .from('game_participants')
-                .select('status')
-                .eq('id', participantId)
-                .single();
-
-            if (checkError) {
-                console.error('Verification failed:', checkError);
-            } else if (checkData?.status !== 'kicked') {
-                alert(`WARNING: Kick might have failed. Database status is still '${checkData?.status}'. Please try again.`);
-            }
-        } catch (verifyErr) {
-            console.error('Verification error:', verifyErr);
-        }
+    const handleKickParticipant = (participantId: string, participantName: string) => {
+        if (!confirm(`Are you sure you want to kick ${participantName}?`)) return;
+        setParticipants(prev => prev.map(p =>
+            p.id === participantId ? { ...p, status: 'kicked' as const } : p
+        ));
     };
 
     const getAnswerDistribution = () => {
@@ -362,93 +254,143 @@ export function GameHost() {
         return distribution;
     };
 
-    const handleDownloadResults = async () => {
+    const handleDownloadResults = () => {
         if (!quiz || !session) return;
 
-        // 1. Calculate total time and prepare data for each participant
-        const participantData = participants.map(p => {
-            const pAnswers = answers.filter(a => a.participantId === p.id);
-            const totalTimeMs = pAnswers.reduce((sum, a) => sum + a.timeTakenMs, 0);
+        const excelData = participants.map((p, index) => ({
+            'Rank': index + 1,
+            'Student Name': p.name,
+            'Email': p.email,
+            'Total Score': p.score,
+        }));
 
-            return {
-                ...p,
-                totalTimeMs,
-                answers: pAnswers
-            };
-        });
-
-        // 2. Sort by Score (Desc) then Time (Asc)
-        participantData.sort((a, b) => {
-            if (b.score !== a.score) {
-                return b.score - a.score;
-            }
-            return a.totalTimeMs - b.totalTimeMs;
-        });
-
-        // 3. Generate Excel Data
-        const excelData = participantData.map((p, index) => {
-            const row: any = {
-                'Rank': index + 1,
-                'Student Name': p.name,
-                'Email': p.email,
-                'Joined At': new Date(p.joinedAt).toLocaleString(),
-                'Total Score': p.score,
-                'Total Time (s)': (p.totalTimeMs / 1000).toFixed(2)
-            };
-
-            // Add details for each question
-            questions.forEach((q, qIndex) => {
-                const answer = p.answers.find(a => a.questionIndex === qIndex);
-                row[`Q${qIndex + 1} Time (s)`] = answer ? (answer.timeTakenMs / 1000).toFixed(2) : '-';
-                row[`Q${qIndex + 1} Score`] = answer ? answer.pointsEarned : 0;
-            });
-
-            return row;
-        });
-
-        // 4. Create Workbook and Sheet
         const ws = XLSX.utils.json_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Results");
-
-        // 5. Download File
         XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Results.xlsx`);
 
-        // 6. Auto-delete data and navigate away
-        if (confirm('Results downloaded. The game data will now be cleared from the database to prevent overload. Continue?')) {
-            try {
-                await deleteGameSession(session.id);
-                navigate('/teacher');
-            } catch (error) {
-                console.error('Error deleting session:', error);
-                alert('Failed to clear game data. Please try again.');
-            }
+        if (confirm('Results downloaded. Return to dashboard?')) {
+            navigate('/teacher');
         }
     };
 
     const joinUrl = session ? `${window.location.origin}/join/${session.gameCode}` : '';
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sessionPaused, setSessionPaused] = useState(false);
+    const [studentsLocked, setStudentsLocked] = useState(false);
+    const [activityMessages, setActivityMessages] = useState<{ id: number; text: string; time: string }[]>([
+        { id: 1, text: 'Session started', time: 'now' },
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const filteredActiveParticipants = getActiveParticipants().filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Elapsed timer for top bar
+    useEffect(() => {
+        if (session?.status === 'question' || session?.status === 'results') {
+            if (!elapsedRef.current) {
+                elapsedRef.current = setInterval(() => {
+                    setElapsedSeconds(s => s + 1);
+                }, 1000);
+            }
+        }
+        return () => {
+            if (elapsedRef.current) {
+                clearInterval(elapsedRef.current);
+                elapsedRef.current = null;
+            }
+        };
+    }, [session?.status]);
+
+    const formatElapsed = (secs: number) => {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = (secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    };
+
+    const classAverage = participants.length > 0
+        ? Math.round(participants.reduce((sum, p) => sum + p.score, 0) / participants.length)
+        : 0;
+
+    const handlePause = () => setSessionPaused(p => !p);
+    const handleLockStudents = () => setStudentsLocked(l => !l);
+    const handleBroadcast = () => {
+        const msg = prompt('Enter broadcast message:');
+        if (msg) {
+            setActivityMessages(prev => [...prev, { id: Date.now(), text: `📢 ${msg}`, time: 'now' }]);
+        }
+    };
+    const handleSendChat = () => {
+        if (!chatInput.trim()) return;
+        setActivityMessages(prev => [...prev, { id: Date.now(), text: chatInput, time: 'now' }]);
+        setChatInput('');
+    };
+
+
     if (loading) {
         return (
-            <div className="page min-h-screen flex items-center justify-center">
-                <div className="loading-spinner" />
+            <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 40, height: 40, border: '3px solid #FF5C1A', borderTopColor: 'transparent', borderRadius: '50%' }} />
             </div>
         );
     }
 
     if (!quiz || !session) {
         return (
-            <div className="page">
-                <div className="container text-center">
-                    <h2>Failed to initialize game</h2>
+            <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <h2 style={{ color: '#111827' }}>Failed to initialize game</h2>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="page">
-            <div className="container container-lg">
+        <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh', padding: 0, fontFamily: "'Inter', sans-serif" }}>
+            {/* Top Navigation Bar */}
+            <div style={{
+                background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
+                padding: '0 32px', height: 64,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 40, height: 40, background: '#FF5C1A', borderRadius: 10,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                    }}>
+                        <Play fill="currentColor" size={20} />
+                    </div>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
+                        QuizMaster <span style={{ color: '#94A3B8', fontWeight: 500 }}>Host</span>
+                    </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        background: '#F8FAFC', borderRadius: 20, padding: '6px 14px',
+                        border: '1px solid #E2E8F0',
+                    }}>
+                        <div style={{ width: 8, height: 8, background: '#10B981', borderRadius: '50%' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Teacher Mode</span>
+                    </div>
+                    <button
+                        onClick={() => navigate('/teacher')}
+                        style={{
+                            background: '#F1F5F9', color: '#374151', border: '1px solid #E2E8F0',
+                            borderRadius: 8, padding: '7px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                        }}
+                    >
+                        Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
                 {/* Waiting Room */}
                 <AnimatePresence mode="wait">
                     {session.status === 'waiting' && (
@@ -457,166 +399,223 @@ export function GameHost() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="text-center"
                         >
-                            <h2 style={{ marginBottom: '0.5rem' }}>{quiz.title}</h2>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                                Share the code or QR with your students to join
-                            </p>
-
-                            <div className="grid grid-2 gap-xl mb-xl">
-                                {/* Game Code */}
-                                <div className="card">
-                                    <h3 style={{ marginBottom: '1rem' }}>Game Code</h3>
-                                    <div className="game-code" onClick={copyGameCode} style={{ cursor: 'pointer' }}>
-                                        {session.gameCode}
+                            {/* Header Section */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
+                                <div>
+                                    <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0F172A', margin: '0 0 10px' }}>Session Lobby</h1>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            background: '#FFF3EE', color: '#FF5C1A',
+                                            borderRadius: 20, padding: '4px 12px',
+                                            fontSize: 13, fontWeight: 700, border: '1px solid #FDBA74',
+                                        }}>
+                                            <div style={{ width: 8, height: 8, background: '#FF5C1A', borderRadius: '50%' }} />
+                                            Join at quizmaster.com/join
+                                        </div>
+                                        <div style={{
+                                            background: '#F1F5F9', color: '#475569',
+                                            borderRadius: 20, padding: '4px 12px',
+                                            fontSize: 13, fontWeight: 700, border: '1px solid #E2E8F0',
+                                        }}>
+                                            Code: {session.gameCode.match(/.{1,3}/g)?.join(' ')}
+                                        </div>
                                     </div>
-                                    <button onClick={copyGameCode} className="btn btn-secondary btn-sm">
-                                        {copied ? <Check size={16} /> : <Copy size={16} />}
-                                        {copied ? 'Copied!' : 'Copy Code'}
+                                </div>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <button
+                                        onClick={copyGameCode}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            background: '#F8FAFC', color: '#374151',
+                                            border: '1px solid #E2E8F0', borderRadius: 10,
+                                            padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                        }}
+                                    >
+                                        <Copy size={16} />
+                                        Copy Link
+                                    </button>
+                                    <button
+                                        onClick={endGame}
+                                        style={{
+                                            background: 'transparent', color: '#64748B',
+                                            border: '1px solid #E2E8F0', borderRadius: 10,
+                                            padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                        }}
+                                    >
+                                        Cancel Session
                                     </button>
                                 </div>
-
-                                {/* QR Code */}
-                                <div className="card">
-                                    <h3 style={{ marginBottom: '1rem' }}>Scan to Join</h3>
-                                    <div className="qr-container" style={{ margin: '0 auto' }}>
-                                        <QRCodeSVG value={joinUrl} size={180} />
-                                    </div>
-                                </div>
                             </div>
 
-                            {/* Participants */}
-                            <div className="card mb-xl">
-                                <div className="flex justify-between items-center mb-lg">
-                                    <h3>
-                                        <Users size={20} style={{ display: 'inline', marginRight: '8px' }} />
-                                        Students Joined
-                                    </h3>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <span className="badge badge-live">{getActiveParticipants().length} active</span>
-                                        {(getKickedParticipants().length + getLeftParticipants().length) > 0 && (
-                                            <span className="badge" style={{ background: 'var(--accent-error)', color: 'white' }}>
-                                                {getKickedParticipants().length + getLeftParticipants().length} removed
-                                            </span>
-                                        )}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24 }}>
+                                {/* Left Column: Session Details */}
+                                <div>
+                                    <div style={{
+                                        background: '#FFFFFF', borderRadius: 20, padding: 28,
+                                        border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                                        position: 'sticky', top: 24,
+                                    }}>
+                                        <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', margin: '0 0 20px' }}>Session Details</h3>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 24 }}>
+                                            {[
+                                                { icon: <Play size={20} />, bg: '#FFF3EE', color: '#FF5C1A', label: 'Quiz Title', value: quiz.title },
+                                                { icon: <Users size={20} />, bg: '#EFF6FF', color: '#3B82F6', label: 'Questions', value: `${questions.length} Questions` },
+                                                { icon: <Clock size={20} />, bg: '#F5F3FF', color: '#8B5CF6', label: 'Time Limit', value: quiz.timerEnabled ? `${quiz.timerSeconds}s per question` : 'Unlimited' },
+                                            ].map(item => (
+                                                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                                    <div style={{
+                                                        width: 44, height: 44, borderRadius: 12,
+                                                        background: item.bg, color: item.color,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                                    }}>
+                                                        {item.icon}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{item.label}</div>
+                                                        <div style={{ fontWeight: 700, color: '#334155', fontSize: 14 }}>{item.value}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div style={{
+                                            background: '#F8FAFC', borderRadius: 14, padding: 20,
+                                            border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                        }}>
+                                            <div style={{ background: '#fff', padding: 10, borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 12 }}>
+                                                <QRCodeSVG value={joinUrl} size={130} />
+                                            </div>
+                                            <p style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', textAlign: 'center' }}>
+                                                Students can scan this QR code to join instantly
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {participants.length === 0 ? (
-                                    <div style={{ color: 'var(--text-muted)', padding: '2rem' }}>
-                                        <div className="waiting-dots" style={{ justifyContent: 'center', marginBottom: '1rem' }}>
-                                            <span></span><span></span><span></span>
+                                {/* Right Column: Students Grid */}
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{
+                                        background: '#FFFFFF', borderRadius: 20,
+                                        border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                                        overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1,
+                                    }}>
+                                        <div style={{
+                                            padding: '18px 24px', borderBottom: '1px solid #F1F5F9',
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16,
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Students joined</h3>
+                                                <span style={{
+                                                    background: '#F1F5F9', color: '#475569',
+                                                    borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700,
+                                                }}>
+                                                    {participants.length}
+                                                </span>
+                                            </div>
+                                            <div style={{ position: 'relative', maxWidth: 280 }}>
+                                                <Eye size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search students..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    style={{
+                                                        padding: '7px 12px 7px 32px', border: '1px solid #E2E8F0',
+                                                        borderRadius: 8, fontSize: 13, outline: 'none',
+                                                        background: '#F8FAFC', width: '100%', boxSizing: 'border-box',
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        Waiting for students to join...
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                        {/* ACTIVE PARTICIPANTS */}
-                                        {getActiveParticipants().length > 0 && (
-                                            <div>
-                                                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--accent-success)' }}>
-                                                    Active ({getActiveParticipants().length})
-                                                </h4>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                    {getActiveParticipants().map((p) => (
-                                                        <div
+
+                                        <div style={{ flex: 1, overflowY: 'auto', maxHeight: 520, background: '#FAFAFA', padding: 16 }}>
+                                            {participants.length === 0 ? (
+                                                <div style={{
+                                                    height: 360, display: 'flex', flexDirection: 'column',
+                                                    alignItems: 'center', justifyContent: 'center', color: '#94A3B8',
+                                                }}>
+                                                    <div style={{
+                                                        width: 72, height: 72, background: '#F1F5F9', borderRadius: '50%',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+                                                    }}>
+                                                        <Users size={30} color="#94A3B8" />
+                                                    </div>
+                                                    <p style={{ fontWeight: 700, margin: '0 0 4px', color: '#475569' }}>Waiting for students to join...</p>
+                                                    <p style={{ fontSize: 13, margin: 0 }}>Share the code or QR to get started</p>
+                                                </div>
+                                            ) : (
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                                                    gap: 12,
+                                                }}>
+                                                    {filteredActiveParticipants.map(p => (
+                                                        <motion.div
                                                             key={p.id}
+                                                            initial={{ opacity: 0, scale: 0.9 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
                                                             style={{
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.5rem',
-                                                                background: 'var(--bg-elevated)',
-                                                                padding: '0.5rem 1rem',
-                                                                borderRadius: 'var(--radius-full)',
-                                                                fontSize: '0.9rem',
+                                                                background: '#FFFFFF', borderRadius: 12,
+                                                                border: '1px solid #E5E7EB', padding: '14px 10px',
+                                                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                                                gap: 8, position: 'relative',
                                                             }}
                                                         >
-                                                            <span>{p.name}</span>
-                                                            {p.violationCount !== undefined && p.violationCount > 0 && (
-                                                                <span style={{
-                                                                    background: 'rgba(245, 158, 11, 0.2)',
-                                                                    color: 'var(--accent-warning)',
-                                                                    padding: '0.1rem 0.4rem',
-                                                                    borderRadius: 'var(--radius-sm)',
-                                                                    fontSize: '0.75rem',
-                                                                    fontWeight: 'bold'
-                                                                }}>
-                                                                    <AlertTriangle size={10} style={{ display: 'inline', marginRight: '2px' }} />
-                                                                    {p.violationCount}
-                                                                </span>
-                                                            )}
+                                                            <div style={{
+                                                                width: 44, height: 44, borderRadius: '50%',
+                                                                background: '#FF5C1A', color: '#fff',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontWeight: 700, fontSize: 18,
+                                                            }}>
+                                                                {p.name.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', textAlign: 'center', wordBreak: 'break-word' }}>
+                                                                {p.name}
+                                                            </div>
                                                             <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleKickParticipant(p.id, p.name);
-                                                                }}
+                                                                onClick={() => handleKickParticipant(p.id, p.name)}
                                                                 style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    color: 'var(--text-muted)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'flex',
-                                                                    alignItems: 'center'
+                                                                    position: 'absolute', top: 6, right: 6,
+                                                                    background: 'none', border: 'none', cursor: 'pointer',
+                                                                    color: '#CBD5E1', padding: 2,
                                                                 }}
-                                                                title="Kick Student"
+                                                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'}
+                                                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = '#CBD5E1'}
                                                             >
-                                                                <XCircle size={14} />
+                                                                <XCircle size={15} />
                                                             </button>
-                                                        </div>
+                                                        </motion.div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
 
-                                        {/* KICKED/LEFT PARTICIPANTS */}
-                                        {(getKickedParticipants().length > 0 || getLeftParticipants().length > 0) && (
-                                            <div>
-                                                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--accent-error)' }}>
-                                                    Kicked/Left ({getKickedParticipants().length + getLeftParticipants().length})
-                                                </h4>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                    {[...getKickedParticipants(), ...getLeftParticipants()].map((p) => {
-                                                        const isCheatKick = p.kickReason?.includes('cheat') || p.kickReason?.includes('violation');
-                                                        return (
-                                                            <div
-                                                                key={p.id}
-                                                                style={{
-                                                                    display: 'inline-flex',
-                                                                    flexDirection: 'column',
-                                                                    gap: '0.25rem',
-                                                                    background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
-                                                                    color: 'var(--accent-error)',
-                                                                    padding: '0.5rem 0.75rem',
-                                                                    borderRadius: 'var(--radius-md)',
-                                                                    fontSize: '0.85rem',
-                                                                    border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
-                                                                }}
-                                                            >
-                                                                <div style={{ fontWeight: 600 }}>{p.name}</div>
-                                                                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                                                                    {p.kickReason || (p.status === 'left' ? 'Left game' : 'Kicked')}
-                                                                    {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount} violations)`}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div style={{
+                                            padding: '16px 24px', background: '#FFFFFF',
+                                            borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'flex-end',
+                                        }}>
+                                            <button
+                                                onClick={startGame}
+                                                disabled={participants.length === 0}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 10,
+                                                    background: '#FF5C1A', color: '#fff',
+                                                    border: 'none', borderRadius: 12,
+                                                    padding: '12px 32px', fontWeight: 700, fontSize: 16,
+                                                    cursor: participants.length === 0 ? 'not-allowed' : 'pointer',
+                                                    opacity: participants.length === 0 ? 0.5 : 1,
+                                                }}
+                                            >
+                                                <Play size={18} fill="currentColor" />
+                                                Start Session
+                                            </button>
+                                        </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
-
-                            <button
-                                onClick={startGame}
-                                disabled={participants.length === 0}
-                                className="btn btn-primary btn-lg"
-                            >
-                                <Play size={20} />
-                                Start Game ({questions.length} questions)
-                            </button>
                         </motion.div>
                     )}
 
@@ -628,238 +627,495 @@ export function GameHost() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                         >
-                            {/* Header */}
-                            <div className="flex justify-between items-center mb-lg">
-                                <span style={{ color: 'var(--text-muted)' }}>
-                                    Question {session.currentQuestionIndex + 1} of {questions.length}
-                                </span>
-                                <div className="flex items-center gap-md">
+                            {/* ── Task 8.1: Top Bar ── */}
+                            <div style={{
+                                background: '#fff',
+                                borderBottom: '1px solid #E5E7EB',
+                                padding: '12px 24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 16,
+                                marginBottom: 0,
+                            }}>
+                                {/* Left: quiz title + session badge */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <span style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{quiz.title}</span>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                        background: '#F3F4F6', borderRadius: 20, padding: '2px 10px',
+                                        fontSize: 12, fontWeight: 700, color: '#6B7280',
+                                    }}>
+                                        <Hash size={12} />
+                                        {session.gameCode}
+                                    </span>
+                                </div>
+
+                                {/* Center: stats */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Users size={15} color="#6B7280" />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{getActiveParticipants().length}</span>
+                                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>students</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <BarChart2 size={15} color="#6B7280" />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{classAverage}</span>
+                                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>avg pts</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Clock size={15} color="#6B7280" />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{formatElapsed(elapsedSeconds)}</span>
+                                    </div>
                                     {quiz?.timerEnabled && (
-                                        <div className={`timer ${timeLeft <= 5 ? 'danger' : timeLeft <= 10 ? 'warning' : ''}`}
-                                            style={{ width: '50px', height: '50px', fontSize: '1.2rem', marginRight: '1rem' }}>
-                                            {timeLeft}
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 4,
+                                            background: timeLeft <= 5 ? '#FEF2F2' : '#FFF3EE',
+                                            border: `1px solid ${timeLeft <= 5 ? '#FCA5A5' : '#FF5C1A'}`,
+                                            borderRadius: 8, padding: '4px 10px',
+                                            color: timeLeft <= 5 ? '#EF4444' : '#FF5C1A',
+                                            fontWeight: 800, fontSize: 14,
+                                        }}>
+                                            {timeLeft}s
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Right: action buttons */}
+                                <div style={{ display: 'flex', gap: 8 }}>
                                     <button
-                                        onClick={async () => {
-                                            const p = await getParticipants(session.id);
-                                            p.sort((a, b) => b.score - a.score);
-                                            setParticipants(p);
-                                            const a = await getGameAnswers(session.id);
-                                            setAnswers(a);
+                                        onClick={handlePause}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            background: sessionPaused ? '#FF5C1A' : '#F9FAFB',
+                                            color: sessionPaused ? '#fff' : '#374151',
+                                            border: '1px solid #E5E7EB', borderRadius: 8,
+                                            padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
                                         }}
-                                        className="btn btn-secondary btn-sm"
-                                        title="Refresh Data"
                                     >
-                                        <RefreshCw size={16} />
+                                        <Pause size={14} />
+                                        {sessionPaused ? 'Resume' : 'Pause'}
                                     </button>
-                                    <span className="badge badge-live">
-                                        {currentQuestionAnswers.length}/{participants.length} answered
-                                    </span>
-                                    <button onClick={endGame} className="btn btn-danger btn-sm">
-                                        End Game
+                                    <button
+                                        onClick={endGame}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            background: '#FEF2F2', color: '#EF4444',
+                                            border: '1px solid #FECACA', borderRadius: 8,
+                                            padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                        }}
+                                    >
+                                        End Session
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Question */}
-                            <div className="card mb-xl">
-                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-                                    {currentQuestion.questionText}
-                                </h2>
+                            {/* ── Task 8.1: Stats Row ── */}
+                            <div style={{
+                                display: 'flex', gap: 12, padding: '12px 24px',
+                                background: '#F5F5F5', borderBottom: '1px solid #E5E7EB',
+                            }}>
+                                {/* Total Students */}
+                                <div style={{
+                                    background: '#fff', borderRadius: 10, padding: '10px 20px',
+                                    border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, flex: 1,
+                                }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Users size={18} color="#3B82F6" />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#111827', lineHeight: 1 }}>{participants.length}</div>
+                                        <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginTop: 2 }}>Total Students</div>
+                                    </div>
+                                </div>
 
-                                <div className="grid grid-2 gap-md">
-                                    {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-                                        const isCorrect = currentQuestion.correctAnswer === letter;
-                                        const showCorrect = session.status === 'results' && isCorrect;
-                                        const answerCount = getAnswerDistribution()[letter];
+                                {/* Present */}
+                                <div style={{
+                                    background: '#fff', borderRadius: 10, padding: '10px 20px',
+                                    border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10, flex: 1,
+                                }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <UserCheck size={18} color="#10B981" />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#111827', lineHeight: 1 }}>{getActiveParticipants().length}</div>
+                                        <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginTop: 2 }}>Present</div>
+                                    </div>
+                                </div>
 
-                                        return (
-                                            <div
-                                                key={letter}
-                                                className={`answer-btn answer-${letter.toLowerCase()}`}
-                                                style={{
-                                                    opacity: session.status === 'results' && !isCorrect ? 0.5 : 1,
-                                                    border: showCorrect ? '3px solid var(--accent-success)' : 'none',
-                                                }}
-                                            >
-                                                <span style={{
-                                                    width: '36px',
-                                                    height: '36px',
-                                                    background: 'rgba(255,255,255,0.2)',
-                                                    borderRadius: 'var(--radius-md)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontWeight: '700'
-                                                }}>
-                                                    {letter}
-                                                </span>
-                                                <span style={{ flex: 1 }}>
-                                                    {currentQuestion[`option${letter}` as keyof Question]}
-                                                </span>
-                                                {session.status === 'results' && (
-                                                    <span style={{
-                                                        background: 'rgba(255,255,255,0.2)',
-                                                        padding: '0.25rem 0.75rem',
-                                                        borderRadius: 'var(--radius-full)',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                        {answerCount}
-                                                    </span>
-                                                )}
-                                                {showCorrect && <CheckCircle size={24} />}
-                                            </div>
-                                        );
-                                    })}
+                                {/* Answer Status */}
+                                <div style={{
+                                    background: '#fff', borderRadius: 10, padding: '10px 20px',
+                                    border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 12, flex: 2,
+                                }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FFF3EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Target size={18} color="#FF5C1A" />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#10B981' }}>Finished: {currentQuestionAnswers.length}</span>
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>Remaining: {Math.max(0, getActiveParticipants().length - currentQuestionAnswers.length)}</span>
+                                        </div>
+                                        <div style={{ height: 6, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                                            <div style={{
+                                                height: '100%',
+                                                width: `${getActiveParticipants().length > 0 ? Math.round((currentQuestionAnswers.length / getActiveParticipants().length) * 100) : 0}%`,
+                                                background: '#FF5C1A', borderRadius: 3, transition: 'width 0.4s ease',
+                                            }} />
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>Answer Status</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Answer Tracking */}
-                            {session.status === 'question' && (
-                                <div className="grid grid-3 gap-xl mb-xl">
-                                    {/* ANSWERED */}
-                                    <div className="card">
-                                        <h4 style={{ color: 'var(--accent-success)', marginBottom: '1rem' }}>
-                                            <CheckCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Answered ({getAnsweredParticipants().length})
-                                        </h4>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {getAnsweredParticipants().slice(0, 50).map(p => (
-                                                <span key={p.id} style={{
-                                                    background: 'rgba(0, 223, 129, 0.1)',
-                                                    color: 'var(--accent-success)',
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: 'var(--radius-full)',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    {p.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
+                            {/* ── Tasks 8.2 + 8.3: Body ── */}
+                            <div style={{ display: 'flex', gap: 0, flex: 1, padding: '20px 24px', alignItems: 'flex-start' }}>
 
-                                    {/* WAITING */}
-                                    <div className="card">
-                                        <h4 style={{ color: 'var(--accent-warning)', marginBottom: '1rem' }}>
-                                            <Clock size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Waiting ({getWaitingParticipants().length})
-                                        </h4>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {getWaitingParticipants().slice(0, 50).map(p => (
-                                                <div key={p.id} style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.5rem',
-                                                    background: 'rgba(245, 158, 11, 0.1)',
-                                                    color: 'var(--accent-warning)',
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: 'var(--radius-full)',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    <span>
-                                                        {p.name}
-                                                        {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount}⚠️)`}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => handleKickParticipant(p.id, p.name)}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: 'var(--accent-warning)',
-                                                            cursor: 'pointer',
-                                                            padding: 0,
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
-                                                        title="Kick Student"
-                                                    >
-                                                        <XCircle size={14} />
-                                                    </button>
-                                                </div>
-                                            ))}
+                                {/* ── Task 8.2: Question Card ── */}
+                                <div style={{ flex: 1, marginRight: 20 }}>
+                                    <div style={{
+                                        background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 24, marginBottom: 16,
+                                    }}>
+                                        {/* Badge + progress */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                            <span style={{
+                                                background: '#FF5C1A', color: '#fff', borderRadius: 20,
+                                                padding: '3px 12px', fontSize: 12, fontWeight: 700,
+                                            }}>
+                                                Question {session.currentQuestionIndex + 1} of {questions.length}
+                                            </span>
+                                            <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 600 }}>
+                                                {currentQuestionAnswers.length}/{getActiveParticipants().length} answered
+                                            </span>
                                         </div>
-                                    </div>
+                                        {/* Progress bar */}
+                                        <div style={{ height: 4, background: '#F3F4F6', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
+                                            <div style={{
+                                                height: '100%',
+                                                width: `${((session.currentQuestionIndex + 1) / questions.length) * 100}%`,
+                                                background: '#FF5C1A', borderRadius: 2,
+                                            }} />
+                                        </div>
 
-                                    {/* KICKED/LEFT */}
-                                    <div className="card">
-                                        <h4 style={{ color: 'var(--accent-error)', marginBottom: '1rem' }}>
-                                            <XCircle size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                            Left/Kicked ({getKickedParticipants().length + getLeftParticipants().length})
-                                        </h4>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '120px', overflow: 'auto' }}>
-                                            {[...getKickedParticipants(), ...getLeftParticipants()].map(p => {
-                                                const isCheatKick = p.kickReason?.includes('cheat') || p.kickReason?.includes('violation') || p.kickReason?.includes('tab');
+                                        {/* Question text */}
+                                        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', marginBottom: 16, lineHeight: 1.4 }}>
+                                            {currentQuestion.questionText}
+                                        </h2>
+
+                                        {/* Image placeholder */}
+                                        <div style={{
+                                            height: 80, background: '#F9FAFB', borderRadius: 8,
+                                            border: '1px dashed #D1D5DB', display: 'flex', alignItems: 'center',
+                                            justifyContent: 'center', marginBottom: 20, color: '#9CA3AF', fontSize: 13,
+                                        }}>
+                                            Image / Media (optional)
+                                        </div>
+
+                                        {/* Answer options */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                                            {(['A', 'B', 'C', 'D'] as const).map((letter, idx) => {
+                                                const optionColors = ['#3B82F6', '#8B5CF6', '#F59E0B', '#10B981'];
+                                                const isCorrect = currentQuestion.correctAnswer === letter;
+                                                const showCorrect = session.status === 'results' && isCorrect;
+                                                const answerCount = getAnswerDistribution()[letter];
+                                                const percentage = currentQuestionAnswers.length > 0
+                                                    ? Math.round((answerCount / currentQuestionAnswers.length) * 100) : 0;
+
                                                 return (
-                                                    <div key={p.id} style={{
-                                                        display: 'inline-flex',
-                                                        flexDirection: 'column',
-                                                        gap: '0.25rem',
-                                                        background: isCheatKick ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
-                                                        color: 'var(--accent-error)',
-                                                        padding: '0.5rem 0.75rem',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        fontSize: '0.85rem',
-                                                        border: isCheatKick ? '2px solid var(--accent-error)' : '1px solid var(--accent-error)',
-                                                        minWidth: '150px'
+                                                    <div key={letter} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10,
+                                                        padding: '12px 14px', borderRadius: 10,
+                                                        border: `2px solid ${showCorrect ? '#10B981' : session.status === 'results' ? '#E5E7EB' : '#E5E7EB'}`,
+                                                        background: showCorrect ? '#F0FDF4' : session.status === 'results' && !isCorrect ? '#FAFAFA' : '#fff',
+                                                        opacity: session.status === 'results' && !isCorrect ? 0.6 : 1,
+                                                        transition: 'all 0.2s',
                                                     }}>
-                                                        <div style={{ fontWeight: 600 }}>{p.name}</div>
-                                                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                                                            {p.kickReason || (p.status === 'left' ? 'Left game' : 'Kicked')}
-                                                            {p.violationCount !== undefined && p.violationCount > 0 && ` (${p.violationCount} violations)`}
+                                                        <div style={{
+                                                            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                                            background: showCorrect ? '#10B981' : optionColors[idx],
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            color: '#fff', fontWeight: 800, fontSize: 14,
+                                                        }}>
+                                                            {letter}
                                                         </div>
+                                                        <span style={{ flex: 1, fontWeight: 600, color: '#374151', fontSize: 14 }}>
+                                                            {currentQuestion[`option${letter}` as keyof Question]}
+                                                        </span>
+                                                        {session.status === 'results' && (
+                                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>{percentage}%</span>
+                                                        )}
+                                                        {showCorrect && <CheckCircle size={18} color="#10B981" />}
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* Mini Leaderboard */}
-                            {session.status === 'results' && (
-                                <div className="card mb-xl">
-                                    <h4 style={{ marginBottom: '1rem' }}>
-                                        <Trophy size={18} style={{ display: 'inline', marginRight: '8px' }} />
-                                        Top 5
-                                    </h4>
-                                    <div className="leaderboard">
-                                        {participants.slice(0, 5).map((p, i) => (
-                                            <div key={p.id} className={`leaderboard-item ${i < 3 ? `top-${i + 1}` : ''}`}>
-                                                <span className={`leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''
-                                                    }`}>
-                                                    {i + 1}
-                                                </span>
-                                                <span className="leaderboard-name">{p.name}</span>
-                                                <span className="leaderboard-score">{p.score.toFixed(1)}</span>
+                                        {/* Action buttons */}
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            {session.status === 'question' && (
+                                                <button
+                                                    onClick={revealAnswer}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 6,
+                                                        background: '#F9FAFB', color: '#374151',
+                                                        border: '1px solid #E5E7EB', borderRadius: 8,
+                                                        padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <Eye size={15} /> Show Hint
+                                                </button>
+                                            )}
+                                            {session.status === 'question' && (
+                                                <button
+                                                    onClick={revealAnswer}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 6,
+                                                        background: '#F0FDF4', color: '#10B981',
+                                                        border: '1px solid #BBF7D0', borderRadius: 8,
+                                                        padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <CheckCircle size={15} /> Correct Answer
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={session.status === 'question' ? revealAnswer : nextQuestion}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 6,
+                                                    background: '#FF5C1A', color: '#fff',
+                                                    border: 'none', borderRadius: 8,
+                                                    padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                                                    marginLeft: 'auto',
+                                                }}
+                                            >
+                                                {session.status === 'question'
+                                                    ? <><Eye size={15} /> Skip & Reveal</>
+                                                    : session.currentQuestionIndex + 1 >= questions.length
+                                                        ? <><Trophy size={15} /> Finish Game</>
+                                                        : <><ArrowRight size={15} /> Next Question →</>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Response distribution (results only) */}
+                                    {session.status === 'results' && (
+                                        <div style={{
+                                            background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 20,
+                                        }}>
+                                            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 16 }}>Response Distribution</h3>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                                                {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+                                                    const answerCount = getAnswerDistribution()[letter];
+                                                    const percentage = currentQuestionAnswers.length > 0
+                                                        ? Math.round((answerCount / currentQuestionAnswers.length) * 100) : 0;
+                                                    const isCorrect = currentQuestion.correctAnswer === letter;
+                                                    return (
+                                                        <div key={letter} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                            <div style={{ width: '100%', height: 100, background: '#F9FAFB', borderRadius: 8, position: 'relative', overflow: 'hidden', marginBottom: 6 }}>
+                                                                <motion.div
+                                                                    initial={{ height: 0 }}
+                                                                    animate={{ height: `${percentage}%` }}
+                                                                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                                                                    style={{
+                                                                        position: 'absolute', bottom: 0, width: '100%',
+                                                                        background: isCorrect ? '#10B981' : '#CBD5E1',
+                                                                    }}
+                                                                />
+                                                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#374151', fontSize: 16 }}>
+                                                                    {answerCount}
+                                                                </div>
+                                                            </div>
+                                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{letter}</span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        ))}
+                                        </div>
+                                    )}
+
+                                    {/* Real-time status (question only) */}
+                                    {session.status === 'question' && (
+                                        <div style={{
+                                            background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 20,
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                                <span style={{ fontWeight: 700, color: '#111827', fontSize: 14 }}>Real-time Status</span>
+                                                <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 600 }}>
+                                                    {getAnsweredParticipants().length} answered · {getWaitingParticipants().length} thinking
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {participants.map(p => {
+                                                    const answered = currentQuestionAnswers.some(a => a.participantId === p.id);
+                                                    return (
+                                                        <span key={p.id} style={{
+                                                            padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                                            background: answered ? '#F0FDF4' : '#F9FAFB',
+                                                            color: answered ? '#10B981' : '#9CA3AF',
+                                                            border: `1px solid ${answered ? '#BBF7D0' : '#E5E7EB'}`,
+                                                        }}>
+                                                            {p.name}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* ── Task 8.3: Right Panel ── */}
+                                <div style={{ width: 320, flexShrink: 0 }}>
+                                    {/* Controls */}
+                                    <div style={{
+                                        background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 16, marginBottom: 12,
+                                    }}>
+                                        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                                            <button
+                                                onClick={handleLockStudents}
+                                                style={{
+                                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                                    background: studentsLocked ? '#FEF2F2' : '#F9FAFB',
+                                                    color: studentsLocked ? '#EF4444' : '#374151',
+                                                    border: `1px solid ${studentsLocked ? '#FECACA' : '#E5E7EB'}`,
+                                                    borderRadius: 8, padding: '8px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                }}
+                                            >
+                                                <Lock size={14} />
+                                                {studentsLocked ? 'Unlock' : 'Lock Students'}
+                                            </button>
+                                            <button
+                                                onClick={handleBroadcast}
+                                                style={{
+                                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                                    background: '#FFF3EE', color: '#FF5C1A',
+                                                    border: '1px solid #FDBA74', borderRadius: 8,
+                                                    padding: '8px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                                                }}
+                                            >
+                                                <Radio size={14} />
+                                                Broadcast
+                                            </button>
+                                        </div>
+
+                                        {/* Anti-Cheat Monitor */}
+                                        <div style={{ marginBottom: 16 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                                <AlertTriangle size={14} color="#F59E0B" />
+                                                <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Anti-Cheat Monitor</span>
+                                            </div>
+                                            <div style={{
+                                                maxHeight: 120, overflowY: 'auto', background: '#FFFBEB',
+                                                borderRadius: 8, border: '1px solid #FDE68A', padding: 8,
+                                            }}>
+                                                {participants.length === 0 ? (
+                                                    <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>No violations detected</p>
+                                                ) : (
+                                                    <p style={{ fontSize: 12, color: '#92400E' }}>Monitoring {participants.length} students...</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Activity Feed */}
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                                <MessageSquare size={14} color="#6B7280" />
+                                                <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Activity Feed</span>
+                                            </div>
+                                            <div style={{
+                                                maxHeight: 140, overflowY: 'auto', background: '#F9FAFB',
+                                                borderRadius: 8, border: '1px solid #E5E7EB', padding: 8, marginBottom: 8,
+                                            }}>
+                                                {activityMessages.map(msg => (
+                                                    <div key={msg.id} style={{ fontSize: 12, color: '#374151', padding: '3px 0', borderBottom: '1px solid #F3F4F6' }}>
+                                                        <span style={{ color: '#9CA3AF', marginRight: 4 }}>{msg.time}</span>
+                                                        {msg.text}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 6 }}>
+                                                <input
+                                                    type="text"
+                                                    value={chatInput}
+                                                    onChange={e => setChatInput(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                                                    placeholder="Type a message..."
+                                                    style={{
+                                                        flex: 1, border: '1px solid #E5E7EB', borderRadius: 8,
+                                                        padding: '6px 10px', fontSize: 12, outline: 'none',
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={handleSendChat}
+                                                    style={{
+                                                        background: '#FF5C1A', color: '#fff', border: 'none',
+                                                        borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center',
+                                                    }}
+                                                >
+                                                    <Send size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Task 8.4: Top Performers Leaderboard ── */}
+                                    <div style={{
+                                        background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 16,
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                            <Trophy size={16} color="#FF5C1A" />
+                                            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Top Performers</span>
+                                        </div>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid #F3F4F6' }}>
+                                                    <th style={{ padding: '4px 6px', textAlign: 'left', color: '#9CA3AF', fontWeight: 600 }}>Rank</th>
+                                                    <th style={{ padding: '4px 6px', textAlign: 'left', color: '#9CA3AF', fontWeight: 600 }}>Student</th>
+                                                    <th style={{ padding: '4px 6px', textAlign: 'right', color: '#9CA3AF', fontWeight: 600 }}>Score</th>
+                                                    <th style={{ padding: '4px 6px', textAlign: 'right', color: '#9CA3AF', fontWeight: 600 }}>Streak</th>
+                                                    <th style={{ padding: '4px 6px', textAlign: 'right', color: '#9CA3AF', fontWeight: 600 }}>Acc%</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {participants.slice(0, 8).map((p, i) => {
+                                                    const pAnswers = answers.filter(a => a.participantId === p.id);
+                                                    const accuracy = pAnswers.length > 0
+                                                        ? Math.round((pAnswers.filter(a => a.isCorrect).length / pAnswers.length) * 100) : 0;
+                                                    const medalColors = ['#F59E0B', '#94A3B8', '#CD7C2F'];
+                                                    return (
+                                                        <motion.tr key={p.id} layout style={{ borderBottom: '1px solid #F9FAFB' }}>
+                                                            <td style={{ padding: '6px 6px' }}>
+                                                                {i < 3 ? (
+                                                                    <Medal size={16} color={medalColors[i]} />
+                                                                ) : (
+                                                                    <span style={{ color: '#9CA3AF', fontWeight: 700 }}>{i + 1}</span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '6px 6px', fontWeight: 600, color: '#374151', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {p.name}
+                                                            </td>
+                                                            <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#FF5C1A' }}>
+                                                                {Math.round(p.score)}
+                                                            </td>
+                                                            <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6B7280' }}>
+                                                                {p.answersCount ?? 0}
+                                                            </td>
+                                                            <td style={{ padding: '6px 6px', textAlign: 'right', color: '#10B981', fontWeight: 600 }}>
+                                                                {accuracy}%
+                                                            </td>
+                                                        </motion.tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            )}
-
-                            {/* Controls */}
-                            <div className="flex justify-center gap-md">
-                                {session.status === 'question' ? (
-                                    <button onClick={revealAnswer} className="btn btn-primary btn-lg">
-                                        <Eye size={20} />
-                                        Reveal Answer
-                                    </button>
-                                ) : (
-                                    <button onClick={nextQuestion} className="btn btn-primary btn-lg">
-                                        {session.currentQuestionIndex + 1 >= questions.length ? (
-                                            <>
-                                                <Trophy size={20} />
-                                                Show Final Results
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ArrowRight size={20} />
-                                                Next Question
-                                            </>
-                                        )}
-                                    </button>
-                                )}
                             </div>
                         </motion.div>
                     )}
@@ -870,119 +1126,133 @@ export function GameHost() {
                             key="ended"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="text-center"
+                            style={{ maxWidth: 900, margin: '0 auto', paddingBottom: 80 }}
                         >
-                            <h1 style={{ marginBottom: '2rem' }}>🎉 Game Complete!</h1>
+                            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+                                <div style={{
+                                    display: 'inline-block', background: '#FFF3EE', color: '#FF5C1A',
+                                    borderRadius: 20, padding: '4px 16px', fontSize: 12, fontWeight: 800,
+                                    textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16,
+                                }}>
+                                    Session Complete
+                                </div>
+                                <h1 style={{ fontSize: 40, fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>Victory Lap! ??</h1>
+                                <p style={{ color: '#94A3B8', fontWeight: 600, fontSize: 16, margin: 0 }}>Incredible performance from all participants</p>
+                            </div>
 
                             {/* Podium */}
-                            {participants.length >= 3 && (
-                                <div className="podium" style={{ marginBottom: '2rem' }}>
-                                    <div className="podium-place second">
-                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🥈</div>
-                                        <div className="podium-name">{participants[1]?.name}</div>
-                                        <div className="podium-score">{participants[1]?.score.toLocaleString()}</div>
-                                    </div>
-                                    <div className="podium-place first">
-                                        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥇</div>
-                                        <div className="podium-name">{participants[0]?.name}</div>
-                                        <div className="podium-score">{participants[0]?.score.toLocaleString()}</div>
-                                    </div>
-                                    <div className="podium-place third">
-                                        <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>🥉</div>
-                                        <div className="podium-name">{participants[2]?.name}</div>
-                                        <div className="podium-score">{participants[2]?.score.toLocaleString()}</div>
-                                    </div>
+                            {participants.length >= 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 16, marginBottom: 40 }}>
+                                    {participants.length >= 2 && (
+                                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+                                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#94A3B8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+                                                {participants[1].name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div style={{ background: '#94A3B8', borderRadius: '12px 12px 0 0', padding: '16px 24px', textAlign: 'center', minWidth: 120, height: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                                <div style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>{participants[1].name}</div>
+                                                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>{Math.round(participants[1].score)} pts</div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ fontSize: 36, marginBottom: 8 }}>??</div>
+                                        <div style={{ background: '#FF5C1A', borderRadius: '12px 12px 0 0', padding: '16px 24px', textAlign: 'center', minWidth: 140, height: 130, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                            <div style={{ color: '#fff', fontWeight: 800, fontSize: 18 }}>{participants[0].name}</div>
+                                            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 600 }}>{Math.round(participants[0].score)} pts</div>
+                                        </div>
+                                    </motion.div>
+                                    {participants.length >= 3 && (
+                                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+                                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#CD7C2F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20, marginBottom: 8 }}>
+                                                {participants[2].name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div style={{ background: '#CD7C2F', borderRadius: '12px 12px 0 0', padding: '16px 24px', textAlign: 'center', minWidth: 120, height: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                                <div style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>{participants[2].name}</div>
+                                                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>{Math.round(participants[2].score)} pts</div>
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Top 5 */}
-                            <div className="card mb-xl">
-                                <h4 style={{ marginBottom: '1rem' }}>Top 5</h4>
-                                <div className="leaderboard">
-                                    {participants.slice(0, 5).map((p, i) => (
-                                        <div
-                                            key={p.id}
-                                            className={`leaderboard-item ${i < 3 ? `top-${i + 1}` : ''}`}
-                                        >
-                                            <span className={`leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''
-                                                }`}>
-                                                {i + 1}
-                                            </span>
-                                            <span className="leaderboard-name">{p.name}</span>
-                                            <span className="leaderboard-score">{p.score.toLocaleString()}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
                             {/* Detailed Results Table */}
-                            <div className="card mb-xl text-left" style={{ overflowX: 'auto' }}>
-                                <h4 style={{ marginBottom: '1rem' }}>Detailed Results</h4>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Rank</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Student</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Score</th>
-                                            {questions.map((q, i) => (
-                                                <th key={q.id} style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                                    Q{i + 1}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {participants.map((p, i) => (
-                                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                                <td style={{ padding: '0.5rem' }}>{i + 1}</td>
-                                                <td style={{ padding: '0.5rem', fontWeight: '500' }}>{p.name}</td>
-                                                <td style={{ padding: '0.5rem', textAlign: 'right' }}>{p.score.toLocaleString()}</td>
-                                                {questions.map((q, qIndex) => {
-                                                    const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
-                                                    const isCorrect = answer?.isCorrect;
-                                                    const time = answer ? (answer.timeTakenMs / 1000).toFixed(1) + 's' : '-';
+                            <div style={{ background: '#FFFFFF', borderRadius: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 28, overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                    <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Detailed Breakdown</h3>
+                                    <div style={{ display: 'flex', gap: 10 }}>
+                                        <button onClick={handleDownloadResults} style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            background: '#F8FAFC', color: '#475569',
+                                            border: '1px solid #E2E8F0', borderRadius: 10,
+                                            padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                        }}>
+                                            <Download size={16} />
+                                            Export CSV
+                                        </button>
+                                        <button onClick={() => navigate('/teacher')} style={{
+                                            background: '#FF5C1A', color: '#fff',
+                                            border: 'none', borderRadius: 10,
+                                            padding: '9px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                                        }}>
+                                            Back to Dashboard
+                                        </button>
+                                    </div>
+                                </div>
 
-                                                    return (
-                                                        <td key={q.id} style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                                            <div style={{
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                alignItems: 'center',
-                                                                fontSize: '0.8rem'
-                                                            }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                                <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rank</th>
+                                                <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Student</th>
+                                                <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Score</th>
+                                                {questions.map((_, i) => (
+                                                    <th key={i} style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>Q{i + 1}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {participants.map((p, i) => (
+                                                <tr key={p.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
+                                                    <td style={{ padding: '16px 0', fontWeight: 800, color: '#0F172A' }}>{i + 1}</td>
+                                                    <td style={{ padding: '16px 8px' }}>
+                                                        <div style={{ fontWeight: 700, color: '#334155' }}>{p.name}</div>
+                                                        <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
+                                                    </td>
+                                                    <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{Math.round(p.score)}</td>
+                                                    {questions.map((q, qIndex) => {
+                                                        const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
+                                                        const isCorrect = answer?.isCorrect;
+                                                        return (
+                                                            <td key={qIndex} style={{ padding: '16px 4px', textAlign: 'center' }}>
                                                                 {answer ? (
-                                                                    <span style={{
-                                                                        color: isCorrect ? 'var(--accent-success)' : 'var(--accent-error)',
-                                                                        fontWeight: 'bold'
+                                                                    <div style={{
+                                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                                        width: 28, height: 28, borderRadius: 6, fontWeight: 800, fontSize: 11,
+                                                                        background: isCorrect ? '#ECFDF5' : '#FEF2F2',
+                                                                        color: isCorrect ? '#10B981' : '#EF4444',
+                                                                        border: `1px solid ${isCorrect ? '#BBF7D0' : '#FECACA'}`,
                                                                     }}>
                                                                         {answer.answer}
-                                                                    </span>
+                                                                    </div>
                                                                 ) : (
-                                                                    <span style={{ color: 'var(--text-muted)' }}>-</span>
+                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#CBD5E1', fontWeight: 700, fontSize: 11 }}>�</div>
                                                                 )}
-                                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{time}</span>
-                                                            </div>
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="flex gap-md justify-center">
-                                <button onClick={handleDownloadResults} className="btn btn-secondary btn-lg">
-                                    <Download size={20} style={{ marginRight: '0.5rem' }} />
-                                    Download Excel
-                                </button>
-                                <button onClick={() => navigate('/teacher')} className="btn btn-primary btn-lg">
-                                    Back to Dashboard
-                                </button>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </motion.div>
                     )}
-                </AnimatePresence>
+                                </AnimatePresence>
             </div>
         </div>
     );

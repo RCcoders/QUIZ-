@@ -7,11 +7,9 @@ import {
     signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
-import { getProfile, createProfile, type Profile } from '../lib/database';
 
 interface AuthContextType {
     user: User | null;
-    profile: Profile | null;
     loading: boolean;
     signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -22,25 +20,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Listen for auth state changes
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
-
-            if (user) {
-                try {
-                    const userProfile = await getProfile(user.uid);
-                    setProfile(userProfile);
-                } catch (error) {
-                    console.error('Error fetching profile:', error);
-                }
-            } else {
-                setProfile(null);
-            }
-
             setLoading(false);
         });
 
@@ -49,11 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signUp = async (email: string, password: string) => {
         try {
-            const { user } = await createUserWithEmailAndPassword(auth, email, password);
-
-            // Create profile in Firestore
-            await createProfile(user.uid, email, null);
-
+            await createUserWithEmailAndPassword(auth, email, password);
             return { error: null };
         } catch (error) {
             return { error: error as Error };
@@ -72,14 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signOut = async () => {
         await firebaseSignOut(auth);
         setUser(null);
-        setProfile(null);
     };
 
     return (
         <AuthContext.Provider
             value={{
                 user,
-                profile,
                 loading,
                 signUp,
                 signIn,
@@ -91,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {
