@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, HelpCircle, Play, Users } from 'lucide-react';
+import { BookOpen, Clock, HelpCircle, Search } from 'lucide-react';
+import { StudentNavbar } from '../components/StudentNavbar';
+import { filterQuizzes } from '../utils/quizFilter';
 
 const practiceQuizzes = [
     {
@@ -35,51 +37,13 @@ const practiceQuizzes = [
 ];
 
 export function StudentBrowse() {
-    const [loading] = useState(false);
-    const navigate = useNavigate();
+    const [searchQuery, setSearchQuery] = useState('');
 
-    if (loading) {
-        return (
-            <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: 40, height: 40, border: '3px solid #FF5C1A', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            </div>
-        );
-    }
+    const filteredQuizzes = filterQuizzes(practiceQuizzes, searchQuery);
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
-            {/* Top bar */}
-            <div style={{
-                background: '#FFFFFF',
-                borderBottom: '1px solid #E5E7EB',
-                padding: '0 32px',
-                height: 64,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                        width: 36, height: 36, background: '#FF5C1A', borderRadius: 8,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-                    }}>
-                        <Play fill="currentColor" size={18} />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 17, color: '#111827' }}>QuizMaster</span>
-                </div>
-                <button
-                    onClick={() => navigate('/join')}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        background: '#FF5C1A', color: '#fff',
-                        border: 'none', borderRadius: 10,
-                        padding: '9px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-                    }}
-                >
-                    <Users size={16} />
-                    Join Live Game
-                </button>
-            </div>
+            <StudentNavbar />
 
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px' }}>
                 {/* Hero */}
@@ -96,6 +60,33 @@ export function StudentBrowse() {
                     </p>
                 </motion.div>
 
+                {/* Search input */}
+                <div style={{ marginBottom: 28, position: 'relative', maxWidth: 420 }}>
+                    <Search
+                        size={16}
+                        color="#9CA3AF"
+                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Search quizzes…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        aria-label="Search quizzes"
+                        style={{
+                            width: '100%',
+                            padding: '10px 14px 10px 36px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: 10,
+                            fontSize: 14,
+                            color: '#111827',
+                            background: '#FFFFFF',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                </div>
+
                 {/* Section header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                     <BookOpen size={20} color="#FF5C1A" />
@@ -109,90 +100,94 @@ export function StudentBrowse() {
                 </div>
 
                 {/* Quiz grid */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: 20,
-                }}>
-                    {practiceQuizzes.map((quiz, index) => (
-                        <motion.div
-                            key={quiz.id}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.08 }}
-                        >
-                            <Link
-                                to={`/student/quiz/${quiz.id}`}
-                                style={{ textDecoration: 'none' }}
+                {filteredQuizzes.length === 0 ? (
+                    <p style={{ color: '#6B7280', fontSize: 15 }}>No quizzes match your search.</p>
+                ) : (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                        gap: 20,
+                    }}>
+                        {filteredQuizzes.map((quiz, index) => (
+                            <motion.div
+                                key={quiz.id}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: index * 0.08 }}
                             >
-                                <div style={{
-                                    background: '#FFFFFF',
-                                    borderRadius: 14,
-                                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                                    padding: 24,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    transition: 'box-shadow 0.15s, transform 0.15s',
-                                    height: '100%',
-                                    boxSizing: 'border-box',
-                                }}
-                                    onMouseEnter={e => {
-                                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
-                                        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                                    }}
-                                    onMouseLeave={e => {
-                                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)';
-                                        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-                                    }}
+                                <Link
+                                    to={`/student/quiz/${quiz.id}`}
+                                    style={{ textDecoration: 'none' }}
                                 >
-                                    {/* Icon */}
                                     <div style={{
-                                        width: 52, height: 52, borderRadius: '50%',
-                                        background: quiz.bg,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        marginBottom: 16,
-                                    }}>
-                                        <HelpCircle size={24} color={quiz.color} />
-                                    </div>
+                                        background: '#FFFFFF',
+                                        borderRadius: 14,
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                                        padding: 24,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        transition: 'box-shadow 0.15s, transform 0.15s',
+                                        height: '100%',
+                                        boxSizing: 'border-box',
+                                    }}
+                                        onMouseEnter={e => {
+                                            (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+                                            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                                        }}
+                                        onMouseLeave={e => {
+                                            (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)';
+                                            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                                        }}
+                                    >
+                                        {/* Icon */}
+                                        <div style={{
+                                            width: 52, height: 52, borderRadius: '50%',
+                                            background: quiz.bg,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            marginBottom: 16,
+                                        }}>
+                                            <HelpCircle size={24} color={quiz.color} />
+                                        </div>
 
-                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
-                                        {quiz.title}
-                                    </h3>
-                                    <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 }}>
-                                        {quiz.description}
-                                    </p>
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                                            {quiz.title}
+                                        </h3>
+                                        <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 }}>
+                                            {quiz.description}
+                                        </p>
 
-                                    {/* Meta */}
-                                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <HelpCircle size={13} /> 10 Qs
-                                        </span>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <Clock size={13} /> 30s
-                                        </span>
-                                    </div>
+                                        {/* Meta */}
+                                        <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <HelpCircle size={13} /> 10 Qs
+                                            </span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <Clock size={13} /> 30s
+                                            </span>
+                                        </div>
 
-                                    {/* CTA */}
-                                    <div style={{
-                                        width: '100%',
-                                        background: '#FF5C1A',
-                                        color: '#fff',
-                                        borderRadius: 8,
-                                        padding: '9px 0',
-                                        fontWeight: 600,
-                                        fontSize: 13,
-                                        marginTop: 'auto',
-                                    }}>
-                                        Start Quiz
+                                        {/* CTA */}
+                                        <div style={{
+                                            width: '100%',
+                                            background: '#FF5C1A',
+                                            color: '#fff',
+                                            borderRadius: 8,
+                                            padding: '9px 0',
+                                            fontWeight: 600,
+                                            fontSize: 13,
+                                            marginTop: 'auto',
+                                        }}>
+                                            Start Quiz
+                                        </div>
                                     </div>
-                                </div>
-                            </Link>
-                        </motion.div>
-                    ))}
-                </div>
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

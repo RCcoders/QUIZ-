@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -30,8 +31,9 @@ if (!isValidConfig) {
 // Initialize Firebase (prevent multiple initializations)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Export Firebase Auth only
+// Export Firebase Auth and Firestore
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 // Export validation status for components to check
 export const isFirebaseConfigured = isValidConfig;

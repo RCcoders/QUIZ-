@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Play, HelpCircle, User, Mail } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function JoinGame() {
     const { code } = useParams();
     const navigate = useNavigate();
+    const { userProfile } = useAuth();
 
-    const [gameCode, setGameCode] = useState(() => code && code.length === 6 ? code.toUpperCase() : '');
-    const [name, setName] = useState('');
+    const [gameCode, setGameCode] = useState(() => code ? code.toUpperCase() : '');
+    const [name, setName] = useState(() => userProfile?.displayName ?? '');
     const [email, setEmail] = useState('');
     const [validationError, setValidationError] = useState('');
     const [joiningSession, setJoiningSession] = useState(false);

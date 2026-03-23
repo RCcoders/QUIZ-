@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { user, loading } = useAuth();
+    const { user, userProfile, loading } = useAuth();
 
     if (loading) {
         return (
@@ -18,7 +18,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     if (!user) {
-        return <Navigate to="/auth" replace />;
+        return <Navigate to="/login" replace />;
+    }
+
+    // Students should not access teacher routes
+    if (userProfile?.role === 'student') {
+        return <Navigate to="/student/dashboard" replace />;
     }
 
     return <>{children}</>;

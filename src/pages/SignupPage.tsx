@@ -1,47 +1,64 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Play } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, Play, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getRedirectPath } from '../utils/scoring';
 
-export function AuthPage() {
-    const [isLogin, setIsLogin] = useState(true);
+export function SignupPage() {
+    const [displayName, setDisplayName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState('');
     const [role, setRole] = useState<'student' | 'teacher'>('student');
     const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const { signIn, signUp, user, loading: authLoading } = useAuth();
+    const { signUp, signInWithGoogle, user, userProfile, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
         if (!authLoading && user) {
-            navigate('/teacher', { replace: true });
+            navigate(getRedirectPath(userProfile?.role ?? ''), { replace: true });
         }
-    }, [user, authLoading, navigate]);
+    }, [user, userProfile, authLoading, navigate]);
+
+    const validatePassword = (value: string): boolean => {
+        if (value.length < 6) {
+            setPasswordError('Password must be at least 6 characters');
+            return false;
+        }
+        setPasswordError('');
+        return true;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setSuccess('');
-        setLoading(true);
 
+        if (!validatePassword(password)) return;
+
+        setLoading(true);
         try {
-            if (isLogin) {
-                const { error } = await signIn(email, password);
-                if (error) throw error;
-                navigate('/teacher');
-            } else {
-                const { error } = await signUp(email, password, email.split('@')[0], role);
-                if (error) throw error;
-                setSuccess('Account created! Check your email to verify, then log in.');
-                setIsLogin(true);
-            }
+            const { error: signUpError } = await signUp(email, password, displayName, role);
+            if (signUpError) throw signUpError;
+            navigate(getRedirectPath(role), { replace: true });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const { error: googleError } = await signInWithGoogle();
+            if (googleError) throw googleError;
+            // Don't navigate here — the useEffect will handle it once userProfile loads
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
             setLoading(false);
         }
     };
@@ -77,7 +94,7 @@ export function AuthPage() {
                         color: 'white', fontSize: '2rem', fontWeight: 700,
                         lineHeight: 1.3, marginBottom: '16px',
                     }}>
-                        Master your subjects with interactive quizzes
+                        Start your learning journey today
                     </h1>
                     <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1rem', lineHeight: 1.6 }}>
                         Join thousands of students and teachers using QuizMaster to make learning engaging and effective.
@@ -105,25 +122,31 @@ export function AuthPage() {
             }}>
                 <div style={{ width: '100%', maxWidth: '400px' }}>
                     <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>
-                        Welcome Back
+                        Create your account
                     </h2>
                     <p style={{ color: '#6B7280', marginBottom: '28px', fontSize: '0.95rem' }}>
-                        Sign in to your account to continue
+                        Sign up to get started with QuizMaster
                     </p>
 
-                    {/* Student / Teacher tab toggle */}
-                    <div style={{
-                        display: 'flex',
-                        background: '#F3F4F6',
-                        borderRadius: '50px',
-                        padding: '4px',
-                        marginBottom: '24px',
-                    }}>
+                    {/* Role toggle — student / teacher */}
+                    <div
+                        role="group"
+                        aria-label="Select role"
+                        style={{
+                            display: 'flex',
+                            background: '#F3F4F6',
+                            borderRadius: '50px',
+                            padding: '4px',
+                            marginBottom: '24px',
+                        }}
+                    >
                         {(['student', 'teacher'] as const).map((r) => (
                             <button
                                 key={r}
                                 type="button"
+                                data-testid={`role-${r}`}
                                 onClick={() => setRole(r)}
+                                aria-pressed={role === r}
                                 style={{
                                     flex: 1,
                                     padding: '8px 0',
@@ -143,29 +166,51 @@ export function AuthPage() {
                     </div>
 
                     {error && (
-                        <div style={{
-                            background: '#FEF2F2', border: '1px solid #FECACA',
-                            color: '#DC2626', borderRadius: '8px',
-                            padding: '10px 14px', marginBottom: '16px', fontSize: '0.875rem',
-                        }}>
+                        <div
+                            role="alert"
+                            data-testid="error-message"
+                            style={{
+                                background: '#FEF2F2', border: '1px solid #FECACA',
+                                color: '#DC2626', borderRadius: '8px',
+                                padding: '10px 14px', marginBottom: '16px', fontSize: '0.875rem',
+                            }}
+                        >
                             {error}
                         </div>
                     )}
 
-                    {success && (
-                        <div style={{
-                            background: '#F0FDF4', border: '1px solid #BBF7D0',
-                            color: '#16A34A', borderRadius: '8px',
-                            padding: '10px 14px', marginBottom: '16px', fontSize: '0.875rem',
-                        }}>
-                            {success}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit}>
-                        {/* Email input */}
+                    <form onSubmit={handleSubmit} noValidate>
+                        {/* Display name */}
                         <div style={{ marginBottom: '16px' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                            <label htmlFor="displayName" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                                Display Name
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <User size={16} style={{
+                                    position: 'absolute', left: '12px', top: '50%',
+                                    transform: 'translateY(-50%)', color: '#9CA3AF',
+                                }} />
+                                <input
+                                    id="displayName"
+                                    type="text"
+                                    placeholder="Your name"
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    required
+                                    style={{
+                                        width: '100%', padding: '10px 12px 10px 38px',
+                                        border: '1px solid #E5E7EB', borderRadius: '8px',
+                                        fontSize: '0.9rem', outline: 'none',
+                                        boxSizing: 'border-box', color: '#111827',
+                                        background: '#FAFAFA',
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Email */}
+                        <div style={{ marginBottom: '16px' }}>
+                            <label htmlFor="email" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
                                 Email
                             </label>
                             <div style={{ position: 'relative' }}>
@@ -174,6 +219,7 @@ export function AuthPage() {
                                     transform: 'translateY(-50%)', color: '#9CA3AF',
                                 }} />
                                 <input
+                                    id="email"
                                     type="email"
                                     placeholder="you@example.com"
                                     value={email}
@@ -190,9 +236,9 @@ export function AuthPage() {
                             </div>
                         </div>
 
-                        {/* Password input */}
-                        <div style={{ marginBottom: '8px' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                        {/* Password */}
+                        <div style={{ marginBottom: passwordError ? '4px' : '20px' }}>
+                            <label htmlFor="password" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
                                 Password
                             </label>
                             <div style={{ position: 'relative' }}>
@@ -201,15 +247,19 @@ export function AuthPage() {
                                     transform: 'translateY(-50%)', color: '#9CA3AF',
                                 }} />
                                 <input
+                                    id="password"
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder="••••••••"
+                                    placeholder="Min. 6 characters"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        if (passwordError) validatePassword(e.target.value);
+                                    }}
                                     required
-                                    minLength={6}
                                     style={{
                                         width: '100%', padding: '10px 38px 10px 38px',
-                                        border: '1px solid #E5E7EB', borderRadius: '8px',
+                                        border: passwordError ? '1px solid #FECACA' : '1px solid #E5E7EB',
+                                        borderRadius: '8px',
                                         fontSize: '0.9rem', outline: 'none',
                                         boxSizing: 'border-box', color: '#111827',
                                         background: '#FAFAFA',
@@ -229,24 +279,25 @@ export function AuthPage() {
                             </div>
                         </div>
 
-                        {/* Forgot password */}
-                        <div style={{ textAlign: 'right', marginBottom: '20px' }}>
-                            <button
-                                type="button"
+                        {/* Password validation error */}
+                        {passwordError && (
+                            <div
+                                role="alert"
+                                data-testid="password-error"
                                 style={{
-                                    background: 'none', border: 'none',
-                                    color: '#FF5C1A', cursor: 'pointer',
-                                    fontSize: '0.85rem', fontWeight: 500,
+                                    color: '#DC2626', fontSize: '0.8rem',
+                                    marginBottom: '16px', paddingLeft: '2px',
                                 }}
                             >
-                                Forgot password?
-                            </button>
-                        </div>
+                                {passwordError}
+                            </div>
+                        )}
 
-                        {/* Sign In button */}
+                        {/* Submit button */}
                         <button
                             type="submit"
                             disabled={loading}
+                            data-testid="submit-button"
                             style={{
                                 width: '100%', padding: '11px',
                                 background: loading ? '#FDA07A' : '#FF5C1A',
@@ -254,9 +305,23 @@ export function AuthPage() {
                                 borderRadius: '8px', fontWeight: 600,
                                 fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer',
                                 marginBottom: '16px', transition: 'background 0.2s',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                             }}
                         >
-                            {loading ? 'Signing in...' : 'Sign In'}
+                            {loading && (
+                                <span
+                                    data-testid="loading-indicator"
+                                    style={{
+                                        width: '16px', height: '16px',
+                                        border: '2px solid rgba(255,255,255,0.4)',
+                                        borderTopColor: 'white',
+                                        borderRadius: '50%',
+                                        display: 'inline-block',
+                                        animation: 'spin 0.7s linear infinite',
+                                    }}
+                                />
+                            )}
+                            {loading ? 'Creating account...' : 'Create Account'}
                         </button>
                     </form>
 
@@ -270,11 +335,14 @@ export function AuthPage() {
                     {/* Google button */}
                     <button
                         type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading}
+                        data-testid="google-signin-button"
                         style={{
                             width: '100%', padding: '10px',
                             background: 'white', border: '1px solid #E5E7EB',
                             borderRadius: '8px', fontWeight: 500,
-                            fontSize: '0.9rem', cursor: 'pointer',
+                            fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             gap: '10px', color: '#374151', marginBottom: '20px',
                         }}
@@ -288,36 +356,26 @@ export function AuthPage() {
                         Continue with Google
                     </button>
 
-                    {/* Create account link */}
+                    {/* Link to login */}
                     <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#6B7280', marginBottom: '32px' }}>
-                        Don't have an account?{' '}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsLogin(!isLogin);
-                                setError('');
-                                setSuccess('');
-                            }}
+                        Already have an account?{' '}
+                        <Link
+                            to="/login"
+                            data-testid="login-link"
                             style={{
-                                background: 'none', border: 'none',
-                                color: '#FF5C1A', cursor: 'pointer',
-                                fontWeight: 600, fontSize: '0.875rem',
+                                color: '#FF5C1A',
+                                fontWeight: 600,
+                                fontSize: '0.875rem',
+                                textDecoration: 'none',
                             }}
                         >
-                            Create an account
-                        </button>
+                            Sign in
+                        </Link>
                     </p>
 
                     {/* Footer */}
                     <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#9CA3AF' }}>
-                        © {new Date().getFullYear()} QuizMaster. All rights reserved.{' '}
-                        <button type="button" style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}>
-                            Privacy Policy
-                        </button>
-                        {' · '}
-                        <button type="button" style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}>
-                            Terms of Service
-                        </button>
+                        © {new Date().getFullYear()} QuizMaster. All rights reserved.
                     </p>
                 </div>
             </div>

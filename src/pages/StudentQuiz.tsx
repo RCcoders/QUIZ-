@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CheckCircle, XCircle, Trophy, RotateCcw, Maximize } from 'lucide-react';
+import { ArrowRight, CheckCircle, XCircle, Trophy, Maximize } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { saveScoreRecord } from '../utils/scoring';
+import { QuizResultsSummary } from '../components/QuizResultsSummary';
 
 interface Quiz {
     id: string;
@@ -39,6 +42,7 @@ interface QuizAnswer {
 
 export function StudentQuiz() {
     const { id } = useParams();
+    const { user, userProfile } = useAuth();
 
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -239,7 +243,24 @@ export function StudentQuiz() {
 
 
 
-    // Monitor fullscreen and tab switching
+    // Auto-start for authenticated users: skip name/email form
+    useEffect(() => {
+        if (!loading && quiz && user && userProfile && !started) {
+            setName(userProfile.displayName);
+            setEmail(user.email ?? '');
+            // Enter fullscreen and start automatically
+            document.documentElement.requestFullscreen().catch(() => {
+                // Fullscreen not critical for authenticated users
+            });
+            setFullscreenGranted(true);
+            setStarted(true);
+            setQuestionStartTime(Date.now());
+            if (quiz.timerEnabled) {
+                setTimeLeft(quiz.timerSeconds);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, quiz, user, userProfile]);
     useEffect(() => {
         const handleFullscreenChange = () => {
             if (!document.fullscreenElement && started && !completed) {
@@ -313,7 +334,28 @@ export function StudentQuiz() {
     const nextQuestion = async () => {
         if (currentIndex + 1 >= questions.length) {
             // Complete quiz
+            const finalAnswers = answers;
+            const score = finalAnswers.filter(a => a.isCorrect).length;
+            const total = questions.length;
+            const percentage = Math.round((score / total) * 100);
+
             setCompleted(true);
+
+            // Save score record for authenticated users
+            if (user && quiz) {
+                try {
+                    await saveScoreRecord(user.uid, {
+                        quizId: quiz.id,
+                        quizTitle: quiz.title,
+                        score,
+                        total,
+                        percentage,
+                        completedAt: new Date().toISOString(),
+                    });
+                } catch (err) {
+                    console.error('Score not saved:', err);
+                }
+            }
         } else {
             setCurrentIndex(currentIndex + 1);
             setSelectedAnswer(null);
@@ -349,7 +391,7 @@ export function StudentQuiz() {
         );
     }
 
-    // Student Info Form
+    // Student Info Form — only shown for unauthenticated users
     if (!started) {
         return (
             <div style={{
@@ -441,108 +483,29 @@ export function StudentQuiz() {
         );
     }
 
+    const handleRetake = () => {
+        setCompleted(false);
+        setCurrentIndex(0);
+        setAnswers([]);
+        setSelectedAnswer(null);
+        setShowResult(false);
+        setStarted(false);
+    };
+
     // Completed
     if (completed) {
+        const finalScore = answers.filter(a => a.isCorrect).length;
+        const finalPercentage = Math.round((finalScore / questions.length) * 100);
         return (
-            <div style={{
-                minHeight: '100vh', background: '#F5F5F5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: "'Inter', sans-serif", padding: '24px',
-            }}>
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    style={{
-                        background: '#FFFFFF', borderRadius: 16,
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                        padding: '36px 32px', width: '100%', maxWidth: 520,
-                        textAlign: 'center',
-                    }}
-                >
-                    <Trophy size={56} style={{ color: '#FF5C1A', margin: '0 auto 16px' }} />
-                    <h2 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: '0 0 6px' }}>Quiz Complete!</h2>
-                    <p style={{ color: '#6B7280', marginBottom: 24, fontSize: 14 }}>
-                        Great job, {name}!
-                    </p>
-
-                    <div style={{
-                        fontSize: 56, fontWeight: 800, color: '#FF5C1A',
-                        lineHeight: 1, marginBottom: 8,
-                    }}>
-                        {getPercentage()}%
-                    </div>
-                    <p style={{ color: '#6B7280', marginBottom: 32, fontSize: 14 }}>
-                        {getScore()} out of {questions.length} correct
-                    </p>
-
-                    {quiz.showResults && (
-                        <div style={{ textAlign: 'left', marginBottom: 28 }}>
-                            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 14, textAlign: 'center' }}>
-                                Review Your Answers
-                            </h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {questions.map((q, i) => {
-                                    const userAnswer = answers.find(a => a.questionId === q.id);
-                                    const isCorrect = userAnswer?.isCorrect;
-                                    const userSelectedOption = userAnswer?.answer;
-
-                                    return (
-                                        <div
-                                            key={q.id}
-                                            style={{
-                                                background: '#FAFAFA',
-                                                borderRadius: 10,
-                                                padding: '12px 16px',
-                                                borderLeft: `4px solid ${isCorrect ? '#10B981' : '#EF4444'}`,
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                                                <div style={{ marginTop: 2, flexShrink: 0 }}>
-                                                    {isCorrect
-                                                        ? <CheckCircle size={18} color="#10B981" />
-                                                        : <XCircle size={18} color="#EF4444" />
-                                                    }
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <p style={{ fontWeight: 600, color: '#111827', fontSize: 13, margin: '0 0 6px' }}>
-                                                        {i + 1}. {q.questionText}
-                                                    </p>
-                                                    <div style={{ fontSize: 12, color: isCorrect ? '#10B981' : '#EF4444' }}>
-                                                        <span style={{ fontWeight: 600 }}>Your Answer: </span>
-                                                        {userSelectedOption
-                                                            ? <>{userSelectedOption}: {q[`option${userSelectedOption}` as keyof typeof q]}</>
-                                                            : 'Skipped'
-                                                        }
-                                                    </div>
-                                                    {!isCorrect && (
-                                                        <div style={{ fontSize: 12, color: '#10B981', marginTop: 2 }}>
-                                                            <span style={{ fontWeight: 600 }}>Correct: </span>
-                                                            {q.correctAnswer}: {q[`option${q.correctAnswer}` as keyof typeof q]}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    <Link
-                        to="/student"
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 8,
-                            background: '#FF5C1A', color: '#fff',
-                            padding: '11px 28px', borderRadius: 10,
-                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
-                        }}
-                    >
-                        <RotateCcw size={16} />
-                        Take Another Quiz
-                    </Link>
-                </motion.div>
-            </div>
+            <QuizResultsSummary
+                score={finalScore}
+                total={questions.length}
+                percentage={finalPercentage}
+                questions={questions}
+                userAnswers={answers}
+                isAuthenticated={!!user}
+                onRetake={handleRetake}
+            />
         );
     }
 

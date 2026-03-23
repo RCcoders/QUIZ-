@@ -109,3 +109,117 @@ export function calculatePercentage(earnedPoints: number, totalPossiblePoints: n
     if (totalPossiblePoints === 0) return 0;
     return Math.round((earnedPoints / totalPossiblePoints) * 100);
 }
+
+/**
+ * Returns the redirect path for a given user role after login/signup.
+ * Defaults to '/student/dashboard' for unknown or missing roles.
+ * @param role - The user's role string
+ * @returns The redirect path
+ */
+export function getRedirectPath(role: string): string {
+    if (role === 'teacher') return '/teacher';
+    return '/student/dashboard';
+}
+
+// ─── Student scoring utilities ────────────────────────────────────────────────
+
+import type { ScoreRecord } from '../types/student';
+import { db } from '../lib/firebase';
+import {
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+} from 'firebase/firestore';
+
+/**
+ * Returns a human-readable performance label for a given percentage score.
+ * - ≥ 80 → 'Excellent'
+ * - ≥ 60 → 'Good'
+ * - < 60 → 'Keep Practicing'
+ */
+export function getPerformanceLabel(percentage: number): 'Excellent' | 'Good' | 'Keep Practicing' {
+    if (percentage >= 80) return 'Excellent';
+    if (percentage >= 60) return 'Good';
+    return 'Keep Practicing';
+}
+
+/**
+ * Computes the average percentage score across an array of ScoreRecords.
+ * Returns 0 for an empty array.
+ */
+export function computeAverageScore(records: ScoreRecord[]): number {
+    if (records.length === 0) return 0;
+    const sum = records.reduce((acc, r) => acc + r.percentage, 0);
+    return Math.round(sum / records.length);
+}
+
+/**
+ * Computes the current streak (consecutive days with at least one completed quiz)
+ * based on the completedAt timestamps in the records.
+ * Counts backwards from today.
+ */
+export function computeStreak(records: ScoreRecord[]): number {
+    if (records.length === 0) return 0;
+
+    // Collect unique active dates (YYYY-MM-DD) from records
+    const activeDates = new Set(
+        records.map(r => r.completedAt.slice(0, 10))
+    );
+
+    let streak = 0;
+    const today = new Date();
+
+    for (let i = 0; ; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const dateStr = d.toISOString().slice(0, 10);
+        if (activeDates.has(dateStr)) {
+            streak++;
+        } else {
+            // Allow missing today (streak still counts from yesterday)
+            if (i === 0) continue;
+            break;
+        }
+    }
+
+    return streak;
+}
+
+/**
+ * Persists a score record to Firestore under `users/{uid}/scores`.
+ */
+export async function saveScoreRecord(
+    uid: string,
+    record: Omit<ScoreRecord, 'id'>
+): Promise<void> {
+    const scoresRef = collection(db, 'users', uid, 'scores');
+    await addDoc(scoresRef, record);
+}
+
+/**
+ * Returns the last N score records sorted by completedAt descending.
+ * Used for the "Continue Learning" section on the Student Dashboard.
+ * @param records - Array of ScoreRecords (any order)
+ * @param count - Number of records to return (default 3)
+ */
+export function getContinueLearning(records: ScoreRecord[], count = 3): ScoreRecord[] {
+    return [...records]
+        .sort((a, b) => b.completedAt.localeCompare(a.completedAt))
+        .slice(0, count);
+}
+
+/**
+ * Retrieves all score records for a user from Firestore,
+ * ordered by completedAt descending (most recent first).
+ */
+export async function getScoreRecords(uid: string): Promise<ScoreRecord[]> {
+    const scoresRef = collection(db, 'users', uid, 'scores');
+    const q = query(scoresRef, orderBy('completedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as Omit<ScoreRecord, 'id'>),
+    }));
+}
