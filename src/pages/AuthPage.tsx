@@ -11,6 +11,7 @@ export function AuthPage() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
     const [role, setRole] = useState<'student' | 'teacher'>('student');
+    const [displayName, setDisplayName] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const { signIn, signUp, user, loading: authLoading } = useAuth();
@@ -18,7 +19,8 @@ export function AuthPage() {
 
     useEffect(() => {
         if (!authLoading && user) {
-            navigate('/teacher', { replace: true });
+            const targetPath = user.role === 'teacher' ? '/teacher' : '/student';
+            navigate(targetPath, { replace: true });
         }
     }, [user, authLoading, navigate]);
 
@@ -32,12 +34,20 @@ export function AuthPage() {
             if (isLogin) {
                 const { error } = await signIn(email, password);
                 if (error) throw error;
-                navigate('/teacher');
+
+                // Note: The useEffect handles navigation.
+                // Here we can add a check to warn the user if they're on the wrong tab.
+                // However, since we auto-redirect to the correct dashboard,
+                // the primary goal is already met.
             } else {
-                const { error } = await signUp(email, password, email.split('@')[0], role);
-                if (error) throw error;
-                setSuccess('Account created! Check your email to verify, then log in.');
-                setIsLogin(true);
+                const { error } = await signUp(email, password, displayName, role);
+                if (error) {
+                    if (typeof error === 'string' && error.toLowerCase().includes('already exists')) {
+                        throw new Error('This email is already registered. Please sign in instead.');
+                    }
+                    throw typeof error === 'string' ? new Error(error) : error;
+                }
+                setSuccess('Account created successfully!');
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
@@ -105,10 +115,10 @@ export function AuthPage() {
             }}>
                 <div style={{ width: '100%', maxWidth: '400px' }}>
                     <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>
-                        Welcome Back
+                        {isLogin ? 'Welcome Back' : 'Create Account'}
                     </h2>
                     <p style={{ color: '#6B7280', marginBottom: '28px', fontSize: '0.95rem' }}>
-                        Sign in to your account to continue
+                        {isLogin ? 'Sign in to your account to continue' : 'Join QuizMaster to start creating quizzes'}
                     </p>
 
                     {/* Student / Teacher tab toggle */}
@@ -163,6 +173,31 @@ export function AuthPage() {
                     )}
 
                     <form onSubmit={handleSubmit}>
+                        {/* Display Name input (Register only) */}
+                        {!isLogin && (
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                                    Full Name
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="John Doe"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        required
+                                        style={{
+                                            width: '100%', padding: '10px 12px 10px 12px',
+                                            border: '1px solid #E5E7EB', borderRadius: '8px',
+                                            fontSize: '0.9rem', outline: 'none',
+                                            boxSizing: 'border-box', color: '#111827',
+                                            background: '#FAFAFA',
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Email input */}
                         <div style={{ marginBottom: '16px' }}>
                             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
@@ -243,7 +278,7 @@ export function AuthPage() {
                             </button>
                         </div>
 
-                        {/* Sign In button */}
+                        {/* Sign In / Sign Up button */}
                         <button
                             type="submit"
                             disabled={loading}
@@ -256,7 +291,9 @@ export function AuthPage() {
                                 marginBottom: '16px', transition: 'background 0.2s',
                             }}
                         >
-                            {loading ? 'Signing in...' : 'Sign In'}
+                            {isLogin
+                                ? (loading ? 'Signing in...' : 'Sign In')
+                                : (loading ? 'Creating account...' : 'Create Account')}
                         </button>
                     </form>
 
@@ -280,10 +317,10 @@ export function AuthPage() {
                         }}
                     >
                         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-                            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-                            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
+                            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
+                            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05" />
+                            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
                         </svg>
                         Continue with Google
                     </button>

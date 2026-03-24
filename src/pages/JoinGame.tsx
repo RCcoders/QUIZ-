@@ -51,43 +51,6 @@ export function JoinGame() {
             display: 'flex',
             flexDirection: 'column',
         }}>
-            {/* Top Bar */}
-            <header style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 32px',
-                background: '#FFFFFF',
-                borderBottom: '1px solid #E5E7EB',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: '#FF5C1A',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                        <Play size={18} color="#fff" fill="#fff" />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 18, color: '#111827', fontFamily: 'Inter, sans-serif' }}>
-                        QuizMaster
-                    </span>
-                </div>
-                <button style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: 8,
-                    background: '#fff',
-                    color: '#6B7280',
-                    fontWeight: 500,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    fontFamily: 'Inter, sans-serif',
-                }}>
-                    <HelpCircle size={16} />
-                    Help
-                </button>
-            </header>
 
             {/* Main content */}
             <main style={{

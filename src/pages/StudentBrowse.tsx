@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, HelpCircle, Search } from 'lucide-react';
+import { BookOpen, Clock, HelpCircle, Search, Users } from 'lucide-react';
 import { StudentNavbar } from '../components/StudentNavbar';
 import { filterQuizzes } from '../utils/quizFilter';
 
@@ -37,15 +37,31 @@ const practiceQuizzes = [
 ];
 
 export function StudentBrowse() {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredQuizzes = filterQuizzes(practiceQuizzes, searchQuery);
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
-            <StudentNavbar />
 
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px' }}>
+                {/* Dashboard Action bar (move Join Live Game here) */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                    <button
+                        onClick={() => navigate('/join')}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            background: '#FF5C1A', color: '#fff',
+                            border: 'none', borderRadius: 10,
+                            padding: '9px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                        }}
+                    >
+                        <Users size={16} />
+                        Join Live Game
+                    </button>
+                </div>
+
                 {/* Hero */}
                 <motion.div
                     initial={{ opacity: 0, y: -16 }}
