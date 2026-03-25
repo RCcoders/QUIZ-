@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, Eye, EyeOff, Play, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRedirectPath } from '../utils/scoring';
@@ -64,6 +65,11 @@ export function SignupPage() {
     };
 
     return (
+        <>
+        <Helmet>
+          <title>Sign Up Free — QuizMaster</title>
+          <meta name="description" content="Create a free QuizMaster account and start generating AI-powered quizzes in minutes." />
+        </Helmet>
         <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
             {/* Left panel */}
             <div style={{
@@ -380,5 +386,6 @@ export function SignupPage() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

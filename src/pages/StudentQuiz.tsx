@@ -5,33 +5,7 @@ import { ArrowRight, CheckCircle, XCircle, Trophy, Maximize } from 'lucide-react
 import { useAuth } from '../contexts/AuthContext';
 import { saveScoreRecord } from '../utils/scoring';
 import { QuizResultsSummary } from '../components/QuizResultsSummary';
-
-interface Quiz {
-    id: string;
-    title: string;
-    description: string;
-    isActive: boolean;
-    timerEnabled: boolean;
-    timerSeconds: number;
-    showResults: boolean;
-    showLeaderboard: boolean;
-    createdAt: string;
-    updatedAt: string;
-}
-
-interface Question {
-    id: string;
-    quizId: string;
-    questionText: string;
-    optionA: string;
-    optionB: string;
-    optionC: string;
-    optionD: string;
-    correctAnswer: 'A' | 'B' | 'C' | 'D';
-    difficulty: 'easy' | 'medium' | 'hard';
-    orderIndex: number;
-    createdAt: string;
-}
+import type { Quiz, Question } from '../types/game';
 
 interface QuizAnswer {
     questionId: string;
@@ -64,37 +38,6 @@ export function StudentQuiz() {
     const [timeLeft, setTimeLeft] = useState(0);
     const [questionStartTime, setQuestionStartTime] = useState(0);
 
-    // Anti-cheat permissions
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [fullscreenGranted, setFullscreenGranted] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [tabSwitchCount, setTabSwitchCount] = useState(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
-
-    useEffect(() => {
-        fetchQuiz();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
-
-    useEffect(() => {
-        if (!quiz?.timerEnabled || !started || showResult || completed) return;
-
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1) {
-                    // Time's up - auto submit with no answer
-                    handleTimeUp();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [quiz?.timerEnabled, started, showResult, currentIndex, completed]);
-
     const handleTimeUp = useCallback(() => {
         if (selectedAnswer) {
             submitAnswer(selectedAnswer);
@@ -110,10 +53,9 @@ export function StudentQuiz() {
             setAnswers([...answers, newAnswer]);
             setShowResult(true);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedAnswer, questions, currentIndex, quiz, answers]);
 
-    const fetchQuiz = async () => {
+    const fetchQuiz = useCallback(async () => {
         if (!id) return;
 
         // Handle Practice Quizzes
@@ -218,7 +160,27 @@ export function StudentQuiz() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        fetchQuiz();
+    }, [id, fetchQuiz]);
+
+    useEffect(() => {
+        if (!quiz?.timerEnabled || !started || showResult || completed) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    handleTimeUp();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [quiz?.timerEnabled, started, showResult, currentIndex, completed, handleTimeUp]);
 
     const startQuiz = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -227,7 +189,6 @@ export function StudentQuiz() {
         // Enter fullscreen mode
         try {
             await document.documentElement.requestFullscreen();
-            setFullscreenGranted(true);
         } catch (err) {
             console.error('Error entering fullscreen:', err);
             alert('Please allow fullscreen mode to start the quiz.');
@@ -252,16 +213,17 @@ export function StudentQuiz() {
             document.documentElement.requestFullscreen().catch(() => {
                 // Fullscreen not critical for authenticated users
             });
-            setFullscreenGranted(true);
             setStarted(true);
             setQuestionStartTime(Date.now());
             if (quiz.timerEnabled) {
                 setTimeLeft(quiz.timerSeconds);
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loading, quiz, user, userProfile]);
+    }, [loading, quiz, user, userProfile, started]);
     useEffect(() => {
+        const fullscreenExitCountRef = { current: 0 };
+        const tabSwitchCountRef = { current: 0 };
+
         const handleFullscreenChange = () => {
             if (!document.fullscreenElement && started && !completed) {
                 // Don't count exits for practice quiz
@@ -270,31 +232,25 @@ export function StudentQuiz() {
                     return;
                 }
 
-                setFullscreenExitCount(prev => {
-                    const newCount = prev + 1;
-                    if (newCount >= 2) {
-                        alert('You have exited fullscreen mode more than 2 times. Your test will now end.');
-                        // Force complete the quiz
-                        setCompleted(true);
-                        // Exit fullscreen
-                        if (document.fullscreenElement) {
-                            document.exitFullscreen();
-                        }
-                    } else {
-                        alert(`Warning: Exiting fullscreen mode! (${newCount}/2) - One more exit will end your test.`);
+                fullscreenExitCountRef.current += 1;
+                const newCount = fullscreenExitCountRef.current;
+                if (newCount >= 2) {
+                    alert('You have exited fullscreen mode more than 2 times. Your test will now end.');
+                    setCompleted(true);
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
                     }
-                    return newCount;
-                });
+                } else {
+                    alert(`Warning: Exiting fullscreen mode! (${newCount}/2) - One more exit will end your test.`);
+                }
             }
         };
 
         const handleVisibilityChange = () => {
             if (document.hidden && started) {
-                setTabSwitchCount(prev => {
-                    const newCount = prev + 1;
-                    alert(`Warning: Tab switching detected! Count: ${newCount}. This may be considered cheating.`);
-                    return newCount;
-                });
+                tabSwitchCountRef.current += 1;
+                const newCount = tabSwitchCountRef.current;
+                alert(`Warning: Tab switching detected! Count: ${newCount}. This may be considered cheating.`);
             }
         };
 

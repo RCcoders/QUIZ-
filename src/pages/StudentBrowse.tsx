@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, HelpCircle, Search } from 'lucide-react';
 import { StudentNavbar } from '../components/StudentNavbar';
@@ -43,6 +44,10 @@ export function StudentBrowse() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
+            <Helmet>
+                <title>Student Dashboard — QuizMaster</title>
+                <meta name="description" content="View your quiz history, scores, and streaks on your QuizMaster student dashboard." />
+            </Helmet>
             <StudentNavbar />
 
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px' }}>

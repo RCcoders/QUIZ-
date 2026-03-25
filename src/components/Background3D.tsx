@@ -1,14 +1,13 @@
-import React from 'react';
-import { motion, Transition } from 'framer-motion';
+import { type CSSProperties } from 'react';
+import { LazyMotion, domAnimation, m, type Transition, type TargetAndTransition } from 'framer-motion';
 
 interface Shape {
     id: number;
     type: string;
     initial: { x: string; y: string; rotate?: number; scale?: number };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    animate: any;
+    animate: TargetAndTransition;
     transition: Transition;
-    style: React.CSSProperties;
+    style: CSSProperties;
 }
 
 export const Background3D = () => {
@@ -132,6 +131,7 @@ export const Background3D = () => {
     ];
 
     return (
+        <LazyMotion features={domAnimation}>
         <div style={{
             position: 'fixed',
             top: 0,
@@ -144,17 +144,15 @@ export const Background3D = () => {
             background: 'var(--bg-primary)' // Ensure base background is set
         }}>
             {shapes.map((shape) => (
-                <motion.div
+                <m.div
                     key={shape.id}
                     initial={shape.initial}
                     animate={shape.animate}
                     transition={shape.transition}
                     style={{
                         position: 'absolute',
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        left: shape.initial.x as any,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        top: shape.initial.y as any,
+                        left: shape.initial.x as string,
+                        top: shape.initial.y as string,
                         ...shape.style
                     }}
                 />
@@ -173,5 +171,6 @@ export const Background3D = () => {
                 maskImage: 'radial-gradient(circle at center, black 40%, transparent 100%)'
             }} />
         </div>
+        </LazyMotion>
     );
 };

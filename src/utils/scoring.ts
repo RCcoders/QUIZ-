@@ -121,6 +121,16 @@ export function getRedirectPath(role: string): string {
     return '/student/dashboard';
 }
 
+/**
+ * Derives a 1-2 character initials string from a display name or email.
+ * E.g. "Jane Smith" → "JS", "jane@email.com" → "JA", "" → "S"
+ */
+export function getInitials(displayName: string, fallback = 'S'): string {
+    const parts = displayName.trim().split(' ').filter(Boolean);
+    if (parts.length === 0) return fallback;
+    return parts.map(w => w[0]).join('').toUpperCase().slice(0, 2) || fallback;
+}
+
 // ─── Student scoring utilities ────────────────────────────────────────────────
 
 import type { ScoreRecord } from '../types/student';

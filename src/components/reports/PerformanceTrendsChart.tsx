@@ -77,7 +77,7 @@ export function PerformanceTrendsChart({ data, yearLabel }: PerformanceTrendsCha
               border: '1px solid #E5E7EB',
               fontSize: '0.8rem',
             }}
-            formatter={(value: number) => [`${value}%`, 'Avg Score']}
+            formatter={(value) => [`${value}%`, 'Avg Score']}
           />
           <Area
             type="monotone"

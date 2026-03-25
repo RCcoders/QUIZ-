@@ -1,5 +1,6 @@
+import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
 import {
   Play, Zap, BarChart2, Trophy, CheckCircle2, Quote,
   ArrowRight, Instagram, Twitter, Facebook, Github
@@ -13,6 +14,9 @@ const jsonLd = {
   description: 'Create, host, and play interactive quizzes in real time. AI-powered quiz generation for teachers and students.',
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Web',
+  featureList: ['AI quiz generation', 'Real-time leaderboard', 'Student analytics', 'Live quiz sessions'],
+  screenshot: 'https://quizmaster.app/screenshot.png',
+  author: { '@type': 'Organization', name: 'QuizMaster' },
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -20,14 +24,66 @@ const jsonLd = {
   },
 };
 
+const jsonLdFaq = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How do I create a quiz with AI?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Paste any text, URL, or topic into QuizMaster and the AI generates up to 20 questions in seconds.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Is QuizMaster free to use?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes, QuizMaster has a free tier that supports up to 5 quizzes and 30 students per session.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How do students join a live quiz?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Students visit quizmaster.app/join and enter the 6-character game code provided by their teacher.',
+      },
+    },
+  ],
+};
+
+const jsonLdBreadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://quizmaster.app/' },
+  ],
+};
+
 export function LandingPage() {
   const navigate = useNavigate();
 
   return (
+    <LazyMotion features={domAnimation}>
     <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
+      <Helmet>
+        <title>QuizMaster — Create AI Quizzes Instantly</title>
+        <meta name="description" content="Transform any text or topic into an engaging quiz in seconds using AI. Free for teachers." />
+      </Helmet>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdFaq) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBreadcrumb) }}
       />
 
       {/* ── Header ── */}
@@ -55,9 +111,9 @@ export function LandingPage() {
 
           {/* Nav links */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-            <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: '#6B7280', textDecoration: 'none' }}>Features</a>
-            <a href="#how-it-works" style={{ fontSize: 14, fontWeight: 500, color: '#6B7280', textDecoration: 'none' }}>How It Works</a>
-            <a href="#pricing" style={{ fontSize: 14, fontWeight: 500, color: '#6B7280', textDecoration: 'none' }}>Pricing</a>
+            <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Features</a>
+            <a href="#how-it-works" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>How It Works</a>
+            <a href="#pricing" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Pricing</a>
           </nav>
 
           {/* Actions */}
@@ -94,7 +150,7 @@ export function LandingPage() {
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center',
         }}>
           {/* Left */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -103,7 +159,7 @@ export function LandingPage() {
               Create AI Quiz<br />
               <span style={{ color: '#FF5C1A' }}>Instantly.</span>
             </h1>
-            <p style={{ fontSize: 18, color: '#6B7280', lineHeight: 1.7, marginBottom: 36, maxWidth: 480 }}>
+            <p style={{ fontSize: 18, color: '#4B5563', lineHeight: 1.7, marginBottom: 36, maxWidth: 480 }}>
               Transform any text, URL, or topic into an engaging quiz in seconds using advanced AI.
               Save hours of prep time and engage your students like never before.
             </p>
@@ -132,10 +188,10 @@ export function LandingPage() {
                 Join a Quiz
               </Link>
             </div>
-          </motion.div>
+          </m.div>
 
           {/* Right — orange square illustration */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, delay: 0.15 }}
@@ -164,7 +220,7 @@ export function LandingPage() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
@@ -175,7 +231,7 @@ export function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
               Powerful Features for Modern Educators
             </h2>
-            <p style={{ fontSize: 16, color: '#6B7280' }}>
+            <p style={{ fontSize: 16, color: '#4B5563' }}>
               Everything you need to create, share, and analyze quizzes in one platform.
             </p>
           </div>
@@ -201,7 +257,7 @@ export function LandingPage() {
                 desc: 'Host live quiz sessions with interactive leaderboards to boost classroom engagement.',
               },
             ].map((feature, i) => (
-              <motion.div
+              <m.div
                 key={i}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -224,8 +280,8 @@ export function LandingPage() {
                 <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 10 }}>
                   {feature.title}
                 </h3>
-                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.6 }}>{feature.desc}</p>
-              </motion.div>
+                <p style={{ fontSize: 15, color: '#4B5563', lineHeight: 1.6 }}>{feature.desc}</p>
+              </m.div>
             ))}
           </div>
         </div>
@@ -238,7 +294,7 @@ export function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
               How It Works
             </h2>
-            <p style={{ fontSize: 16, color: '#6B7280' }}>Create your first quiz in three simple steps</p>
+            <p style={{ fontSize: 16, color: '#4B5563' }}>Create your first quiz in three simple steps</p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
@@ -273,7 +329,7 @@ export function LandingPage() {
                 <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 10 }}>
                   {step.title}
                 </h3>
-                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.6 }}>{step.desc}</p>
+                <p style={{ fontSize: 15, color: '#4B5563', lineHeight: 1.6 }}>{step.desc}</p>
               </div>
             ))}
           </div>
@@ -287,7 +343,7 @@ export function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
               Loved by Educators
             </h2>
-            <p style={{ fontSize: 16, color: '#6B7280' }}>
+            <p style={{ fontSize: 16, color: '#4B5563' }}>
               Join thousands of teachers already using QuizMaster.
             </p>
           </div>
@@ -316,7 +372,7 @@ export function LandingPage() {
                 color: '#10B981',
               },
             ].map((t, i) => (
-              <motion.div
+              <m.div
                 key={i}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -348,10 +404,10 @@ export function LandingPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{t.name}</div>
-                    <div style={{ fontSize: 13, color: '#6B7280' }}>{t.role}</div>
+                    <div style={{ fontSize: 13, color: '#4B5563' }}>{t.role}</div>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -364,7 +420,7 @@ export function LandingPage() {
             <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
               Simple, Transparent Pricing
             </h2>
-            <p style={{ fontSize: 16, color: '#6B7280' }}>
+            <p style={{ fontSize: 16, color: '#4B5563' }}>
               Start free, upgrade when you're ready.
             </p>
           </div>
@@ -416,7 +472,7 @@ export function LandingPage() {
                 cta: 'Contact Sales',
               },
             ].map((plan, i) => (
-              <motion.div
+              <m.div
                 key={i}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -444,12 +500,12 @@ export function LandingPage() {
                   </div>
                 )}
                 <div style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: '#4B5563', marginBottom: 8 }}>
                     {plan.name}
-                  </div>
+                  </h3>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                     <span style={{ fontSize: 40, fontWeight: 800, color: '#111827' }}>{plan.price}</span>
-                    <span style={{ fontSize: 14, color: '#6B7280' }}>{plan.period}</span>
+                    <span style={{ fontSize: 14, color: '#4B5563' }}>{plan.period}</span>
                   </div>
                 </div>
 
@@ -475,7 +531,7 @@ export function LandingPage() {
                 >
                   {plan.cta}
                 </button>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -529,8 +585,8 @@ export function LandingPage() {
                 The modern quiz platform for educators. Create, share, and analyze quizzes powered by AI.
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                {[Twitter, Instagram, Facebook, Github].map((Icon, idx) => (
-                  <a key={idx} href="#" style={{
+                {([['Twitter', Twitter], ['Instagram', Instagram], ['Facebook', Facebook], ['GitHub', Github]] as const).map(([label, Icon], idx) => (
+                  <a key={idx} href="#" aria-label={label} style={{
                     width: 36, height: 36, background: '#1E293B', borderRadius: 8,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#94A3B8', textDecoration: 'none',
@@ -551,10 +607,6 @@ export function LandingPage() {
                 heading: 'Company',
                 links: ['About', 'Blog', 'Careers', 'Press'],
               },
-              {
-                heading: 'Legal',
-                links: ['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'GDPR'],
-              },
             ].map((col, i) => (
               <div key={i}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -571,6 +623,19 @@ export function LandingPage() {
                 </ul>
               </div>
             ))}
+
+            {/* Legal column */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Legal
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <li><Link to="/privacy" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Privacy Policy</Link></li>
+                <li><Link to="/terms" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Terms of Service</Link></li>
+                <li><Link to="/privacy" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Cookie Policy</Link></li>
+                <li><a href="#" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>GDPR</a></li>
+              </ul>
+            </div>
           </div>
 
           {/* Bottom bar */}
@@ -584,13 +649,14 @@ export function LandingPage() {
               © {new Date().getFullYear()} QuizMaster. All rights reserved.
             </span>
             <div style={{ display: 'flex', gap: 20 }}>
-              <a href="#" style={{ fontSize: 13, color: '#64748B', textDecoration: 'none' }}>Privacy Policy</a>
-              <a href="#" style={{ fontSize: 13, color: '#64748B', textDecoration: 'none' }}>Terms of Service</a>
+              <Link to="/privacy" style={{ fontSize: 13, color: '#64748B', textDecoration: 'none' }}>Privacy Policy</Link>
+              <Link to="/terms" style={{ fontSize: 13, color: '#64748B', textDecoration: 'none' }}>Terms of Service</Link>
             </div>
           </div>
         </div>
       </footer>
 
     </div>
+    </LazyMotion>
   );
 }

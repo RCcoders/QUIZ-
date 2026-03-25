@@ -4,27 +4,26 @@
  */
 
 export const PERFORMANCE_CONFIG = {
-    // Maximum concurrent students the system is designed to handle
-    MAX_CONCURRENT_STUDENTS: 100,
+    // Updated: target architecture supports 1,000 concurrent students
+    MAX_CONCURRENT_STUDENTS: 1000,
 
-    // Real-time update throttling (milliseconds)
-    // Prevents UI thrashing with many simultaneous updates
-    REALTIME_THROTTLE_MS: 500,
+    // Increased: reduces UI thrash when many participants submit simultaneously
+    REALTIME_THROTTLE_MS: 1000,
 
-    // Maximum participants to display in lists without pagination
+    // Keep: 50 is a good UX ceiling for participant lists
     MAX_PARTICIPANTS_DISPLAY: 50,
 
-    // Number of top students to show in leaderboard
+    // Keep: only show top 10 on leaderboard
     LEADERBOARD_TOP_N: 10,
 
-    // Delay before batching answer submissions (milliseconds)
-    // Helps prevent database overload when many students answer simultaneously
-    ANSWER_BATCH_DELAY_MS: 100,
+    // Increased: 250ms batching prevents Firestore write storms at 1,000 users
+    // (100ms was too aggressive — at 1,000 simultaneous answers it queues 1,000 writes)
+    ANSWER_BATCH_DELAY_MS: 250,
 
-    // Maximum time to wait for real-time updates before manual refresh
+    // Keep: 5 seconds is acceptable staleness window
     MAX_REALTIME_STALENESS_MS: 5000,
 
-    // Virtualization threshold - when to start using virtual scrolling
+    // Keep: virtual scroll threshold
     VIRTUALIZATION_THRESHOLD: 30,
 } as const;
 

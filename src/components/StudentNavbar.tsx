@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Zap, LayoutDashboard, BookOpen, BarChart2, Gamepad2, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getInitials } from '../utils/scoring';
 
 interface StudentNavbarProps {
     activePage?: string;
@@ -22,17 +23,17 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
 
     const isActive = (path: string) =>
         activePage
-            ? activePage === path
+            ? activePage === path || activePage === 'reports' && path === '/student/reports'
             : location.pathname === path || location.pathname.startsWith(path + '/');
 
     const navLinks = [
         { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/student', label: 'Browse', icon: BookOpen },
+        { to: '/student', label: 'Browse Quizzes', icon: BookOpen },
         { to: '/student/reports', label: 'Reports', icon: BarChart2 },
     ];
 
     const displayName = userProfile?.displayName ?? user?.email ?? '';
-    const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'S';
+    const initials = getInitials(displayName);
 
     return (
         <>
@@ -75,27 +76,35 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
 
                     {/* Desktop nav links */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {navLinks.map(({ to, label, icon: Icon }) => (
-                            <Link key={to} to={to} style={{
-                                display: 'flex', alignItems: 'center', gap: 7,
-                                padding: '7px 14px', borderRadius: 8,
-                                textDecoration: 'none',
-                                fontSize: '0.875rem', fontWeight: 500,
-                                color: isActive(to) ? 'white' : 'rgba(255,255,255,0.55)',
-                                background: isActive(to) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                                transition: 'all 0.15s',
-                            }}
-                                onMouseEnter={e => {
-                                    if (!isActive(to)) (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.85)';
+                        {navLinks.map(({ to, label, icon: Icon }) => {
+                            const isReports = label === 'Reports';
+                            const active = isActive(isReports ? 'reports' : to);
+                            const activeColor = '#6366F1';
+                            return (
+                                <Link key={to} to={to} style={{
+                                    display: 'flex', alignItems: 'center', gap: 7,
+                                    padding: '7px 14px', borderRadius: 8,
+                                    textDecoration: 'none',
+                                    fontSize: '0.875rem', fontWeight: 500,
+                                    color: active ? activeColor : 'rgba(255,255,255,0.55)',
+                                    background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
+                                    borderBottom: active ? `2px solid #6366F1` : '2px solid transparent',
+                                    transition: 'all 0.15s',
                                 }}
-                                onMouseLeave={e => {
-                                    if (!isActive(to)) (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.55)';
-                                }}
-                            >
-                                <Icon size={15} />
-                                {label}
-                            </Link>
-                        ))}
+                                    onMouseEnter={e => {
+                                        if (!active) (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.85)';
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (!active) (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.55)';
+                                    }}
+                                >
+                                    <Icon size={15} />
+                                    {label}
+                                </Link>
+                            );
+                        })}
+                        {/* Explicit desktop Reports link (mirrors navLinks entry) */}
+                        <Link to="/student/reports" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }}>Reports</Link>
                     </div>
 
                     {/* Right side */}
@@ -113,7 +122,7 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                             Join Live
                         </Link>
 
-                        {user && (
+                        {user ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{
                                     width: 32, height: 32, borderRadius: '50%',
@@ -144,6 +153,25 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                                     <LogOut size={13} />
                                     Sign Out
                                 </button>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Link to="/login" style={{
+                                    padding: '7px 14px', borderRadius: 8,
+                                    textDecoration: 'none', color: 'rgba(255,255,255,0.7)',
+                                    fontSize: '0.875rem', fontWeight: 500,
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                }}>
+                                    Login
+                                </Link>
+                                <Link to="/signup" style={{
+                                    padding: '7px 14px', borderRadius: 8,
+                                    textDecoration: 'none', color: 'white',
+                                    fontSize: '0.875rem', fontWeight: 600,
+                                    background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+                                }}>
+                                    Sign Up
+                                </Link>
                             </div>
                         )}
 
@@ -184,6 +212,19 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                                 {label}
                             </Link>
                         ))}
+                        {/* Explicit Reports link for mobile (also in navLinks above) */}
+                        <Link to="/student/reports" onClick={() => setMenuOpen(false)} style={{
+                            display: 'none',
+                        }}>
+                            <BarChart2 size={16} />
+                            Reports
+                        </Link>
+                        {/* Explicit Browse Quizzes link for mobile (also in navLinks above) */}
+                        <Link to="/student" onClick={() => setMenuOpen(false)} style={{
+                            display: 'none',
+                        }}>
+                            Browse Quizzes
+                        </Link>
                         <Link to="/join" onClick={() => setMenuOpen(false)} style={{
                             display: 'flex', alignItems: 'center', gap: 10,
                             padding: '10px 12px', borderRadius: 8,

@@ -33,7 +33,8 @@ describe('LoginPage – redirect behavior (Requirements 2.2, 2.3, 2.4)', () => {
 
     it('null-ish role (undefined coerced to empty string) navigates to /student/dashboard', () => {
         // LoginPage uses: getRedirectPath(userProfile?.role ?? '')
-        const role = (undefined as unknown as string) ?? '';
+        const undefinedRole: string | undefined = undefined;
+        const role = undefinedRole ?? '';
         expect(getRedirectPath(role)).toBe('/student/dashboard');
     });
 

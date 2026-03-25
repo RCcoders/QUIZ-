@@ -2,20 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, CheckCircle, XCircle, RotateCcw, BookOpen } from 'lucide-react';
 import { getPerformanceLabel } from '../utils/scoring';
-
-interface Question {
-    id: string;
-    quizId: string;
-    questionText: string;
-    optionA: string;
-    optionB: string;
-    optionC: string;
-    optionD: string;
-    correctAnswer: 'A' | 'B' | 'C' | 'D';
-    difficulty: 'easy' | 'medium' | 'hard';
-    orderIndex: number;
-    createdAt: string;
-}
+import type { Question } from '../types/game';
 
 interface QuizAnswer {
     questionId: string;

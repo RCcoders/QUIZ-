@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Play, HelpCircle, User, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -51,6 +52,10 @@ export function JoinGame() {
             display: 'flex',
             flexDirection: 'column',
         }}>
+            <Helmet>
+                <title>Join a Quiz — QuizMaster</title>
+                <meta name="description" content="Enter a game code to join a live QuizMaster quiz session." />
+            </Helmet>
             {/* Top Bar */}
             <header style={{
                 display: 'flex',

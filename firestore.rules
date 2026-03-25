@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── User profiles ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Users can only read/write their own profile
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Score records sub-collection
+      match /scores/{scoreId} {
+        // Owner can read and write their own scores
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+        // Teachers can read scores for reporting (read-only)
+        allow read: if request.auth != null &&
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      }
+    }
+
+    // ── Quiz documents ──────────────────────────────────────────────────────
+    match /quizzes/{quizId} {
+      // Any authenticated user can read quizzes (for StudentBrowse and Library)
+      allow read: if request.auth != null;
+      // Only the creating teacher can write
+      allow write: if request.auth != null && resource.data.teacherId == request.auth.uid;
+      allow create: if request.auth != null;
+
+      // Questions sub-collection
+      match /questions/{questionId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+    }
+
+    // ── Game sessions ────────────────────────────────────────────────────────
+    match /gameSessions/{sessionId} {
+      // Any authenticated user can read (students need to join)
+      allow read: if request.auth != null;
+      // Only the teacher who created it can modify the session
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+                                resource.data.teacherId == request.auth.uid;
+
+      // Participants sub-collection
+      match /participants/{participantId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        // Only the participant themselves or the session teacher can update
+        allow update: if request.auth != null;
+      }
+
+      // Answers sub-collection
+      match /answers/{answerId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        // Answers are immutable once submitted
+        allow update, delete: if false;
+      }
+    }
+  }
+}

@@ -11,62 +11,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
-
-// Local type definitions (previously from database.ts)
-interface Quiz {
-    id: string;
-    title: string;
-    timerEnabled: boolean;
-    timerSeconds: number;
-}
-
-interface Question {
-    id: string;
-    questionText: string;
-    optionA: string;
-    optionB: string;
-    optionC: string;
-    optionD: string;
-    correctAnswer: 'A' | 'B' | 'C' | 'D';
-}
-
-interface GameSession {
-    id: string;
-    quizId: string;
-    teacherId: string;
-    gameCode: string;
-    status: 'waiting' | 'playing' | 'question' | 'results' | 'ended';
-    currentQuestionIndex: number;
-    questionStartedAt: string | null;
-    createdAt: string;
-    endedAt: string | null;
-}
-
-interface GameParticipant {
-    id: string;
-    sessionId: string;
-    name: string;
-    email: string;
-    score: number;
-    answersCount: number;
-    joinedAt: string;
-    status: 'active' | 'left' | 'kicked';
-    violationCount?: number;
-    kickReason?: string | null;
-}
-
-interface GameAnswer {
-    id: string;
-    sessionId: string;
-    participantId: string;
-    questionIndex: number;
-    answer: 'A' | 'B' | 'C' | 'D';
-    isCorrect: boolean;
-    timeTakenMs: number;
-    pointsEarned: number;
-    answeredAt: string;
-}
-
+import type { Quiz, Question, GameSession, GameParticipant, GameAnswer } from '../types/game';
 
 export function GameHost() {
     const { id } = useParams();
@@ -77,7 +22,10 @@ export function GameHost() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [session, setSession] = useState<GameSession | null>(null);
     const [participants, setParticipants] = useState<GameParticipant[]>([]);
-    const [answers] = useState<GameAnswer[]>([]);
+    // TODO: Populate via Firestore onSnapshot listener on gameAnswers sub-collection
+    const [answers, setAnswers] = useState<GameAnswer[]>([]);
+    // Suppress unused warning until Firestore listener is wired up
+    void setAnswers;
     const [loading, setLoading] = useState(true);
     const [, setCopied] = useState(false);
 
@@ -205,7 +153,7 @@ export function GameHost() {
 
     const copyGameCode = () => {
         if (session) {
-            navigator.clipboard.writeText(session.gameCode);
+            navigator.clipboard.writeText(session.gameCode ?? '');
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
@@ -419,7 +367,7 @@ export function GameHost() {
                                             borderRadius: 20, padding: '4px 12px',
                                             fontSize: 13, fontWeight: 700, border: '1px solid #E2E8F0',
                                         }}>
-                                            Code: {session.gameCode.match(/.{1,3}/g)?.join(' ')}
+                                            Code: {(session.gameCode ?? '').match(/.{1,3}/g)?.join(' ')}
                                         </div>
                                     </div>
                                 </div>

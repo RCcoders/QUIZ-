@@ -3,7 +3,7 @@ import { Flame, CheckCircle, BarChart2, BookOpen, Users, HelpCircle } from 'luci
 import { StudentNavbar } from '../components/StudentNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
-import { getContinueLearning } from '../utils/scoring';
+import { getContinueLearning, getInitials } from '../utils/scoring';
 
 const RECOMMENDED_QUIZZES = [
     { id: 'practice-quiz', title: 'Machine Learning', description: 'Test your ML fundamentals with 10 questions.', color: '#3B82F6', bg: '#EFF6FF', emoji: '🤖' },
@@ -24,12 +24,7 @@ export function StudentDashboard() {
     const continueLearning = getContinueLearning(records, 3);
 
     const displayName = userProfile?.displayName ?? user?.email ?? 'Student';
-    const initials = displayName
-        .split(' ')
-        .map((w: string) => w[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2) || 'S';
+    const initials = getInitials(displayName);
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>

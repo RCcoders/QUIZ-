@@ -8,7 +8,7 @@ import { Background3D } from './components/Background3D';
 
 // Lazy load all page components for code splitting
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
-const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
+// AuthPage removed — /auth route redirects to /login
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -24,8 +24,9 @@ const StudentReports = lazy(() => import('./pages/StudentReports').then(m => ({ 
 const MyQuizzes = lazy(() => import('./pages/MyQuizzes').then(m => ({ default: m.MyQuizzes })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
 
-// Loading component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
     <div className="text-center">
@@ -37,10 +38,20 @@ const PageLoader = () => (
 
 const MainContent = () => {
   const location = useLocation();
-  const hideNavbar = location.pathname === '/' || location.pathname.startsWith('/teacher') || location.pathname === '/library' || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/auth' || location.pathname === '/student/dashboard' || location.pathname === '/student/reports';
+  const isLandingPage = location.pathname === '/';
+  const hideNavbar = isLandingPage
+    || location.pathname.startsWith('/teacher')
+    || location.pathname === '/library'
+    || location.pathname === '/login'
+    || location.pathname === '/signup'
+    || location.pathname === '/auth'
+    || location.pathname === '/student/dashboard'
+    || location.pathname === '/student/reports';
 
   return (
     <>
+      {/* Background3D only on landing page — 5 infinite animations on every page is wasteful */}
+      {isLandingPage && <Background3D />}
       {!hideNavbar && <Navbar />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -53,90 +64,28 @@ const MainContent = () => {
           <Route path="/student/quiz/:id" element={<StudentQuiz />} />
           <Route
             path="/student/dashboard"
-            element={
-              <StudentRoute>
-                <StudentDashboard />
-              </StudentRoute>
-            }
+            element={<StudentRoute><StudentDashboard /></StudentRoute>}
           />
           <Route
             path="/student/reports"
-            element={
-              <StudentRoute>
-                <StudentReports />
-              </StudentRoute>
-            }
+            element={<StudentRoute><StudentReports /></StudentRoute>}
           />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/join" element={<JoinGame />} />
           <Route path="/join/:code" element={<JoinGame />} />
           <Route path="/play/:sessionId" element={<PlayGame />} />
           <Route path="/library" element={<Library />} />
 
           {/* Protected Teacher Routes */}
-          <Route
-            path="/teacher"
-            element={
-              <ProtectedRoute>
-                <TeacherDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/quiz/new"
-            element={
-              <ProtectedRoute>
-                <QuizEditor />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/quiz/:id/edit"
-            element={
-              <ProtectedRoute>
-                <QuizEditor />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/quiz/:id/results"
-            element={
-              <ProtectedRoute>
-                <QuizResults />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/quiz/:id/host"
-            element={
-              <ProtectedRoute>
-                <GameHost />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/my-quizzes"
-            element={
-              <ProtectedRoute>
-                <MyQuizzes />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/reports"
-            element={
-              <ProtectedRoute>
-                <Reports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/library"
-            element={
-              <ProtectedRoute>
-                <Library />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
+          <Route path="/teacher/quiz/new" element={<ProtectedRoute><QuizEditor /></ProtectedRoute>} />
+          <Route path="/teacher/quiz/:id/edit" element={<ProtectedRoute><QuizEditor /></ProtectedRoute>} />
+          <Route path="/teacher/quiz/:id/results" element={<ProtectedRoute><QuizResults /></ProtectedRoute>} />
+          <Route path="/teacher/quiz/:id/host" element={<ProtectedRoute><GameHost /></ProtectedRoute>} />
+          <Route path="/teacher/my-quizzes" element={<ProtectedRoute><MyQuizzes /></ProtectedRoute>} />
+          <Route path="/teacher/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/teacher/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>
@@ -147,7 +96,6 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Background3D />
         <MainContent />
       </BrowserRouter>
     </AuthProvider>

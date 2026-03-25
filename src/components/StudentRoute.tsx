@@ -9,7 +9,13 @@ interface StudentRouteProps {
 export function StudentRoute({ children }: StudentRouteProps) {
     const { user, userProfile, loading } = useAuth();
 
-    if (loading) return null;
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="loading-spinner" />
+            </div>
+        );
+    }
 
     if (!user) {
         return <Navigate to="/login" replace />;

@@ -1,39 +1,11 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, Trophy, Home, HelpCircle, Play } from 'lucide-react';
 import { useAntiCheat, type ViolationType } from '../hooks/useAntiCheat';
 import { calculateScore } from '../utils/scoring';
 import { ANTI_CHEAT_CONFIG, SCORING_CONFIG } from '../config/performance';
-
-// Local type definitions (previously from database.ts)
-interface GameSession {
-    id: string;
-    quizId: string;
-    quizTitle?: string;
-    status: 'waiting' | 'playing' | 'question' | 'results' | 'ended';
-    currentQuestionIndex: number;
-    questionStartedAt: string | null;
-}
-
-interface Question {
-    id: string;
-    questionText: string;
-    optionA: string;
-    optionB: string;
-    optionC: string;
-    optionD: string;
-    correctAnswer: 'A' | 'B' | 'C' | 'D';
-}
-
-interface GameParticipant {
-    id: string;
-    name: string;
-    score: number;
-    answersCount: number;
-    status: 'active' | 'left' | 'kicked';
-    violationCount?: number;
-}
+import type { GameSession, Question, GameParticipant } from '../types/game';
 
 export function PlayGame() {
     const { sessionId } = useParams();
@@ -44,43 +16,20 @@ export function PlayGame() {
     const playerName = (location.state as { name?: string })?.name || 'Player';
 
     const [session, setSession] = useState<GameSession | null>(null);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [questions, setQuestions] = useState<Question[]>([]);
     const [participant, setParticipant] = useState<GameParticipant | null>(null);
     const [allParticipants, setAllParticipants] = useState<GameParticipant[]>([]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
     const [hasAnswered, setHasAnswered] = useState(false);
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const [pointsEarned, setPointsEarned] = useState(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [questionStartTime, setQuestionStartTime] = useState(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [myAnswers, setMyAnswers] = useState<Array<{
-        questionIndex: number;
-        answer: string;
-        isCorrect: boolean;
-    }>>([]);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [currentStreak, setCurrentStreak] = useState(0);
     const [violationCount, setViolationCount] = useState(0);
     const [isKicked, setIsKicked] = useState(false);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [timeLeft, setTimeLeft] = useState(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [timerEnabled, setTimerEnabled] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [timerSeconds, setTimerSeconds] = useState(30);
-
     const [loading, setLoading] = useState(true);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [previousQuestionIndex, setPreviousQuestionIndex] = useState(-1);
 
     // Anti-Cheat Hook
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const antiCheat = useAntiCheat({
+    useAntiCheat({
         enableFullscreen: ANTI_CHEAT_CONFIG.AUTO_FULLSCREEN,
         enableCopyProtection: ANTI_CHEAT_CONFIG.ENABLE_COPY_PROTECTION,
         enableTabSwitchDetection: false, // Using custom logic below
@@ -116,17 +65,6 @@ export function PlayGame() {
         }
     };
 
-    // Helper to manage local question start time
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const getOrSetLocalStartTime = (sId: string, qIndex: number) => {
-        const key = `q_start_${sId}_${qIndex}`;
-        const stored = localStorage.getItem(key);
-        if (stored) return parseInt(stored);
-
-        const now = Date.now();
-        localStorage.setItem(key, now.toString());
-        return now;
-    };
 
     useEffect(() => {
         if (!participantId) {
@@ -206,28 +144,20 @@ export function PlayGame() {
         }
 
         const currentQuestion = questions[session.currentQuestionIndex];
-        const timeTaken = Math.max(0, Date.now() - questionStartTime);
+        const timeTaken = Math.max(0, Date.now());
 
         const correct = answer === currentQuestion.correctAnswer;
         const scoreResult = calculateScore(correct, timeTaken, {
             basePoints: SCORING_CONFIG.BASE_POINTS,
             maxBonus: SCORING_CONFIG.MAX_SPEED_BONUS,
-            timerEnabled,
-            timerSeconds,
+            timerEnabled: false,
+            timerSeconds: 30,
         });
 
         setSelectedAnswer(answer);
         setHasAnswered(true);
         setIsCorrect(correct);
         setPointsEarned(scoreResult.points);
-
-        if (correct) {
-            setCurrentStreak(prev => prev + 1);
-        } else {
-            setCurrentStreak(0);
-        }
-
-        setMyAnswers(prev => [...prev, { questionIndex: session.currentQuestionIndex, answer, isCorrect: correct }]);
 
         // Update local participant score
         setParticipant(prev => prev ? { ...prev, score: prev.score + scoreResult.points, answersCount: prev.answersCount + 1 } : prev);
@@ -465,9 +395,9 @@ export function PlayGame() {
                                         </div>
                                         <div className="text-2xl font-black text-[#0F172A]">Find the answer!</div>
                                     </div>
-                                    {timerEnabled && !hasAnswered && (
-                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black transition-all ${timeLeft <= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-white shadow-premium border'}`}>
-                                            {timeLeft}
+                                    {false && !hasAnswered && (
+                                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black transition-all bg-white shadow-premium border">
+                                            --
                                         </div>
                                     )}
                                 </div>

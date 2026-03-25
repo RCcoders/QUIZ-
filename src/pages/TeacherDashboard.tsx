@@ -5,6 +5,9 @@ import {
     Plus, Search, Bell, Settings, FileText, TrendingUp,
     BookOpen, Users, BarChart2, Download
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { TeacherSidebar } from '../components/TeacherSidebar';
 
@@ -13,6 +16,17 @@ interface QuizWithCount {
     title: string;
     isActive: boolean;
     questionCount?: number;
+}
+
+export async function fetchQuizzesForTeacher(uid: string): Promise<QuizWithCount[]> {
+    const q = query(collection(db, 'quizzes'), where('teacherId', '==', uid));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title ?? '',
+        isActive: doc.data().isActive ?? false,
+        questionCount: doc.data().questionCount,
+    }));
 }
 
 // Stat card data
@@ -68,7 +82,11 @@ const weeklyData = [
 
 export function TeacherDashboard() {
     const { user } = useAuth();
-    const [quizzes] = useState<QuizWithCount[]>([]);
+    const { data: quizzes = [], isLoading, isError } = useQuery({
+        queryKey: ['quizzes', user?.uid],
+        queryFn: () => fetchQuizzesForTeacher(user!.uid),
+        enabled: !!user,
+    });
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredQuizzes = quizzes.filter(q =>
@@ -265,7 +283,15 @@ export function TeacherDashboard() {
                             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                             overflow: 'hidden',
                         }}>
-                            {filteredQuizzes.length === 0 ? (
+                            {isLoading ? (
+                                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
+                                    Loading quizzes…
+                                </div>
+                            ) : isError ? (
+                                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#EF4444', fontSize: '14px' }}>
+                                    Failed to load quizzes. Please try again.
+                                </div>
+                            ) : filteredQuizzes.length === 0 ? (
                                 <div style={{ padding: '48px 24px', textAlign: 'center' }}>
                                     <div style={{
                                         width: '56px', height: '56px',
