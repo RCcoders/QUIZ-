@@ -6,9 +6,9 @@ import { StudentRoute } from './components/StudentRoute';
 import { Navbar } from './components/Navbar';
 import { Background3D } from './components/Background3D';
 
-// Lazy load all page components for code splitting
+// Lazy load all page components
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
-// AuthPage removed — /auth route redirects to /login
+const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -41,6 +41,7 @@ const MainContent = () => {
   const isLandingPage = location.pathname === '/';
   const hideNavbar = isLandingPage
     || location.pathname.startsWith('/teacher')
+    || location.pathname.startsWith('/play')
     || location.pathname === '/library'
     || location.pathname === '/login'
     || location.pathname === '/signup'
@@ -55,11 +56,10 @@ const MainContent = () => {
       {!hideNavbar && <Navbar />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/signup" element={<AuthPage />} />
           <Route path="/student" element={<StudentBrowse />} />
           <Route path="/student/quiz/:id" element={<StudentQuiz />} />
           <Route
@@ -73,9 +73,7 @@ const MainContent = () => {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/join" element={<JoinGame />} />
-          <Route path="/join/:code" element={<JoinGame />} />
           <Route path="/play/:sessionId" element={<PlayGame />} />
-          <Route path="/library" element={<Library />} />
 
           {/* Protected Teacher Routes */}
           <Route path="/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
@@ -86,6 +84,8 @@ const MainContent = () => {
           <Route path="/teacher/my-quizzes" element={<ProtectedRoute><MyQuizzes /></ProtectedRoute>} />
           <Route path="/teacher/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/teacher/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </>
@@ -94,11 +94,11 @@ const MainContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <MainContent />
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

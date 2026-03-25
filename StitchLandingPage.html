@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Manrope:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-highest": "#dfdcdc",
+              "secondary": "#6249b2",
+              "on-secondary-container": "#4e339c",
+              "on-tertiary": "#ffeff4",
+              "error-dim": "#a70138",
+              "tertiary-fixed": "#fd8bca",
+              "error": "#b41340",
+              "surface": "#f9f6f5",
+              "on-secondary-fixed-variant": "#573da6",
+              "on-primary-fixed-variant": "#1a0099",
+              "inverse-on-surface": "#9e9c9c",
+              "tertiary-fixed-dim": "#ee7ebc",
+              "surface-tint": "#4a40e0",
+              "on-background": "#2f2e2e",
+              "inverse-primary": "#8582ff",
+              "tertiary-container": "#fd8bca",
+              "tertiary": "#983772",
+              "surface-container-high": "#e5e2e1",
+              "on-tertiary-fixed-variant": "#6d104e",
+              "surface-dim": "#d6d4d3",
+              "primary-fixed-dim": "#8885ff",
+              "on-tertiary-container": "#610244",
+              "surface-container-low": "#f3f0ef",
+              "tertiary-dim": "#892a65",
+              "on-surface-variant": "#5c5b5b",
+              "on-error-container": "#510017",
+              "secondary-dim": "#563ca5",
+              "primary-dim": "#3d30d4",
+              "surface-variant": "#dfdcdc",
+              "outline-variant": "#afacac",
+              "on-error": "#ffefef",
+              "on-primary-container": "#14007e",
+              "on-secondary": "#f7f0ff",
+              "secondary-container": "#d8caff",
+              "on-primary-fixed": "#000000",
+              "surface-container-lowest": "#ffffff",
+              "secondary-fixed": "#d8caff",
+              "inverse-surface": "#0e0e0e",
+              "on-primary": "#f4f1ff",
+              "on-tertiary-fixed": "#360024",
+              "primary": "#4a40e0",
+              "outline": "#787676",
+              "surface-container": "#eae7e7",
+              "primary-container": "#9795ff",
+              "primary-fixed": "#9795ff",
+              "error-container": "#f74b6d",
+              "surface-bright": "#f9f6f5",
+              "on-secondary-fixed": "#3a1b88",
+              "background": "#f9f6f5",
+              "on-surface": "#2f2e2e",
+              "secondary-fixed-dim": "#cbbaff"
+            },
+            fontFamily: {
+              "headline": ["Plus Jakarta Sans"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .electric-glass {
+            background: rgba(249, 246, 245, 0.7);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl shadow-[0px_10px_40px_rgba(47,46,46,0.06)]">
+<div class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto">
+<span class="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 font-['Plus_Jakarta_Sans']">ATELIER</span>
+<div class="hidden md:flex items-center gap-12">
+<a class="text-indigo-600 dark:text-indigo-400 font-semibold border-b-2 border-indigo-600 font-['Plus_Jakarta_Sans'] tracking-tight transition-colors duration-300" href="#">Collection</a>
+<a class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-['Plus_Jakarta_Sans'] tracking-tight transition-colors duration-300" href="#">Process</a>
+<a class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-['Plus_Jakarta_Sans'] tracking-tight transition-colors duration-300" href="#">Philosophy</a>
+<a class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-['Plus_Jakarta_Sans'] tracking-tight transition-colors duration-300" href="#">Concierge</a>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-lg font-semibold hover:scale-95 duration-200 ease-in-out transition-all">
+                Inquire
+            </button>
+</div>
+</nav>
+<main class="pt-24">
+<!-- Hero Section: Feature Overlap Pattern -->
+<section class="relative px-8 py-20 lg:py-32 max-w-7xl mx-auto overflow-hidden">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-0 items-center">
+<!-- Text Content -->
+<div class="lg:col-span-7 z-10 bg-surface-container-lowest p-8 lg:p-16 lg:-mr-20 shadow-none lg:shadow-[0px_10px_40px_rgba(47,46,46,0.04)]">
+<span class="block font-label text-xs uppercase tracking-[0.2em] text-primary mb-6 font-bold">Est. 2024</span>
+<h1 class="font-headline text-5xl lg:text-7xl font-extrabold text-on-background leading-[1.1] tracking-tighter mb-8">
+                        The New Standard of <span class="text-primary italic">Digital Craft</span>
+</h1>
+<p class="text-lg text-on-surface-variant max-w-xl mb-10 leading-relaxed">
+                        We don't just build interfaces; we architect digital experiences that resonate with the soul. A boutique approach to modern software.
+                    </p>
+<div class="flex flex-wrap gap-6">
+<button class="bg-primary text-on-primary px-8 py-4 rounded-lg font-bold shadow-lg shadow-primary/20 hover:bg-primary-dim transition-colors">
+                            Begin Your Journey
+                        </button>
+<button class="group flex items-center gap-2 text-primary font-bold py-4">
+                            View Collection
+                            <span class="w-12 h-[1px] bg-outline-variant group-hover:bg-primary group-hover:w-16 transition-all"></span>
+</button>
+</div>
+</div>
+<!-- Hero Image -->
+<div class="lg:col-span-5 relative h-[500px] lg:h-[700px] w-full">
+<img class="w-full h-full object-cover rounded-lg" data-alt="Minimalist luxury interior with modern furniture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzBktsjQXD1ppFqLFvO8raQgWhgKpZQLPx6YlFv4HeBbLuW62xcbSnjK7VHsLzT45859LC96aHb6XfUm8f4rR_ZbDEopM96xn0jllu0IdWSEC47MDfpPAwIIY0YNp8a-ZAqcRqh2uqunERIBZ8qk68ApShRRug3rxxDcAufA-gw69XAiCSUXUQIgyv9jCkudfCPIoEBb6_SRwkuObgWkLQuPIGPkUFY7MKZGySVFNIiTdCEvcBShh13i50Vl7A3mmjkYy6C3Diiko"/>
+<div class="absolute -bottom-8 -left-8 w-48 h-48 bg-primary-container/20 rounded-full blur-3xl"></div>
+</div>
+</div>
+</section>
+<!-- Features Bento Grid -->
+<section class="bg-surface-container-low py-32 px-8">
+<div class="max-w-7xl mx-auto">
+<div class="mb-20">
+<span class="font-label text-xs uppercase tracking-widest text-primary mb-4 block font-bold">The Pillars</span>
+<h2 class="font-headline text-4xl font-bold text-on-background tracking-tight">Crafted with precision.</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl transition-all duration-300 hover:shadow-[0px_10px_40px_rgba(47,46,46,0.06)] group">
+<div class="w-14 h-14 bg-surface-container rounded-lg flex items-center justify-center mb-8 group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="brush">brush</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Editorial Aesthetics</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                            Visual systems inspired by high-end print media, prioritizing whitespace and typographic rhythm.
+                        </p>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl transition-all duration-300 hover:shadow-[0px_10px_40px_rgba(47,46,46,0.06)] group md:translate-y-8">
+<div class="w-14 h-14 bg-surface-container rounded-lg flex items-center justify-center mb-8 group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="architecture">architecture</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Bespoke Structure</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                            No rigid templates. We build layouts that adapt to your content's unique narrative flow.
+                        </p>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl transition-all duration-300 hover:shadow-[0px_10px_40px_rgba(47,46,46,0.06)] group">
+<div class="w-14 h-14 bg-surface-container rounded-lg flex items-center justify-center mb-8 group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="electric_bolt">electric_bolt</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Atomic Performance</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                            Optimized at the code level to ensure a lightweight footprint with heavy visual impact.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Asymmetric Narrative Section -->
+<section class="py-32 px-8 max-w-7xl mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+<div class="relative">
+<div class="aspect-[4/5] bg-surface-container-high rounded-xl overflow-hidden shadow-2xl">
+<img class="w-full h-full object-cover" data-alt="Person working on a sleek silver laptop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXCbFdmzGRt6B8pzx6D4aZRglhRt3kje3tX-QGMeXUsFlPXbpMIsJ7ccM32c0wGRtaK7eMJQSZnLM5aRrQ8yxMesl8-uSTusBP6CnGSCiOnU3Yw9UiqJeOliUQmHeUbQm-n7J5u6Yli3zgObsjDW0UeBVXiotGasU2d-Vyk-vFs7FpCr5O3WcTbvm1AcsdLv8zLudQH4Pd6znH-LVYc5lR60nGIkdhQea6Xzfln9TrmzttOM-jEKSG9vl3-SVIt3HPRGesMxvvUjU"/>
+</div>
+<div class="absolute -top-12 -right-12 w-64 p-8 bg-surface-container-lowest shadow-xl rounded-lg hidden md:block">
+<span class="text-primary font-bold text-4xl block mb-2">99%</span>
+<p class="text-sm font-label text-on-surface-variant uppercase tracking-widest">Customer satisfaction in 2023</p>
+</div>
+</div>
+<div>
+<span class="font-label text-xs uppercase tracking-widest text-primary mb-6 block font-bold">The Philosophy</span>
+<h2 class="font-headline text-4xl lg:text-5xl font-bold mb-8 tracking-tight">Design is the silent ambassador of your brand.</h2>
+<p class="text-lg text-on-surface-variant mb-8 leading-relaxed">
+                        We believe that the best interfaces are felt, not just seen. By stripping away the noise of the digital age, we reveal the core essence of your product through intentional geometry and tonal depth.
+                    </p>
+<ul class="space-y-6">
+<li class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-primary mt-1" data-icon="check_circle">check_circle</span>
+<div>
+<h4 class="font-bold">Intentional Asymmetry</h4>
+<p class="text-on-surface-variant text-sm">Breaking the grid to guide the eye.</p>
+</div>
+</li>
+<li class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-primary mt-1" data-icon="check_circle">check_circle</span>
+<div>
+<h4 class="font-bold">Tonal Layering</h4>
+<p class="text-on-surface-variant text-sm">Depth through color, not shadows.</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- Transactional CTA Banner -->
+<section class="px-8 pb-32">
+<div class="max-w-7xl mx-auto bg-primary rounded-2xl p-12 lg:p-24 relative overflow-hidden text-center">
+<div class="absolute inset-0 opacity-10">
+<div class="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+<div class="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+</div>
+<div class="relative z-10">
+<h2 class="font-headline text-4xl lg:text-6xl font-bold text-on-primary mb-8 tracking-tighter">Ready to redefine your digital presence?</h2>
+<p class="text-primary-container text-lg lg:text-xl max-w-2xl mx-auto mb-12">
+                        Join the waitlist for our next seasonal collection of bespoke digital templates.
+                    </p>
+<form class="max-w-md mx-auto flex flex-col sm:flex-row gap-4">
+<input class="flex-1 bg-white/10 border-transparent text-white placeholder:text-white/50 focus:ring-2 focus:ring-white/30 rounded-lg py-4 px-6" placeholder="Your studio email" type="email"/>
+<button class="bg-surface-container-lowest text-primary font-bold px-8 py-4 rounded-lg hover:bg-white transition-colors">
+                            Subscribe
+                        </button>
+</form>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-zinc-50 dark:bg-zinc-950 w-full py-20 px-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-end max-w-7xl mx-auto">
+<div>
+<span class="text-lg font-black text-zinc-900 dark:text-zinc-50 font-['Manrope'] mb-8 block">ATELIER</span>
+<p class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600 mb-8 max-w-xs">
+                    Curating high-end digital experiences for the next generation of creative studios.
+                </p>
+<p class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
+                    © 2024 ATELIER DIGITAL. ALL RIGHTS RESERVED.
+                </p>
+</div>
+<div class="flex flex-wrap gap-x-12 gap-y-6 md:justify-end">
+<a class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 underline-offset-4 hover:underline transition-opacity opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
+<a class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 underline-offset-4 hover:underline transition-opacity opacity-80 hover:opacity-100" href="#">Terms of Service</a>
+<a class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 underline-offset-4 hover:underline transition-opacity opacity-80 hover:opacity-100" href="#">Press Kit</a>
+<a class="font-['Manrope'] text-sm uppercase tracking-widest text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 underline-offset-4 hover:underline transition-opacity opacity-80 hover:opacity-100" href="#">Contact</a>
+</div>
+</div>
+</footer>
+</body></html>
