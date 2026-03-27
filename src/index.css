@@ -2343,3 +2343,19 @@ a:hover {
 }
 .editor-field:focus { border-color: #FF5C1A; }
 .editor-field-correct { border-color: #10B981; background: #F0FDF4; }
+
+/* ---------- Toast Slide-In Animation ---------- */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -24,6 +24,9 @@ const StudentReports = lazy(() => import('./pages/StudentReports').then(m => ({ 
 const MyQuizzes = lazy(() => import('./pages/MyQuizzes').then(m => ({ default: m.MyQuizzes })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
+const StudentLibrary = lazy(() => import('./pages/StudentLibrary').then(m => ({ default: m.StudentLibrary })));
+const NoteDetail = lazy(() => import('./pages/NoteDetail').then(m => ({ default: m.NoteDetail })));
+const AdaptiveQuiz = lazy(() => import('./pages/AdaptiveQuiz').then(m => ({ default: m.AdaptiveQuiz })));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 
@@ -42,12 +45,14 @@ const MainContent = () => {
   const hideNavbar = isLandingPage
     || location.pathname.startsWith('/teacher')
     || location.pathname.startsWith('/play')
+    || location.pathname.startsWith('/student')
     || location.pathname === '/library'
     || location.pathname === '/login'
     || location.pathname === '/signup'
     || location.pathname === '/auth'
-    || location.pathname === '/student/dashboard'
-    || location.pathname === '/student/reports';
+    || location.pathname === '/join'
+    || location.pathname === '/privacy'
+    || location.pathname === '/terms';
 
   return (
     <>
@@ -69,6 +74,18 @@ const MainContent = () => {
           <Route
             path="/student/reports"
             element={<StudentRoute><StudentReports /></StudentRoute>}
+          />
+          <Route
+            path="/student/library"
+            element={<StudentRoute><StudentLibrary /></StudentRoute>}
+          />
+          <Route
+            path="/student/library/:noteId"
+            element={<StudentRoute><NoteDetail /></StudentRoute>}
+          />
+          <Route
+            path="/student/adaptive-quiz"
+            element={<StudentRoute><AdaptiveQuiz /></StudentRoute>}
           />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

@@ -19,7 +19,7 @@ export function AuthPage() {
 
     useEffect(() => {
         if (!authLoading && user) {
-            const targetPath = user.role === 'teacher' ? '/teacher' : '/student';
+            const targetPath = user.role === 'teacher' ? '/teacher' : '/student/dashboard';
             navigate(targetPath, { replace: true });
         }
     }, [user, authLoading, navigate]);
@@ -32,6 +32,7 @@ export function AuthPage() {
 
         try {
             if (isLogin) {
+                localStorage.setItem('userRole', role);
                 const { error } = await signIn(email, password);
                 if (error) throw error;
 

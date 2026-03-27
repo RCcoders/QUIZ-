@@ -7,6 +7,7 @@ const EXPECTED_ITEMS = [
   { label: 'My Quizzes',  path: '/teacher/my-quizzes' },
   { label: 'Reports',     path: '/teacher/reports' },
   { label: 'Library',     path: '/teacher/library' },
+  { label: 'Settings',    path: '/teacher/settings' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,13 +16,13 @@ const EXPECTED_ITEMS = [
 // Validates: Requirements 1.1, 1.5
 // ─────────────────────────────────────────────────────────────────────────────
 describe('TeacherSidebar navItems – count and labels', () => {
-  it('has exactly four nav items', () => {
-    expect(navItems).toHaveLength(4);
+  it('has exactly five nav items', () => {
+    expect(navItems).toHaveLength(5);
   });
 
   it('contains the correct labels in order', () => {
     const labels = navItems.map(item => item.label);
-    expect(labels).toEqual(['Dashboard', 'My Quizzes', 'Reports', 'Library']);
+    expect(labels).toEqual(['Dashboard', 'My Quizzes', 'Reports', 'Library', 'Settings']);
   });
 
   it('does not contain a "Students" item', () => {
@@ -62,5 +63,45 @@ describe('TeacherSidebar navItems – paths', () => {
       }),
       { numRuns: 100 }
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature: student-profile-enhancements
+// Task 12.3: Unit tests for updated navigation
+// Validates: Requirements 9.1
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+const sidebarSource = readFileSync(resolve(__dirname, 'TeacherSidebar.tsx'), 'utf-8');
+
+describe('TeacherSidebar navItems – Settings entry (Requirement 9.1)', () => {
+  it('navItems array contains a Settings entry with path /teacher/settings', () => {
+    const settingsItem = navItems.find(item => item.label === 'Settings');
+    expect(settingsItem).toBeDefined();
+    expect(settingsItem!.path).toBe('/teacher/settings');
+  });
+
+  it('has five nav items including Settings', () => {
+    expect(navItems).toHaveLength(5);
+  });
+
+  it('Settings is the last nav item', () => {
+    const last = navItems[navItems.length - 1];
+    expect(last.label).toBe('Settings');
+    expect(last.path).toBe('/teacher/settings');
+  });
+});
+
+describe('TeacherSidebar – Settings icon import (Requirement 9.1)', () => {
+  it('imports Settings from lucide-react', () => {
+    expect(sidebarSource).toContain('Settings');
+    expect(sidebarSource).toContain("from 'lucide-react'");
+  });
+
+  it('Settings icon is used in the navItems array', () => {
+    expect(sidebarSource).toContain('icon: Settings');
   });
 });

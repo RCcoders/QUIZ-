@@ -191,3 +191,54 @@ describe('StudentDashboard – source structure (Requirements 3.5, 3.8)', () => 
         expect(source).toContain('navigate(');
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 3.3: Badge integration tests
+// Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('StudentDashboard – badge integration (Requirements 2.1–2.5)', () => {
+    // Requirement 2.1 — My Badges section present
+    it('renders a "My Badges" section heading', () => {
+        expect(source).toContain('My Badges');
+    });
+
+    // Requirement 2.1 — useBadges hook is called
+    it('calls useBadges hook', () => {
+        expect(source).toContain('useBadges');
+    });
+
+    // Requirement 2.2 — BadgeList component is rendered
+    it('renders BadgeList component', () => {
+        expect(source).toContain('<BadgeList');
+    });
+
+    // Requirement 2.3 — ToastNotification is rendered for new badges
+    it('renders ToastNotification for new badges', () => {
+        expect(source).toContain('ToastNotification');
+        expect(source).toContain('newBadges');
+    });
+
+    // Requirement 2.3 — toasts shown one at a time (dismiss removes first)
+    it('dismisses toasts one at a time via slice(1)', () => {
+        expect(source).toContain('slice(1)');
+    });
+
+    // Requirement 2.4 — evaluateBadges is called
+    it('calls evaluateBadges after score records update', () => {
+        expect(source).toContain('evaluateBadges');
+    });
+
+    // Requirement 2.5 — loading prop passed to BadgeList
+    it('passes loading prop to BadgeList', () => {
+        expect(source).toContain('badgesLoading');
+        expect(source).toContain('loading={badgesLoading}');
+    });
+
+    // Non-blocking: evaluateBadges never blocks quiz completion
+    it('evaluateBadges is called asynchronously (non-blocking)', () => {
+        // The call uses .then() pattern, not await in render path
+        expect(source).toContain('.then(');
+        expect(source).toContain('.catch(');
+    });
+});

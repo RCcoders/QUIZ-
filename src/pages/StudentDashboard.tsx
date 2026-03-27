@@ -1,9 +1,15 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Flame, CheckCircle, BarChart2, BookOpen, Users, HelpCircle } from 'lucide-react';
 import { StudentNavbar } from '../components/StudentNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
+import { useBadges } from '../hooks/useBadges';
+import { BadgeList } from '../components/BadgeList';
+import ToastNotification from '../components/ToastNotification';
+import { evaluateBadges } from '../lib/badgeEngine';
 import { getContinueLearning, getInitials } from '../utils/scoring';
+import type { BadgeRecord } from '../types/student';
 
 const RECOMMENDED_QUIZZES = [
     { id: 'practice-quiz', title: 'Machine Learning', description: 'Test your ML fundamentals with 10 questions.', color: '#3B82F6', bg: '#EFF6FF', emoji: '🤖' },
@@ -19,7 +25,38 @@ function formatDate(iso: string): string {
 export function StudentDashboard() {
     const { user, userProfile } = useAuth();
     const navigate = useNavigate();
-    const { records, streak, averageScore, totalCompleted, loading } = useStudentStats(user?.uid);
+    const { records, streak, averageScore, totalCompleted, loading } = useStudentStats(userProfile?.uid);
+    const { badges, loading: badgesLoading } = useBadges(userProfile?.uid);
+    const [newBadges, setNewBadges] = useState<BadgeRecord[]>([]);
+    const prevRecordsLengthRef = useRef<number | null>(null);
+
+    // After records update (new score saved), evaluate badges asynchronously
+    useEffect(() => {
+        const uid = userProfile?.uid;
+        if (!uid || loading) return;
+        // Only trigger when records length increases (new score recorded)
+        if (prevRecordsLengthRef.current === null) {
+            prevRecordsLengthRef.current = records.length;
+            return;
+        }
+        if (records.length > prevRecordsLengthRef.current) {
+            prevRecordsLengthRef.current = records.length;
+            // Non-blocking: never awaited in the render path
+            evaluateBadges(uid, records, streak).then((awarded) => {
+                if (awarded.length > 0) {
+                    setNewBadges((prev) => [...prev, ...awarded]);
+                }
+            }).catch(() => {
+                // Badge evaluation failure is silent — never blocks the UI
+            });
+        } else {
+            prevRecordsLengthRef.current = records.length;
+        }
+    }, [records, loading, userProfile?.uid, streak]);
+
+    const handleDismissToast = () => {
+        setNewBadges((prev) => prev.slice(1));
+    };
 
     const continueLearning = getContinueLearning(records, 3);
 
@@ -29,6 +66,14 @@ export function StudentDashboard() {
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
             <StudentNavbar activePage="/student/dashboard" />
+
+            {/* Toast notification for newly awarded badges — shown one at a time */}
+            {newBadges.length > 0 && (
+                <ToastNotification
+                    badge={newBadges[0]}
+                    onDismiss={handleDismissToast}
+                />
+            )}
 
             <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
 
@@ -191,6 +236,14 @@ export function StudentDashboard() {
                         </section>
                     </>
                 )}
+
+                {/* My Badges */}
+                <section style={{ marginBottom: 32 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>
+                        My Badges
+                    </h2>
+                    <BadgeList badges={badges} loading={badgesLoading} />
+                </section>
 
                 {/* Recommended Quizzes */}
                 <section style={{ marginBottom: 32 }}>

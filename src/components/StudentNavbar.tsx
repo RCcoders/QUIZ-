@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Zap, LayoutDashboard, BookOpen, BarChart2, Gamepad2, LogOut, Menu, X } from 'lucide-react';
+import { Zap, LayoutDashboard, BookOpen, BarChart2, Gamepad2, LogOut, Menu, X, Library } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getInitials } from '../utils/scoring';
 
@@ -29,6 +29,7 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
     const navLinks = [
         { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/student', label: 'Browse Quizzes', icon: BookOpen },
+        { to: '/student/library', label: 'Library', icon: Library },
         { to: '/student/reports', label: 'Reports', icon: BarChart2 },
     ];
 

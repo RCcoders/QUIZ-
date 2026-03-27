@@ -127,3 +127,44 @@ describe('StudentNavbar – Reports link (Requirements 1.1, 1.2, 1.3, 1.4)', () 
         expect(reportLinkCount).toBeGreaterThanOrEqual(2);
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature: student-profile-enhancements
+// Task 12.3: Unit tests for updated navigation
+// Validates: Requirements 3.1, 8.1
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('StudentNavbar – Library link (Requirement 3.1)', () => {
+    it('navLinks array contains a Library entry pointing to /student/library', () => {
+        expect(source).toContain("to: '/student/library'");
+        expect(source).toContain("label: 'Library'");
+    });
+
+    it('Library link uses the Library icon from lucide-react', () => {
+        expect(source).toContain('Library,');
+        expect(source).toContain("icon: Library");
+    });
+});
+
+describe('StudentNavbar – avatar links to /student/settings (Requirement 8.1)', () => {
+    it('avatar/initials circle is a Link to /student/settings', () => {
+        expect(source).toContain('to="/student/settings"');
+    });
+
+    it('avatar renders initials inside the Link', () => {
+        expect(source).toContain('{initials}');
+        expect(source).toContain('to="/student/settings"');
+    });
+});
+
+describe('StudentNavbar – mobile menu Settings link (Requirement 8.1)', () => {
+    it('mobile menu includes a Settings link to /student/settings', () => {
+        // The mobile menu renders a Settings link when user is authenticated
+        const settingsLinkCount = (source.match(/to="\/student\/settings"/g) ?? []).length;
+        expect(settingsLinkCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it('mobile Settings link uses the Settings icon', () => {
+        expect(source).toContain('Settings size={16}');
+    });
+});

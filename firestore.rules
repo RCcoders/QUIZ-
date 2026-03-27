@@ -15,6 +15,12 @@ service cloud.firestore {
         allow read: if request.auth != null &&
                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
       }
+
+      // Badges sub-collection — only the owning user can read or write
+      match /badges/{badgeId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
     }
 
     // ── Quiz documents ──────────────────────────────────────────────────────
@@ -30,6 +36,18 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow write: if request.auth != null;
       }
+    }
+
+    // ── Notes ───────────────────────────────────────────────────────────────
+    match /notes/{noteId} {
+      // Any authenticated user can read notes
+      allow read: if request.auth != null;
+      // Only the author can create a note (authorUid must match the requester)
+      allow create: if request.auth != null
+        && request.resource.data.authorUid == request.auth.uid;
+      // Only the author can update or delete their own note
+      allow update, delete: if request.auth != null
+        && resource.data.authorUid == request.auth.uid;
     }
 
     // ── Game sessions ────────────────────────────────────────────────────────

@@ -21,6 +21,9 @@ function friendlyError(code: string): string {
     if (code.includes('popup-closed-by-user')) {
         return 'Sign-in popup was closed. Please try again.';
     }
+    if (code.includes('not supported')) {
+        return code;
+    }
     return 'Something went wrong. Please try again.';
 }
 
@@ -32,26 +35,25 @@ export function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState<'student' | 'teacher'>('student');
 
-    const { signIn, signInWithGoogle, user, userProfile } = useAuth();
+    const { signIn, signInWithGoogle, user, userProfile, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (user && userProfile) {
-            navigate(getRedirectPath(userProfile?.role ?? ''), { replace: true });
+        if (user && userProfile && !authLoading) {
+            navigate(getRedirectPath(userProfile.role), { replace: true });
         }
-    }, [user, userProfile, navigate]);
+    }, [user, userProfile, authLoading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
+            localStorage.setItem('userRole', role);
             const { error: signInError } = await signIn(email, password);
             if (signInError) {
                 const code = (signInError as { code?: string }).code ?? signInError.message ?? '';
                 setError(friendlyError(code));
-            } else {
-                navigate(getRedirectPath(role), { replace: true });
             }
         } catch (err) {
             const code = (err as { code?: string }).code ?? (err instanceof Error ? err.message : '');
@@ -65,12 +67,11 @@ export function LoginPage() {
         setError('');
         setLoading(true);
         try {
+            localStorage.setItem('userRole', role);
             const { error: googleError } = await signInWithGoogle();
             if (googleError) {
                 const code = (googleError as { code?: string }).code ?? googleError.message ?? '';
                 setError(friendlyError(code));
-            } else {
-                navigate(getRedirectPath(role), { replace: true });
             }
         } catch (err) {
             const code = (err as { code?: string }).code ?? (err instanceof Error ? err.message : '');
