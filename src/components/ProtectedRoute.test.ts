@@ -130,7 +130,7 @@ describe('PRESERVATION 5.3 — ProtectedRoute: teacher renders children', () => 
                     const userProfile = { ...userData, role: 'teacher' as const, createdAt: '', streak: 0, lastActiveDate: '' };
                     // Teacher: user is set, role is not 'student' → renders children
                     const isAuthenticated = !!user;
-                    const isStudent = userProfile.role === 'student';
+                    const isStudent = (userProfile.role as any) === 'student';
                     const rendersChildren = isAuthenticated && !isStudent;
                     return rendersChildren === true;
                 }

@@ -181,7 +181,7 @@ describe('PRESERVATION 5.6 — StudentRoute: student renders children', () => {
                     const user = { _id: userData.uid, email: userData.email, displayName: userData.displayName, role: 'student', token: '' };
                     const userProfile = { ...userData, role: 'student' as const, createdAt: '', streak: 0, lastActiveDate: '' };
                     const isAuthenticated = !!user;
-                    const isTeacher = userProfile.role === 'teacher';
+                    const isTeacher = (userProfile.role as any) === 'teacher';
                     const rendersChildren = isAuthenticated && !isTeacher;
                     return rendersChildren === true;
                 }

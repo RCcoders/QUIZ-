@@ -22,7 +22,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     // Students should not access teacher routes
-    if (userProfile?.role === 'student') {
+    if ((userProfile?.role as any) === 'student') {
         return <Navigate to="/student/dashboard" replace />;
     }
 

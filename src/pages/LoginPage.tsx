@@ -35,11 +35,7 @@ export function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState<'student' | 'teacher'>('student');
 
-<<<<<<< HEAD
     const { signIn, signInWithGoogle, user, userProfile, loading: authLoading } = useAuth();
-=======
-    const { signIn } = useAuth();
->>>>>>> 5b85ed4 (UI enhancements: Update authentication pages and student browse layout)
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -56,14 +52,8 @@ export function LoginPage() {
             localStorage.setItem('userRole', role);
             const { error: signInError } = await signIn(email, password);
             if (signInError) {
-<<<<<<< HEAD
                 const code = (signInError as { code?: string }).code ?? signInError.message ?? '';
                 setError(friendlyError(code));
-=======
-                setError(typeof signInError === 'string' ? signInError : 'Invalid email or password');
-            } else {
-                navigate(getRedirectPath(role), { replace: true });
->>>>>>> 5b85ed4 (UI enhancements: Update authentication pages and student browse layout)
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred during sign in');
@@ -72,7 +62,6 @@ export function LoginPage() {
         }
     };
 
-<<<<<<< HEAD
     const handleGoogleSignIn = async () => {
         setError('');
         setLoading(true);
@@ -89,10 +78,6 @@ export function LoginPage() {
         } finally {
             setLoading(false);
         }
-=======
-    const handleGoogleSignIn = () => {
-        setError('Google sign-in is currently unavailable. Please use email/password.');
->>>>>>> 5b85ed4 (UI enhancements: Update authentication pages and student browse layout)
     };
 
     return (
@@ -159,7 +144,7 @@ export function LoginPage() {
                     overflow: 'hidden',
                 }}>
                     {/* Left — illustration + copy */}
-                    <div style={{
+                    <div className="qm-left-panel" style={{
                         flex: '0 1 380px',
                         display: 'flex',
                         flexDirection: 'column',
@@ -218,7 +203,6 @@ export function LoginPage() {
                                 marginBottom: 18,
                             }}
                         >
-<<<<<<< HEAD
                             {(['student', 'teacher'] as const).map((r) => (
                                 <button
                                     key={r}
@@ -243,77 +227,9 @@ export function LoginPage() {
                                     {r === 'student' ? 'Student' : 'Teacher'}
                                 </button>
                             ))}
-=======
-                            {r === 'student' ? '🎓 Student' : '📚 Teacher'}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Error banner */}
-                {error && (
-                    <div
-                        role="alert"
-                        data-testid="error-message"
-                        style={{
-                            background: 'rgba(239,68,68,0.15)',
-                            border: '1px solid rgba(239,68,68,0.4)',
-                            color: '#FCA5A5',
-                            borderRadius: '10px',
-                            padding: '11px 14px',
-                            marginBottom: '20px',
-                            fontSize: '0.875rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                        }}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                        </svg>
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} noValidate>
-                    {/* Email */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <label htmlFor="email" style={{
-                            display: 'block', fontSize: '0.8rem', fontWeight: 500,
-                            color: 'rgba(255,255,255,0.6)', marginBottom: '7px', letterSpacing: '0.5px',
-                            textTransform: 'uppercase',
-                        }}>
-                            Email
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <Mail size={15} style={{
-                                position: 'absolute', left: '13px', top: '50%',
-                                transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)',
-                                pointerEvents: 'none',
-                            }} />
-                            <input
-                                id="email"
-                                type="email"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                style={{
-                                    width: '100%', padding: '11px 13px 11px 38px',
-                                    background: 'rgba(255,255,255,0.07)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    borderRadius: '10px',
-                                    fontSize: '0.9rem', outline: 'none',
-                                    boxSizing: 'border-box',
-                                    color: 'white',
-                                    transition: 'border-color 0.2s',
-                                }}
-                                onFocus={e => (e.target.style.borderColor = `${accentColor}bb`)}
-                                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.12)')}
-                            />
->>>>>>> 5b85ed4 (UI enhancements: Update authentication pages and student browse layout)
                         </div>
 
-                        {/* Error */}
+                        {/* Error banner */}
                         {error && (
                             <div
                                 role="alert"
@@ -503,7 +419,6 @@ export function LoginPage() {
                     </div>
                 </div>
 
-<<<<<<< HEAD
                 {/* ── Footer ── */}
                 <footer style={{
                     flexShrink: 0,
@@ -523,58 +438,6 @@ export function LoginPage() {
                         <Link to="/terms" style={{ color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
                     </div>
                 </footer>
-=======
-                {/* Google button */}
-                <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={loading}
-                    data-testid="google-signin-button"
-                    style={{
-                        width: '100%', padding: '11px',
-                        background: 'rgba(255,255,255,0.07)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        borderRadius: '10px', fontWeight: 500,
-                        fontSize: '0.9rem', cursor: loading ? 'not-allowed' : 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        gap: '10px', color: 'rgba(255,255,255,0.85)', marginBottom: '24px',
-                        transition: 'background 0.2s, border-color 0.2s',
-                    }}
-                    onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.2)';
-                    }}
-                    onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
-                    }}
-                >
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
-                        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05" />
-                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
-                    </svg>
-                    Continue with Google
-                </button>
-
-                {/* Sign up link */}
-                <p style={{ textAlign: 'center', fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', margin: '0 0 20px' }}>
-                    Don't have an account?{' '}
-                    <Link
-                        to="/signup"
-                        data-testid="signup-link"
-                        style={{ color: '#818CF8', fontWeight: 600, textDecoration: 'none' }}
-                    >
-                        Create one
-                    </Link>
-                </p>
-
-                {/* Footer */}
-                <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)', margin: 0 }}>
-                    © {new Date().getFullYear()} QuizMaster · Privacy Policy · Terms of Service
-                </p>
->>>>>>> 5b85ed4 (UI enhancements: Update authentication pages and student browse layout)
             </div>
 
             <style>{`

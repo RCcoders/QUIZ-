@@ -13,6 +13,7 @@ import { auth } from '../lib/firebase';
 import type { UserProfile } from '../types/student';
 
 interface User {
+    uid: string;
     _id: string;
     email: string;
     displayName: string;
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function toAppUser(fbUser: FirebaseUser, role = 'student'): User {
     return {
+        uid: fbUser.uid,
         _id: fbUser.uid,
         email: fbUser.email ?? '',
         displayName: fbUser.displayName ?? fbUser.email ?? '',
