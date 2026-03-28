@@ -8,7 +8,6 @@ import { Background3D } from './components/Background3D';
 
 // Lazy load all page components
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
-const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -63,8 +62,8 @@ const MainContent = () => {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<AuthPage />} />
-          <Route path="/signup" element={<AuthPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/student" element={<StudentBrowse />} />
           <Route path="/student/quiz/:id" element={<StudentQuiz />} />
           <Route

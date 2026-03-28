@@ -49,7 +49,7 @@ export function StudentBrowse() {
                 <title>Student Dashboard — QuizMaster</title>
                 <meta name="description" content="View your quiz history, scores, and streaks on your QuizMaster student dashboard." />
             </Helmet>
-            <StudentNavbar />
+            <StudentNavbar activePage="/student" />
 
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px' }}>
                 {/* Dashboard Action bar (move Join Live Game here) */}
