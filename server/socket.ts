@@ -4,14 +4,7 @@ import jwt from 'jsonwebtoken';
 import GameSession from './models/GameSession.js';
 import Quiz from './models/Quiz.js';
 
-interface SocketWithUser extends Socket<any, any, any, any> {
-    user?: {
-        _id: string;
-        role: string;
-    };
-    gameCode?: string;
-    participantId?: string;
-}
+// Socket properties are augmented in types/socket.d.ts
 
 export const setupSocket = (server: HttpServer) => {
     const io = new Server(server, {
@@ -22,7 +15,7 @@ export const setupSocket = (server: HttpServer) => {
     });
 
     // Middleware to verify JWT token
-    io.use((socket: SocketWithUser, next) => {
+    io.use((socket: Socket, next) => {
         const token = socket.handshake.auth.token;
         if (!token) {
             return next();
@@ -40,7 +33,7 @@ export const setupSocket = (server: HttpServer) => {
         }
     });
 
-    io.on('connection', (socket: SocketWithUser) => {
+    io.on('connection', (socket: Socket) => {
         console.log('User connected:', socket.id, 'Role:', socket.user?.role || 'Guest');
 
         // Generic room join (for teachers/hosts)
