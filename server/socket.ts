@@ -129,22 +129,55 @@ export const setupSocket = (server: HttpServer) => {
         });
 
         // Student submits an answer
-        socket.on('submit_answer', async ({ gameCode, participantId, answer, isCorrect, pointsEarned, timeTakenMs }: {
+        socket.on('submit_answer', async ({ gameCode, participantId, answer, isCorrect, timeTakenMs }: {
             gameCode: string;
             participantId: string;
             answer: string;
             isCorrect: boolean;
-            pointsEarned: number;
             timeTakenMs: number;
         }) => {
             try {
-                // Notify teacher
-                socket.to(gameCode).emit('answer_received', {
+                const session = await GameSession.findOne({ gameCode });
+                if (!session) return;
+
+                // Point Allocation Logic
+                const basePoints = 10;
+                let bonus = 0;
+                if (isCorrect) {
+                    const seconds = timeTakenMs / 1000;
+                    // Formula: 1s -> 1.0, 2s -> 0.8... step 0.2
+                    // bonus = Max(0, 1.2 - (seconds * 0.2))
+                    if (seconds <= 10) {
+                        bonus = Math.max(0, 1.2 - (seconds * 0.2));
+                    }
+                }
+                const pointsEarned = isCorrect ? (basePoints + Number(bonus.toFixed(1))) : 0;
+
+                // Update participant in DB
+                const participant = session.participants.find((p: any) =>
+                    p._id.toString() === participantId || p.id === participantId
+                );
+
+                if (participant) {
+                    participant.score = (participant.score || 0) + pointsEarned;
+                    await session.save();
+                }
+
+                // Notify room (teacher and other students)
+                io.to(gameCode).emit('answer_received', {
                     participantId,
                     answer,
                     isCorrect,
                     pointsEarned,
-                    timeTakenMs
+                    timeTakenMs,
+                    newTotalScore: participant ? participant.score : 0
+                });
+
+                // Specifically notify the student of their result
+                socket.emit('answer_result', {
+                    isCorrect,
+                    pointsEarned,
+                    newTotalScore: participant ? participant.score : 0
                 });
 
             } catch (error) {
@@ -180,7 +213,29 @@ export const setupSocket = (server: HttpServer) => {
                     { status: 'ended', endedAt: new Date() },
                     { new: true }
                 );
+
                 if (session) {
+                    const quiz = await Quiz.findById(session.quizId);
+                    const totalPossiblePoints = quiz ? (quiz.questions.length * 11) : 100;
+
+                    // Create score records for all participants
+                    const ScoreRecord = (await import('./models/ScoreRecord.js')).default;
+                    const scorePromises = session.participants.map(p => {
+                        const percentage = totalPossiblePoints > 0 ? (p.score / totalPossiblePoints) * 100 : 0;
+                        return ScoreRecord.create({
+                            userId: p.userId || p.name, // Corrected from p.id
+                            quizId: session.quizId.toString(),
+                            quizTitle: quiz?.title || 'Unknown Quiz',
+                            score: p.score,
+                            total: totalPossiblePoints,
+                            percentage: Math.min(100, Math.round(percentage)),
+                            subject: (quiz?.subject as any), // Cast to bypass StringQueryTypeCasting error
+                            completedAt: new Date()
+                        });
+                    });
+
+                    await Promise.allSettled(scorePromises);
+
                     io.to(gameCode).emit('game_ended', { finalParticipants: session.participants, session });
                 }
             } catch (error) {

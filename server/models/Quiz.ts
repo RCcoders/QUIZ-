@@ -38,6 +38,7 @@ const QuizSchema: Schema = new Schema({
     timerEnabled: { type: Boolean, default: true },
     timerSeconds: { type: Number, default: 30 },
     questions: [QuestionSchema],
+    isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
 export default mongoose.model<IQuiz>('Quiz', QuizSchema);

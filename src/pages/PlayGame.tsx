@@ -38,6 +38,7 @@ interface Session {
     quizTitle: string;
     currentQuestionIndex: number;
     participants: Participant[];
+    questionStartedAt?: string;
 }
 
 const Diamond = ({ size = 24, fill = "none", className = "" }: any) => (
@@ -62,6 +63,17 @@ export function PlayGame() {
     const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
     const [violationCount, setViolationCount] = useState(0);
     const [gameCode, setGameCode] = useState<string>('');
+
+    const questionsRef = useRef<Question[]>([]);
+    const sessionRef = useRef<Session | null>(null);
+
+    useEffect(() => {
+        questionsRef.current = questions;
+    }, [questions]);
+
+    useEffect(() => {
+        sessionRef.current = session;
+    }, [session]);
 
     const { state } = useLocation();
     const playerName = localStorage.getItem('quizly_player_name') || state?.name;
@@ -117,6 +129,11 @@ export function PlayGame() {
 
         newSocket.on('game_started', () => {
             setGameState('playing');
+            if (questionsRef.current && questionsRef.current.length > 0) {
+                const currentS = sessionRef.current;
+                const idx = currentS ? currentS.currentQuestionIndex || 0 : 0;
+                setCurrentQuestion(questionsRef.current[idx]);
+            }
             setHasAnswered(false);
         });
 
@@ -147,6 +164,20 @@ export function PlayGame() {
             }
         });
 
+        newSocket.on('answer_result', ({ isCorrect, pointsEarned, newTotalScore }) => {
+            setIsCorrect(isCorrect);
+            setPointsEarned(pointsEarned);
+            setParticipant(prev => prev ? { ...prev, score: newTotalScore } : null);
+        });
+
+        newSocket.on('answer_received', ({ participantId: pId, newTotalScore }) => {
+            setAllParticipants(prev => {
+                const updated = prev.map(p => (p._id || p.id) === pId ? { ...p, score: newTotalScore } : p);
+                updatePosition(updated);
+                return updated;
+            });
+        });
+
         return () => { disconnectSocket(); };
     }, [sessionId, playerName, participantId, navigate]);
 
@@ -157,13 +188,24 @@ export function PlayGame() {
     };
 
     const submitAnswer = (answer: string) => {
-        if (hasAnswered || !currentQuestion || !socket) return;
+        if (hasAnswered || !currentQuestion || !socket || !session) return;
         const correct = answer === currentQuestion.correctAnswer;
-        const pts = correct ? currentQuestion.points : 0;
+
+        // Calculate time taken
+        const startTime = session.questionStartedAt ? new Date(session.questionStartedAt).getTime() : Date.now();
+        const timeTakenMs = Date.now() - startTime;
+
         setHasAnswered(true);
+        // Optimistic UI can stay, but the server will confirm with 'answer_result'
         setIsCorrect(correct);
-        setPointsEarned(pts);
-        socket.emit('submit_answer', { gameCode: sessionId, participantId, answer, isCorrect: correct, pointsEarned: pts });
+
+        socket.emit('submit_answer', {
+            gameCode: sessionId,
+            participantId,
+            answer,
+            isCorrect: correct,
+            timeTakenMs: Math.max(0, timeTakenMs)
+        });
     };
 
     useEffect(() => {

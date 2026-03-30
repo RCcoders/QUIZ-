@@ -30,26 +30,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initial load: Check if token exists
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            try {
-                const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-                // Also set userProfile for compatibility with existing components
-                setUserProfile({
-                    uid: parsedUser._id,
-                    email: parsedUser.email,
-                    displayName: parsedUser.displayName,
-                    role: parsedUser.role,
-                    streak: 0,
-                    lastActiveDate: new Date().toISOString().slice(0, 10),
-                    createdAt: new Date().toISOString()
-                });
-            } catch (e) {
-                localStorage.removeItem('user');
+        const syncAuth = () => {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                try {
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+                    setUserProfile({
+                        uid: parsedUser._id,
+                        email: parsedUser.email,
+                        displayName: parsedUser.displayName,
+                        role: parsedUser.role,
+                        streak: 0,
+                        lastActiveDate: new Date().toISOString().slice(0, 10),
+                        createdAt: new Date().toISOString()
+                    });
+                } catch (e) {
+                    localStorage.removeItem('user');
+                    setUser(null);
+                    setUserProfile(null);
+                }
+            } else {
+                setUser(null);
+                setUserProfile(null);
             }
-        }
-        setLoading(false);
+            setLoading(false);
+        };
+
+        syncAuth();
+
+        // Listen for changes from other tabs
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'user') {
+                syncAuth();
+            }
+        });
+
+        return () => window.removeEventListener('storage', syncAuth);
     }, []);
 
     const signUp = async (email: string, password: string, displayName: string, role: string) => {

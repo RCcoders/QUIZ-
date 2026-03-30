@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     Plus, Search, Bell, Settings, FileText, TrendingUp,
-    BookOpen, Users, BarChart2, Download
+    BookOpen, Users, BarChart2, Download, AlertTriangle
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
@@ -15,6 +15,8 @@ interface QuizWithCount {
     title: string;
     isActive: boolean;
     questionCount?: number;
+    attempts?: number;
+    avgScore?: number;
 }
 
 export async function fetchQuizzesForTeacher(): Promise<QuizWithCount[]> {
@@ -36,16 +38,18 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export function TeacherDashboard() {
     const { user } = useAuth();
-    const { data: quizzes = [], isLoading: isQuizzesLoading, isError } = useQuery({
+    const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError, error: quizzesError } = useQuery({
         queryKey: ['quizzes', user?._id],
         queryFn: () => fetchQuizzesForTeacher(),
         enabled: !!user,
+        retry: 1,
     });
 
-    const { data: stats, isLoading: isStatsLoading } = useQuery({
+    const { data: stats, isLoading: isStatsLoading, isError: isStatsError, error: statsError } = useQuery({
         queryKey: ['dashboardStats', user?._id],
         queryFn: () => fetchDashboardStats(),
         enabled: !!user,
+        retry: 1,
     });
 
     // Format ms to m and s
@@ -232,6 +236,35 @@ export function TeacherDashboard() {
                     </Link>
                 </div>
 
+                {/* Authorization Warning Banner */}
+                {(isQuizzesError || isStatsError) && ((quizzesError as any)?.message?.toLowerCase().includes('authorized') || (statsError as any)?.message?.toLowerCase().includes('authorized')) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                            background: '#FEF2F2',
+                            border: '1px solid #FCA5A5',
+                            borderRadius: '12px',
+                            padding: '16px 20px',
+                            marginBottom: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}
+                    >
+                        <div style={{ width: 36, height: 36, background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <AlertTriangle size={20} color="#EF4444" />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#991B1B' }}>Session Conflict Detected</div>
+                            <div style={{ fontSize: '13px', color: '#B91C1C', marginTop: '2px' }}>
+                                Your connection was rejected with a "403 Forbidden" error. This usually happens when testing as a student in the same browser.
+                                Please use **Incognito Mode** for student joins or log out and log back in as a teacher.
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* ── 3.2 Stat cards ── */}
                 <div style={{
                     display: 'grid',
@@ -306,7 +339,7 @@ export function TeacherDashboard() {
                                 <div style={{ padding: '48px 24px', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
                                     Loading quizzes…
                                 </div>
-                            ) : isError ? (
+                            ) : isQuizzesError ? (
                                 <div style={{ padding: '48px 24px', textAlign: 'center', color: '#EF4444', fontSize: '14px' }}>
                                     Failed to load quizzes. Please try again.
                                 </div>
@@ -375,13 +408,13 @@ export function TeacherDashboard() {
                                                 {quiz.title}
                                             </div>
                                             <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>
-                                                {quiz.questionCount ?? 0} questions · 10 students
+                                                {quiz.questionCount ?? 0} questions · {quiz.attempts ?? 0} students
                                             </div>
                                         </div>
 
                                         {/* Avg score */}
                                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>82%</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{Math.round(quiz.avgScore ?? 0)}%</div>
                                             <div style={{ fontSize: '11px', color: '#10B981' }}>avg score</div>
                                         </div>
 

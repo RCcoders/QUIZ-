@@ -23,11 +23,62 @@ router.post('/', protect, authorize('teacher'), async (req: any, res) => {
     }
 });
 
-// Get My Quizzes (Teacher)
+// Get My Quizzes (Teacher) with Stats
 router.get('/teacher/my-quizzes', protect, authorize('teacher'), async (req: any, res) => {
     try {
-        const quizzes = await Quiz.find({ teacherId: req.user._id });
+        const mongoose = (await import('mongoose')).default;
+        const quizzes = await Quiz.aggregate([
+            { $match: { teacherId: new mongoose.Types.ObjectId(req.user._id) } },
+            {
+                $lookup: {
+                    from: 'scorerecords',
+                    let: { quizIdStr: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$quizId', '$$quizIdStr'] } } }
+                    ],
+                    as: 'records'
+                }
+            },
+            {
+                $project: {
+                    title: 1,
+                    subject: 1,
+                    isActive: { $ifNull: ['$isActive', true] },
+                    createdAt: 1,
+                    questionCount: { $size: '$questions' },
+                    attempts: { $size: '$records' },
+                    avgScore: {
+                        $cond: {
+                            if: { $gt: [{ $size: '$records' }, 0] },
+                            then: { $avg: '$records.percentage' },
+                            else: 0
+                        }
+                    },
+                    date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ]);
+
         res.json(quizzes);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+});
+
+// Delete Quiz
+router.delete('/:id', protect, authorize('teacher'), async (req: any, res) => {
+    try {
+        const quiz = await Quiz.findOneAndDelete({
+            _id: req.params.id,
+            teacherId: req.user._id
+        });
+
+        if (quiz) {
+            res.json({ message: 'Quiz deleted successfully' });
+        } else {
+            res.status(404).json({ message: 'Quiz not found or not authorized' });
+        }
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Plus, Bell, HelpCircle, Play, Edit2, Copy, BarChart2,
     BookOpen, AlertTriangle, X, ChevronDown, CheckCircle, Save, Clock,
-    SlidersHorizontal,
+    SlidersHorizontal, Trash2
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
@@ -68,10 +68,11 @@ export async function fetchMyQuizzes(): Promise<QuizWithCount[]> {
 export function MyQuizzes() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const { data: quizzes = [], isLoading } = useQuery({
+    const { data: quizzes = [], isLoading, isError, error } = useQuery({
         queryKey: ['quizzes', 'my', user?._id],
         queryFn: fetchMyQuizzes,
         enabled: !!user,
+        retry: 1, // Don't retry indefinitely on 403
     });
 
 
@@ -276,7 +277,25 @@ export function MyQuizzes() {
                             </div>
 
                             {/* Quiz grid */}
-                            {filtered.length === 0 ? (
+                            {isError ? (
+                                <div style={{ textAlign: 'center', padding: '80px 24px' }}>
+                                    <div style={{ width: 56, height: 56, background: '#FEF2F2', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                        <AlertTriangle size={26} color="#EF4444" />
+                                    </div>
+                                    <h3 style={{ fontSize: 17, fontWeight: 700, color: '#EF4444', margin: '0 0 8px' }}>
+                                        Failed to load quizzes
+                                    </h3>
+                                    <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+                                        {(error as any)?.message || 'There was an error loading your quizzes. Please try again.'}
+                                    </p>
+                                    {(error as any)?.message?.toLowerCase().includes('authorized') && (
+                                        <p style={{ fontSize: 12, color: '#9CA3AF', maxWidth: 400, margin: '0 auto' }}>
+                                            Tip: If you are testing as a student in the same browser, your session may have been overwritten.
+                                            Please log out and log back in as a teacher, or use Incognito mode for students.
+                                        </p>
+                                    )}
+                                </div>
+                            ) : filtered.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '80px 24px' }}>
                                     <div style={{ width: 56, height: 56, background: '#F3F4F6', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                                         <BookOpen size={26} color="#9CA3AF" />
@@ -358,12 +377,19 @@ export function MyQuizzes() {
 
                                                 {/* Actions */}
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
-                                                    <button
-                                                        onClick={() => setShowDeleteConfirm(quiz._id)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}
+                                                    <Link
+                                                        to={`/teacher/quiz/${quiz._id}/edit`}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
                                                         title="Edit"
                                                     >
                                                         <Edit2 size={16} />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => setShowDeleteConfirm(quiz._id)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={16} />
                                                     </button>
                                                     <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }} title="Duplicate">
                                                         <Copy size={16} />
