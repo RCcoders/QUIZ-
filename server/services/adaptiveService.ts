@@ -29,7 +29,7 @@ export const generateAdaptiveQuiz = async (
         const difficultyStats = { easy: 0, medium: 0, hard: 0 };
         const difficultyCounts = { easy: 0, medium: 0, hard: 0 };
 
-        scores.forEach(s => {
+        scores.forEach((s: any) => {
             const diff = (s.percentage < 60 ? 'easy' : s.percentage < 85 ? 'medium' : 'hard') as 'easy' | 'medium' | 'hard';
             difficultyStats[diff] += s.percentage;
             difficultyCounts[diff]++;

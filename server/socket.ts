@@ -15,7 +15,7 @@ export const setupSocket = (server: HttpServer) => {
     });
 
     // Middleware to verify JWT token
-    io.use((socket: Socket, next) => {
+    io.use((socket: Socket, next: (err?: Error) => void) => {
         const token = socket.handshake.auth.token;
         if (!token) {
             return next();

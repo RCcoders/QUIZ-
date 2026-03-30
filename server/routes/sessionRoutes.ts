@@ -40,7 +40,7 @@ router.post('/host', protect, authorize('teacher'), async (req: any, res) => {
 });
 
 // Join a Session
-router.post('/join', async (req, res) => {
+router.post('/join', async (req: any, res: any) => {
     try {
         const { gameCode, name, userId } = req.body;
         const session = await GameSession.findOne({ gameCode });
@@ -54,7 +54,7 @@ router.post('/join', async (req, res) => {
         }
 
         // Prevent duplicate participants by name or userId
-        const duplicate = session.participants.find(p =>
+        const duplicate = session.participants.find((p: any) =>
             p.name.toLowerCase() === name.toLowerCase() ||
             (userId && p.userId?.toString() === userId.toString())
         );
@@ -80,7 +80,7 @@ router.post('/join', async (req, res) => {
 });
 
 // Get Session by Code
-router.get('/code/:code', async (req, res) => {
+router.get('/code/:code', async (req: any, res: any) => {
     try {
         const session = await GameSession.findOne({ gameCode: req.params.code })
             .populate('quizId');
@@ -115,7 +115,7 @@ router.patch('/:id', protect, authorize('teacher'), async (req: any, res) => {
 });
 
 // Submit Answer
-router.post('/:id/answer', async (req, res) => {
+router.post('/:id/answer', async (req: any, res: any) => {
     try {
         const { participantId, pointsEarned } = req.body;
         const session = await GameSession.findById(req.params.id).populate('quizId');

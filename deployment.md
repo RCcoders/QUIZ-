@@ -39,7 +39,7 @@ Since the backend uses **Socket.io (WebSockets)**, it needs a hosting provider t
 
 **Steps for Render:**
 1.  **New Web Service**: Connect your GitHub repository.
-2.  **Root Directory**: `server`
+2.  **Root Directory**: `.` (the project root)
 3.  **Build Command**: `npm install && npm run build`
 4.  **Start Command**: `npm start`
 5.  **Environment Variables**: Add `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, and `NODE_ENV=production`.
