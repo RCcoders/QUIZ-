@@ -34,13 +34,30 @@ npm start
 
 ## 3. Recommended Platform Config
 
-### Render / Heroku / Digital Ocean
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm start`
-- **Root Directory**: `.` (Root)
+### Backend (Render / Railway)
+Since the backend uses **Socket.io (WebSockets)**, it needs a hosting provider that supports persistent connections.
 
-### Vercel
-*Note: Vercel is best for static sites. For this full-stack app, use the "Vercel + Serverless" configuration or deploy to a Node.js-based host like Render.*
+**Steps for Render:**
+1.  **New Web Service**: Connect your GitHub repository.
+2.  **Root Directory**: `server`
+3.  **Build Command**: `npm install && npm run build`
+4.  **Start Command**: `npm start`
+5.  **Environment Variables**: Add `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, and `NODE_ENV=production`.
+
+### Frontend (Vercel)
+Vercel is excellent for the React frontend.
+
+**Steps for Vercel:**
+1.  **New Project**: Connect your GitHub repository.
+2.  **Framework Preset**: Vite
+3.  **Root Directory**: `.` (Root)
+4.  **Build Command**: `npm run build`
+5.  **Output Directory**: `dist`
+6.  **Environment Variables**: 
+    - Add `VITE_API_URL` set to your **Backend URL** (e.g., `https://quizly-backend.onrender.com`).
+    - Note: This variable must be set **before** the build runs.
+
+---
 
 ## 4. Local Production Test
 To test the production build locally before pushing:

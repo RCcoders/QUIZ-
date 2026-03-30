@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import GameSession from './models/GameSession.js';
 import Quiz from './models/Quiz.js';
 
-interface SocketWithUser extends Socket {
+interface SocketWithUser extends Socket<any, any, any, any> {
     user?: {
         _id: string;
         role: string;
@@ -220,7 +220,7 @@ export const setupSocket = (server: HttpServer) => {
 
                     // Create score records for all participants
                     const ScoreRecord = (await import('./models/ScoreRecord.js')).default;
-                    const scorePromises = session.participants.map(p => {
+                    const scorePromises = session.participants.map((p: any) => {
                         const percentage = totalPossiblePoints > 0 ? (p.score / totalPossiblePoints) * 100 : 0;
                         return ScoreRecord.create({
                             userId: p.userId || p.name, // Corrected from p.id
