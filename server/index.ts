@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
@@ -23,11 +25,19 @@ const httpServer = createServer(app);
 // Connect to Database
 connectDB();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Note: When running from server/dist/index.js, we need to go up TWO levels to reach root
+const distPath = path.join(__dirname, '..', '..', 'dist');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// Serve static files from the frontend dist folder
+app.use(express.static(distPath));
+
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/sessions', sessionRoutes);
@@ -38,8 +48,11 @@ app.use('/api/teacher', teacherDashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/badges', badgeRoutes);
 
-app.get('/', (req, res) => {
-    res.send('Quizly API is running...');
+// Catch-all route to serve index.html for SPA
+// In Express 5, the route parameters and matching have changed.
+// We use a regex to match everything except /api
+app.get(/^(?!\/api).+/, (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
 });
 
 const PORT = process.env.PORT || 5000;

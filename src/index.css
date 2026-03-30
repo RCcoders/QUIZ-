@@ -20,6 +20,23 @@
   --space-lg: 1.5rem;
   --space-xl: 2rem;
   --space-2xl: 3rem;
+
+  /* Breakpoints */
+  --break-sm: 640px;
+  --break-md: 768px;
+  --break-lg: 1024px;
+  --break-xl: 1280px;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --top-nav-height: 0px;
+}
+
+@media (max-width: 768px) {
+  @theme {
+    --sidebar-width: 0px;
+    --top-nav-height: 60px;
+  }
 }
 
 /* Base Styles */
@@ -52,15 +69,21 @@
   }
 
   .otp-container {
-    @apply flex justify-center gap-[var(--space-sm)];
+    @apply flex justify-center gap-[var(--space-xs)] sm:gap-[var(--space-sm)];
   }
 
   .otp-input {
-    @apply w-12 h-16 text-center text-3xl font-black bg-black/[0.02] border border-black/5 rounded-xl outline-none transition-all focus:border-brand/60 focus:bg-white focus:shadow-[0_0_20px_rgba(124,58,237,0.1)];
+    @apply w-10 h-14 sm:w-12 sm:h-16 text-center text-2xl sm:text-3xl font-black bg-black/[0.02] border border-black/5 rounded-xl outline-none transition-all focus:border-brand/60 focus:bg-white focus:shadow-[0_0_20px_rgba(124,58,237,0.1)];
   }
 
   .card {
     @apply bg-white p-[var(--space-xl)] rounded-4xl border border-black/[0.04] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)];
+  }
+
+  @media (max-width: 768px) {
+    .mobile-header {
+      display: flex !important;
+    }
   }
 }
 

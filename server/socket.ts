@@ -67,7 +67,7 @@ export const setupSocket = (server: HttpServer) => {
 
                 socket.join(gameCode);
                 socket.gameCode = gameCode;
-                socket.participantId = participantId;
+                socket.participantId = participantId as string;
 
                 console.log(`${name} (${participantId || 'Guest'}) joined room: ${gameCode}`);
 
@@ -90,7 +90,7 @@ export const setupSocket = (server: HttpServer) => {
                 }
 
                 const session = await GameSession.findOne({ gameCode });
-                if (!session || session.teacherId.toString() !== socket.user._id.toString()) {
+                if (!session || String(session.teacherId) !== String(socket.user._id)) {
                     return socket.emit('error', { message: 'Unauthorized to start this session' });
                 }
 
@@ -112,7 +112,7 @@ export const setupSocket = (server: HttpServer) => {
                 if (!socket.user || socket.user.role !== 'teacher') return;
 
                 const session = await GameSession.findOne({ gameCode });
-                if (!session || session.teacherId.toString() !== socket.user._id.toString()) return;
+                if (!session || String(session.teacherId) !== String(socket.user._id)) return;
 
                 session.status = 'question';
                 session.currentQuestionIndex = nextIndex;
@@ -229,7 +229,7 @@ export const setupSocket = (server: HttpServer) => {
                             score: p.score,
                             total: totalPossiblePoints,
                             percentage: Math.min(100, Math.round(percentage)),
-                            subject: (quiz?.subject as any), // Cast to bypass StringQueryTypeCasting error
+                            subject: (quiz?.subject || 'General') as any, // Cast to bypass StringQueryTypeCasting error
                             completedAt: new Date()
                         });
                     });

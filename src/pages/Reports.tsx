@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart2, Users, CheckCircle, TrendingUp, Calendar, DownloadCloud } from 'lucide-react';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 import { apiFetch } from '../utils/api';
 
 export interface QuizSession {
@@ -46,6 +46,7 @@ export function Reports() {
     const [sessions, setSessions] = useState<QuizSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [dateFilter, setDateFilter] = useState<DateRange>('all');
 
     useEffect(() => {
@@ -107,26 +108,20 @@ export function Reports() {
     ];
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>
-            <TeacherSidebar />
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <main style={{ flex: 1, marginLeft: '240px', padding: '0 2rem 2rem', minWidth: 0 }}>
+            <main className="flex-1 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8 mt-16 lg:mt-0 min-w-0">
                 {/* Top bar */}
-                <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '20px 0', borderBottom: '1px solid #E5E7EB', marginBottom: '28px',
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#111827', margin: 0 }}>Reports</h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-5 border-b border-gray-200 mb-7 gap-4">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-extrabold text-gray-900 m-0">Reports</h1>
                         <button
                             onClick={handleDownloadCSV}
                             disabled={filtered.length === 0 || loading}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-                                borderRadius: '8px', border: '1px solid #E5E7EB', background: '#FFFFFF',
-                                fontSize: '13px', fontWeight: 600, color: '#374151', cursor: (filtered.length === 0 || loading) ? 'not-allowed' : 'pointer',
-                                opacity: (filtered.length === 0 || loading) ? 0.6 : 1, transition: 'all 0.2s'
-                            }}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-[13px] font-bold text-gray-700 transition-all
+                                ${filtered.length === 0 || loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 active:scale-95 shadow-sm'}`}
                         >
                             <DownloadCloud size={16} />
                             Download CSV
@@ -134,18 +129,13 @@ export function Reports() {
                     </div>
 
                     {/* Date range filter */}
-                    <div style={{ display: 'flex', gap: '4px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '4px' }}>
+                    <div className="flex p-1 bg-white border border-gray-200 rounded-xl max-w-fit shadow-sm">
                         {DATE_RANGE_OPTIONS.map(opt => (
                             <button
                                 key={opt.value}
                                 onClick={() => setDateFilter(opt.value)}
-                                style={{
-                                    padding: '6px 14px', borderRadius: '7px', border: 'none',
-                                    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                                    background: dateFilter === opt.value ? '#FF5C1A' : 'transparent',
-                                    color: dateFilter === opt.value ? '#FFFFFF' : '#6B7280',
-                                    transition: 'background 0.15s, color 0.15s',
-                                }}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all
+                                    ${dateFilter === opt.value ? 'bg-[#FF5C1A] text-white shadow-md shadow-[#FF5C1A]/20' : 'text-gray-500 hover:text-gray-900'}`}
                             >
                                 {opt.label}
                             </button>
@@ -154,106 +144,84 @@ export function Reports() {
                 </div>
 
                 {/* Stat cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
                     {statCards.map((card, i) => (
                         <motion.div
                             key={card.label}
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.07 }}
-                            style={{
-                                background: '#FFFFFF', borderRadius: '14px',
-                                padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            }}
+                            className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{
-                                    width: '40px', height: '40px', borderRadius: '10px',
-                                    background: card.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                }}>
+                            <div className="flex items-center gap-3 mb-3">
+                                <div
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                                    style={{ background: card.iconBg }}
+                                >
                                     <card.icon size={18} color={card.iconColor} />
                                 </div>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
+                            <div className="text-3xl font-black text-gray-900 leading-none">
                                 {card.value}
                             </div>
-                            <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '6px' }}>{card.label}</div>
+                            <div className="text-[13px] font-bold text-gray-500 mt-2 lowercase">{card.label}</div>
                         </motion.div>
                     ))}
                 </div>
 
                 {/* Session list */}
-                <div style={{ background: '#FFFFFF', borderRadius: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                    {/* Table header */}
-                    <div style={{
-                        display: 'grid', gridTemplateColumns: '1fr 140px 120px 120px',
-                        padding: '12px 20px', borderBottom: '1px solid #F3F4F6',
-                        fontSize: '12px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}>
-                        <span>Quiz Title</span>
-                        <span>Date</span>
-                        <span>Participants</span>
-                        <span>Avg Score</span>
-                    </div>
-
-                    {loading ? (
-                        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-                            <div style={{
-                                width: '40px', height: '40px', border: '3px solid #F3F4F6',
-                                borderTopColor: '#FF5C1A', borderRightColor: '#FF5C1A', borderRadius: '50%',
-                                animation: 'spin 1s linear infinite', margin: '0 auto 16px'
-                            }} />
-                            <p style={{ fontSize: '14px', fontWeight: 600, color: '#6B7280', margin: 0 }}>Loading your analytics...</p>
-                            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                        </div>
-                    ) : error ? (
-                        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '14px', color: '#EF4444', margin: 0 }}>{error}</p>
-                        </div>
-                    ) : filtered.length === 0 ? (
-                        <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-                            <div style={{
-                                width: '56px', height: '56px', background: '#F3F4F6', borderRadius: '12px',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-                            }}>
-                                <Calendar size={26} color="#9CA3AF" />
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <div className="min-w-[600px]">
+                            {/* Table header */}
+                            <div className="grid grid-cols-[1fr,140px,120px,120px] px-6 py-3 border-b border-gray-50 bg-gray-50/50">
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quiz Title</span>
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</span>
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Participants</span>
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Avg Score</span>
                             </div>
-                            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
-                                No sessions yet
-                            </h3>
-                            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>
-                                Host a quiz to start seeing your analytics here.
-                            </p>
+
+                            {loading ? (
+                                <div className="py-20 text-center">
+                                    <div className="w-10 h-10 border-4 border-gray-100 border-t-[#FF5C1A] rounded-full animate-spin mx-auto mb-4" />
+                                    <p className="text-sm font-bold text-gray-500">Loading your analytics...</p>
+                                </div>
+                            ) : error ? (
+                                <div className="p-12 text-center text-red-500 text-sm font-bold">{error}</div>
+                            ) : filtered.length === 0 ? (
+                                <div className="py-20 text-center px-6">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <Calendar size={32} className="text-gray-300" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-2">No sessions yet</h3>
+                                    <p className="text-sm font-bold text-gray-500 m-0">Host a quiz to start seeing your analytics here.</p>
+                                </div>
+                            ) : (
+                                filtered.map((session, i) => (
+                                    <motion.div
+                                        key={session.id}
+                                        initial={{ opacity: 0, x: -12 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className={`grid grid-cols-[1fr,140px,120px,120px] px-6 py-4 items-center hover:bg-gray-50 transition-colors
+                                            ${i < filtered.length - 1 ? 'border-b border-gray-50' : ''}`}
+                                    >
+                                        <span className="text-sm font-bold text-gray-900 truncate pr-4">{session.quizTitle}</span>
+                                        <span className="text-[13px] font-bold text-gray-500">
+                                            {new Date(session.date).toLocaleDateString()}
+                                        </span>
+                                        <span className="text-[13px] font-bold text-gray-600">
+                                            {session.participantCount} students
+                                        </span>
+                                        <span className={`text-[13px] font-black
+                                            ${session.averageScore >= 70 ? 'text-emerald-500' : session.averageScore >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
+                                            {session.averageScore}%
+                                        </span>
+                                    </motion.div>
+                                ))
+                            )}
                         </div>
-                    ) : (
-                        filtered.map((session, i) => (
-                            <motion.div
-                                key={session.id}
-                                initial={{ opacity: 0, x: -12 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                                style={{
-                                    display: 'grid', gridTemplateColumns: '1fr 140px 120px 120px',
-                                    padding: '14px 20px', alignItems: 'center',
-                                    borderBottom: i < filtered.length - 1 ? '1px solid #F3F4F6' : 'none',
-                                }}
-                            >
-                                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{session.quizTitle}</span>
-                                <span style={{ fontSize: '13px', color: '#6B7280' }}>
-                                    {new Date(session.date).toLocaleDateString()}
-                                </span>
-                                <span style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>
-                                    {session.participantCount} students
-                                </span>
-                                <span style={{
-                                    fontSize: '13px', fontWeight: 700,
-                                    color: session.averageScore >= 70 ? '#10B981' : session.averageScore >= 50 ? '#F97316' : '#EF4444',
-                                }}>
-                                    {session.averageScore}%
-                                </span>
-                            </motion.div>
-                        ))
-                    )}
+                    </div>
                 </div>
             </main>
         </div>

@@ -257,10 +257,10 @@ export function PlayGame() {
                                             <Play size={20} fill="currentColor" />
                                             <span className="text-xl font-black uppercase tracking-tighter">Quizly Lobby</span>
                                         </div>
-                                        <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tight text-zinc-900 uppercase">{session.quizTitle}</h1>
+                                        <h1 className="text-4xl md:text-7xl font-black mb-4 tracking-tight text-zinc-900 uppercase leading-none">{session.quizTitle}</h1>
                                         <div className="flex items-center gap-3">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Session ID</span>
-                                            <span className="text-2xl font-black tracking-widest text-brand">{gameCode}</span>
+                                            <span className="text-xl md:text-2xl font-black tracking-widest text-brand">{gameCode}</span>
                                         </div>
                                     </div>
                                     <div className="card text-center min-w-[240px]">
@@ -316,8 +316,8 @@ export function PlayGame() {
                                         <span className="text-3xl font-black text-brand italic">Q{(session.currentQuestionIndex || 0) + 1}</span>
                                         <span className="text-[10px] font-black uppercase opacity-20 tracking-widest">of {questions.length}</span>
                                     </div>
-                                    <div className="text-center">
-                                        <p className="text-6xl font-black tabular-nums tracking-tighter text-zinc-900">{Math.round(participant?.score || 0).toLocaleString()}</p>
+                                    <div className="text-center order-first md:order-none">
+                                        <p className="text-5xl md:text-6xl font-black tabular-nums tracking-tighter text-zinc-900">{Math.round(participant?.score || 0).toLocaleString()}</p>
                                         <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Global Arena Points</p>
                                     </div>
                                     <div className="card !py-3 !px-6 border-l-4 border-orange-500 flex items-center gap-4">
@@ -326,8 +326,8 @@ export function PlayGame() {
                                     </div>
                                 </div>
 
-                                <div className="card !p-16 md:!p-24 text-center mb-12">
-                                    <h2 className="text-4xl md:text-6xl font-black leading-tight tracking-tight uppercase italic">{currentQuestion.questionText}</h2>
+                                <div className="card !p-10 md:!p-24 text-center mb-12">
+                                    <h2 className="text-3xl md:text-6xl font-black leading-tight tracking-tight uppercase italic">{currentQuestion.questionText}</h2>
                                 </div>
 
                                 {!hasAnswered ? (
@@ -339,10 +339,10 @@ export function PlayGame() {
                                             const SHAPES = [Triangle, Square, Circle, Diamond];
                                             const ShapeIcon: any = SHAPES[idx];
                                             return (
-                                                <button key={letter} onClick={() => submitAnswer(letter)} className={`relative overflow-hidden p-8 rounded-3xl flex items-center gap-6 group transition-all active:scale-95 ${COLORS[idx]} border-b-[6px] border-black/20`}>
-                                                    <ShapeIcon className="absolute -right-6 -bottom-6 w-32 h-32 text-white/10 rotate-12 transition-transform group-hover:rotate-45" />
-                                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0 border border-white/20"><ShapeIcon size={24} fill="white" /></div>
-                                                    <span className="font-black text-xl text-left uppercase">{optionText}</span>
+                                                <button key={letter} onClick={() => submitAnswer(letter)} className={`relative overflow-hidden p-6 md:p-8 rounded-3xl flex items-center gap-4 md:gap-6 group transition-all active:scale-95 ${COLORS[idx]} border-b-[6px] border-black/20`}>
+                                                    <ShapeIcon className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 text-white/10 rotate-12 transition-transform group-hover:rotate-45" />
+                                                    <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0 border border-white/20"><ShapeIcon size={20} fill="white" /></div>
+                                                    <span className="font-black text-lg md:text-xl text-left uppercase">{optionText}</span>
                                                 </button>
                                             );
                                         })}
@@ -359,11 +359,11 @@ export function PlayGame() {
 
                         {gameState === 'results' && (
                             <motion.div key="results" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col max-w-2xl mx-auto w-full justify-center">
-                                <div className={`card !p-16 text-center border-t-[10px] ${isCorrect ? 'border-green-500' : 'border-red-500'}`}>
-                                    <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 ${isCorrect ? 'bg-green-500' : 'bg-red-500'} shadow-2xl`}>
-                                        {isCorrect ? <CheckCircle size={48} /> : <XCircle size={48} />}
+                                <div className={`card !p-10 md:!p-16 text-center border-t-[10px] ${isCorrect ? 'border-green-500' : 'border-red-500'}`}>
+                                    <div className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 ${isCorrect ? 'bg-green-500' : 'bg-red-500'} shadow-2xl`}>
+                                        {isCorrect ? <CheckCircle size={40} /> : <XCircle size={40} />}
                                     </div>
-                                    <h2 className="text-6xl font-black mb-4 uppercase italic tracking-tighter">{isCorrect ? 'PERFECT' : 'FAILED'}</h2>
+                                    <h2 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter">{isCorrect ? 'PERFECT' : 'FAILED'}</h2>
                                     <div className="mb-8">
                                         {isCorrect ? (
                                             <div className="text-4xl font-black text-green-600">+{pointsEarned} PTS</div>
@@ -389,15 +389,15 @@ export function PlayGame() {
                         )}
 
                         {gameState === 'ended' && (
-                            <motion.div key="ended" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col max-w-4xl mx-auto w-full justify-center text-center">
-                                <Trophy size={100} className="text-brand mx-auto mb-8 drop-shadow-2xl" />
-                                <h1 className="text-8xl font-black mb-4 tracking-tighter italic uppercase text-zinc-900">GAME OVER</h1>
-                                <p className="text-xl font-bold text-zinc-400 uppercase tracking-widest mb-12">VICTORY LAP COMPLETE</p>
+                            <motion.div key="ended" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col max-w-4xl mx-auto w-full justify-center text-center py-10">
+                                <Trophy size={80} className="text-brand mx-auto mb-8 drop-shadow-2xl md:w-[100px] md:h-[100px]" />
+                                <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter italic uppercase text-zinc-900 leading-none">GAME OVER</h1>
+                                <p className="text-lg md:text-xl font-bold text-zinc-400 uppercase tracking-widest mb-12">VICTORY LAP COMPLETE</p>
 
-                                <div className="grid grid-cols-3 gap-6 mb-12">
-                                    <div className="card"><div className="text-4xl font-black mb-1 text-zinc-900">#{currentPosition}</div><div className="text-[10px] font-black uppercase text-zinc-400">Final Rank</div></div>
-                                    <div className="card"><div className="text-4xl font-black mb-1 text-zinc-900">{Math.round(participant?.score || 0)}</div><div className="text-[10px] font-black uppercase text-zinc-400">Points</div></div>
-                                    <div className="card"><div className="text-4xl font-black mb-1 text-zinc-900">{questions.length}</div><div className="text-[10px] font-black uppercase text-zinc-400">Rounds</div></div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">#{currentPosition}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Final Rank</div></div>
+                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{Math.round(participant?.score || 0)}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Points</div></div>
+                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{questions.length}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Rounds</div></div>
                                 </div>
 
                                 <div className="flex gap-4 justify-center">

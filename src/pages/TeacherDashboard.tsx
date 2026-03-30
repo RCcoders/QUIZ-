@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 
 interface QuizWithCount {
     _id: string;
@@ -38,6 +38,17 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export function TeacherDashboard() {
     const { user } = useAuth();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const isMobile = windowWidth <= 768;
+
     const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError, error: quizzesError } = useQuery({
         queryKey: ['quizzes', user?._id],
         queryFn: () => fetchQuizzesForTeacher(),
@@ -125,111 +136,62 @@ export function TeacherDashboard() {
     const displayName = user?.displayName || user?.email?.split('@')[0] || 'Teacher';
 
     return (
-        /* ── 3.1 Page shell: flex row, sidebar + main ── */
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>
-            <TeacherSidebar />
+        /* ── Page shell: flex row, sidebar + main ── */
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, padding: '0 2rem 2rem', marginLeft: '240px' }}>
+            <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] ${isMobile ? 'px-4 pb-8 mt-16' : 'px-8 pb-8'}`}>
 
-                {/* ── 3.1 Top bar ── */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '20px 0',
-                    borderBottom: '1px solid #E5E7EB',
-                    marginBottom: '28px',
-                }}>
-                    {/* Search */}
-                    <div style={{ flex: 1, position: 'relative' }}>
-                        <Search
-                            size={16}
-                            style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Search quizzes, students..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px 10px 40px',
-                                border: '1px solid #E5E7EB',
-                                borderRadius: '10px',
-                                background: '#FFFFFF',
-                                fontSize: '14px',
-                                color: '#111827',
-                                outline: 'none',
-                                boxSizing: 'border-box',
-                            }}
-                        />
+                {/* ── Top bar ── */}
+                {!isMobile && (
+                    <div className="flex items-center gap-3 py-5 border-b border-gray-200 mb-7">
+                        {/* Search */}
+                        <div className="flex-1 relative">
+                            <Search
+                                size={16}
+                                className="absolute left-[14px] top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Search quizzes, students..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full py-[10px] pl-[40px] pr-[14px] border border-gray-200 rounded-[10px] bg-white text-sm text-gray-900 outline-none box-border focus:ring-2 focus:ring-[#FF5C1A] transition-all"
+                            />
+                        </div>
+
+                        {/* Bell */}
+                        <button className="w-10 h-10 border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
+                            <Bell size={18} className="text-gray-500" />
+                        </button>
+
+                        {/* Settings */}
+                        <button className="w-10 h-10 border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
+                            <Settings size={18} className="text-gray-500" />
+                        </button>
+
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-full bg-[#FF5C1A] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            {teacherInitials}
+                        </div>
                     </div>
+                )}
+                {isMobile && <div className="h-3" />}
 
-                    {/* Bell */}
-                    <button style={{
-                        width: '40px', height: '40px',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '10px',
-                        background: '#FFFFFF',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer',
-                    }}>
-                        <Bell size={18} color="#6B7280" />
-                    </button>
-
-                    {/* Settings */}
-                    <button style={{
-                        width: '40px', height: '40px',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '10px',
-                        background: '#FFFFFF',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer',
-                    }}>
-                        <Settings size={18} color="#6B7280" />
-                    </button>
-
-                    {/* Avatar */}
-                    <div style={{
-                        width: '40px', height: '40px',
-                        borderRadius: '50%',
-                        background: '#FF5C1A',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#FFFFFF',
-                        fontWeight: 700,
-                        fontSize: '14px',
-                        flexShrink: 0,
-                    }}>
-                        {teacherInitials}
-                    </div>
-                </div>
-
-                {/* ── 3.2 Welcome row ── */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                    <div>
-                        <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#111827', margin: 0 }}>
+                {/* ── Welcome row ── */}
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                    <div className="min-w-[200px]">
+                        <h1 className="text-2xl md:text-[26px] font-extrabold text-gray-900 m-0">
                             Hello, {displayName}! 👋
                         </h1>
-                        <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
+                        <p className="text-sm text-gray-500 mt-1">
                             Welcome back! Here's how your classes are performing today.
                         </p>
                     </div>
                     <Link
                         to="/teacher/quiz/new"
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            background: '#FF5C1A',
-                            color: '#FFFFFF',
-                            padding: '10px 20px',
-                            borderRadius: '10px',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                        }}
+                        className="inline-flex items-center gap-2 bg-[#FF5C1A] text-white px-5 py-[10px] rounded-[10px] font-semibold text-sm no-underline whitespace-nowrap shrink-0 hover:bg-[#e65317] transition-colors shadow-sm"
                     >
                         <Plus size={16} />
                         Create New Quiz
@@ -241,23 +203,14 @@ export function TeacherDashboard() {
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        style={{
-                            background: '#FEF2F2',
-                            border: '1px solid #FCA5A5',
-                            borderRadius: '12px',
-                            padding: '16px 20px',
-                            marginBottom: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                        }}
+                        className="bg-red-50 border border-red-300 rounded-xl p-4 mb-6 flex items-center gap-3"
                     >
-                        <div style={{ width: 36, height: 36, background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <AlertTriangle size={20} color="#EF4444" />
+                        <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                            <AlertTriangle size={20} className="text-red-500" />
                         </div>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#991B1B' }}>Session Conflict Detected</div>
-                            <div style={{ fontSize: '13px', color: '#B91C1C', marginTop: '2px' }}>
+                            <div className="text-sm font-bold text-red-800">Session Conflict Detected</div>
+                            <div className="text-[13px] text-red-700 mt-[2px]">
                                 Your connection was rejected with a "403 Forbidden" error. This usually happens when testing as a student in the same browser.
                                 Please use **Incognito Mode** for student joins or log out and log back in as a teacher.
                             </div>
@@ -265,110 +218,76 @@ export function TeacherDashboard() {
                     </motion.div>
                 )}
 
-                {/* ── 3.2 Stat cards ── */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '16px',
-                    marginBottom: '28px',
-                }}>
+                {/* ── Stat cards ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
                     {statCards.map((card, i) => (
                         <motion.div
                             key={card.label}
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.07 }}
-                            style={{
-                                background: '#FFFFFF',
-                                borderRadius: '14px',
-                                padding: '20px',
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            }}
+                            className="bg-white rounded-[14px] p-5 shadow-sm border border-gray-100"
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                            <div className="flex items-center justify-between mb-[14px]">
                                 {/* Icon circle */}
-                                <div style={{
-                                    width: '40px', height: '40px',
-                                    borderRadius: '10px',
-                                    background: card.iconBg,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                }}>
-                                    <card.icon size={18} color={card.iconColor} />
+                                <div
+                                    className="w-10 h-10 rounded-[10px] flex items-center justify-center"
+                                    style={{ background: card.iconBg }}
+                                >
+                                    <card.icon size={18} style={{ color: card.iconColor }} />
                                 </div>
                                 {/* Change badge */}
-                                <span style={{
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    color: card.positive ? '#10B981' : '#EF4444',
-                                    background: card.positive ? '#ECFDF5' : '#FEF2F2',
-                                    padding: '2px 8px',
-                                    borderRadius: '999px',
-                                }}>
+                                <span
+                                    className={`text-[12px] font-bold px-2 py-[2px] rounded-full ${card.positive ? 'text-emerald-500 bg-emerald-50' : 'text-red-500 bg-red-50'}`}
+                                >
                                     {card.change}
                                 </span>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
+                            <div className="text-[28px] font-extrabold text-gray-900 leading-none">
                                 {card.value}
                             </div>
-                            <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '6px' }}>
+                            <div className="text-[13px] text-gray-500 mt-[6px]">
                                 {card.label}
                             </div>
                         </motion.div>
                     ))}
                 </div>
 
-                {/* ── 3.3 + 3.4 Main content: Recent Quizzes + Performance ── */}
-                <div style={{ display: 'flex', gap: '24px', flex: 1 }}>
-
-                    {/* ── 3.3 Recent Quizzes (60%) ── */}
-                    <div style={{ flex: '0 0 60%', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#111827', margin: 0 }}>Recent Quizzes</h2>
-                            <Link to="#" style={{ fontSize: '13px', color: '#FF5C1A', fontWeight: 600, textDecoration: 'none' }}>
+                {/* ── Main content: Recent Quizzes + Performance ── */}
+                <div className="flex flex-col lg:flex-row gap-6 flex-1">
+                    {/* ── Recent Quizzes (60%) ── */}
+                    <div className="flex-[3] min-w-0">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-bold text-gray-900 m-0">Recent Quizzes</h2>
+                            <Link to="/teacher/my-quizzes" className="text-[13px] text-[#FF5C1A] font-semibold no-underline hover:underline">
                                 View All
                             </Link>
                         </div>
 
-                        <div style={{
-                            background: '#FFFFFF',
-                            borderRadius: '14px',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            overflow: 'hidden',
-                        }}>
+                        <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden">
                             {isQuizzesLoading ? (
-                                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
+                                <div className="p-12 text-center text-gray-500 text-sm">
                                     Loading quizzes…
                                 </div>
                             ) : isQuizzesError ? (
-                                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#EF4444', fontSize: '14px' }}>
+                                <div className="p-12 text-center text-red-500 text-sm">
                                     Failed to load quizzes. Please try again.
                                 </div>
                             ) : filteredQuizzes.length === 0 ? (
-                                <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-                                    <div style={{
-                                        width: '56px', height: '56px',
-                                        background: '#F3F4F6',
-                                        borderRadius: '12px',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        margin: '0 auto 16px',
-                                    }}>
-                                        <FileText size={28} color="#9CA3AF" />
+                                <div className="p-12 text-center">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                        <FileText size={28} className="text-gray-400" />
                                     </div>
-                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                                    <h3 className="text-base font-bold text-gray-900 mb-2">
                                         No quizzes found
                                     </h3>
-                                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '0 0 20px' }}>
+                                    <p className="text-sm text-gray-500 mb-5">
                                         {searchQuery ? 'No quizzes match your search.' : 'Start by creating your first quiz!'}
                                     </p>
                                     {!searchQuery && (
                                         <Link
                                             to="/teacher/quiz/new"
-                                            style={{
-                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                                background: '#FF5C1A', color: '#FFFFFF',
-                                                padding: '8px 20px', borderRadius: '8px',
-                                                fontWeight: 600, fontSize: '14px', textDecoration: 'none',
-                                            }}
+                                            className="inline-flex items-center gap-[6px] bg-[#FF5C1A] text-white px-5 py-2 rounded-lg font-semibold text-sm no-underline hover:bg-[#e65317] transition-colors shadow-sm"
                                         >
                                             <Plus size={14} />
                                             Create Quiz
@@ -382,52 +301,31 @@ export function TeacherDashboard() {
                                         initial={{ opacity: 0, x: -12 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.06 }}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '14px',
-                                            padding: '14px 20px',
-                                            borderBottom: i < filteredQuizzes.slice(0, 5).length - 1 ? '1px solid #F3F4F6' : 'none',
-                                        }}
+                                        className={`flex items-center gap-[14px] p-[14px_20px] ${i < filteredQuizzes.slice(0, 5).length - 1 ? 'border-b border-gray-100' : ''} hover:bg-gray-50 transition-colors cursor-pointer`}
                                     >
                                         {/* Quiz icon */}
-                                        <div style={{
-                                            width: '44px', height: '44px',
-                                            borderRadius: '10px',
-                                            background: '#FFF3EE',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            flexShrink: 0,
-                                            fontSize: '18px', fontWeight: 700, color: '#FF5C1A',
-                                        }}>
+                                        <div className="w-11 h-11 rounded-[10px] bg-[#FFF3EE] flex items-center justify-center shrink-0 text-lg font-bold text-[#FF5C1A]">
                                             {quiz.title[0]?.toUpperCase()}
                                         </div>
 
                                         {/* Title + meta */}
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-semibold text-gray-900 truncate">
                                                 {quiz.title}
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>
+                                            <div className="text-xs text-gray-400 mt-[2px]">
                                                 {quiz.questionCount ?? 0} questions · {quiz.attempts ?? 0} students
                                             </div>
                                         </div>
 
                                         {/* Avg score */}
-                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{Math.round(quiz.avgScore ?? 0)}%</div>
-                                            <div style={{ fontSize: '11px', color: '#10B981' }}>avg score</div>
+                                        <div className="text-right shrink-0">
+                                            <div className="text-sm font-bold text-gray-900">{Math.round(quiz.avgScore ?? 0)}%</div>
+                                            <div className="text-[11px] text-emerald-500 font-medium">avg score</div>
                                         </div>
 
                                         {/* Status badge */}
-                                        <span style={{
-                                            fontSize: '11px',
-                                            fontWeight: 600,
-                                            padding: '3px 10px',
-                                            borderRadius: '999px',
-                                            background: quiz.isActive ? '#ECFDF5' : '#F3F4F6',
-                                            color: quiz.isActive ? '#10B981' : '#6B7280',
-                                            flexShrink: 0,
-                                        }}>
+                                        <span className={`text-[11px] font-semibold px-[10px] py-[3px] rounded-full shrink-0 ${quiz.isActive ? 'bg-emerald-50 text-emerald-500' : 'bg-gray-100 text-gray-500'}`}>
                                             {quiz.isActive ? 'Active' : 'Draft'}
                                         </span>
                                     </motion.div>
@@ -436,72 +334,47 @@ export function TeacherDashboard() {
                         </div>
                     </div>
 
-                    {/* ── 3.4 Performance panel (40%) ── */}
-                    <div style={{ flex: '0 0 calc(40% - 24px)', minWidth: 0 }}>
-                        <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>Performance</h2>
+                    {/* ── Performance panel (40%) ── */}
+                    <div className="flex-[2] min-w-0">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Performance</h2>
 
                         {/* Bar chart card */}
-                        <div style={{
-                            background: '#FFFFFF',
-                            borderRadius: '14px',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            padding: '20px',
-                            marginBottom: '16px',
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Weekly Quiz Completion</span>
-                                <TrendingUp size={16} color="#9CA3AF" />
+                        <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 p-5 mb-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-sm font-semibold text-gray-900">Weekly Quiz Completion</span>
+                                <TrendingUp size={16} className="text-gray-400" />
                             </div>
 
                             {/* CSS bar chart */}
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '80px', marginBottom: '12px' }}>
+                            <div className="flex items-end gap-[6px] h-20 mb-3">
                                 {weeklyData.map((d) => (
-                                    <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'flex-end' }}>
-                                        <div style={{
-                                            width: '100%',
-                                            height: `${d.pct}%`,
-                                            background: '#FF5C1A',
-                                            borderRadius: '4px 4px 0 0',
-                                            opacity: 0.85,
-                                        }} />
-                                        <span style={{ fontSize: '10px', color: '#9CA3AF' }}>{d.day}</span>
+                                    <div key={d.day} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group transition-all duration-300">
+                                        <div
+                                            className="w-full bg-[#FF5C1A] rounded-[4px_4px_0_0] opacity-80 group-hover:opacity-100 transition-all duration-300 relative"
+                                            style={{ height: `${d.pct}%` }}
+                                        >
+                                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1 rounded opacity-0 group-hover:opacity-100 transition-all">
+                                                {d.pct}%
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-medium">{d.day}</span>
                                     </div>
                                 ))}
                             </div>
 
-                            <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>Recent</div>
-                            <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>Weekly completion breakdown</div>
+                            <div className="text-xl font-extrabold text-gray-900 leading-none">Recent</div>
+                            <div className="text-xs text-gray-500 mt-1">Weekly completion breakdown</div>
                         </div>
 
                         {/* Avg student time card */}
-                        <div style={{
-                            background: '#FFFFFF',
-                            borderRadius: '14px',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            padding: '20px',
-                            marginBottom: '16px',
-                        }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', marginBottom: '8px' }}>Avg Student Time</div>
-                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827' }}>{formatTime(stats?.averageTimeTakenMs || 0)}</div>
-                            <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>Per quiz completion</div>
+                        <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 p-5 mb-4">
+                            <div className="text-[13px] font-semibold text-gray-500 mb-2">Avg Student Time</div>
+                            <div className="text-[26px] font-extrabold text-gray-900 leading-tight">{formatTime(stats?.averageTimeTakenMs || 0)}</div>
+                            <div className="text-xs text-gray-400 mt-1 font-medium">Per quiz completion</div>
                         </div>
 
                         {/* Download Report button */}
-                        <button style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            padding: '12px',
-                            background: '#FFF3EE',
-                            border: '1px solid #FDDCCC',
-                            borderRadius: '10px',
-                            color: '#FF5C1A',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            cursor: 'pointer',
-                        }}>
+                        <button className="w-full flex items-center justify-center gap-2 p-3 bg-[#FFF3EE] border border-[#FDDCCC] rounded-[10px] text-[#FF5C1A] font-semibold text-sm cursor-pointer hover:bg-[#FDDCCC] transition-colors">
                             <Download size={16} />
                             Download Report PDF
                         </button>

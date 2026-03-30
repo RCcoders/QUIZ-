@@ -17,7 +17,7 @@ export const generateAdaptiveQuiz = async (
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // 1. Fetch user performance for this subject
-    const scores = await ScoreRecord.find({ userId, subject })
+    const scores = await ScoreRecord.find({ userId, subject: subject as any })
         .sort({ completedAt: -1 })
         .limit(10)
         .lean();
@@ -42,7 +42,7 @@ export const generateAdaptiveQuiz = async (
                 : 100
         }));
 
-        if (averages.length > 0) {
+        if (averages.length > 0 && averages[0]) {
             averages.sort((a, b) => a.avg - b.avg);
             dominantWeakDifficulty = averages[0].diff;
         }

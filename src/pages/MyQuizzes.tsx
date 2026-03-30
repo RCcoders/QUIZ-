@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Search, Plus, Bell, HelpCircle, Play, Edit2, Copy, BarChart2,
     BookOpen, AlertTriangle, X, ChevronDown, CheckCircle, Save, Clock,
@@ -9,7 +9,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 
 
 
@@ -76,6 +76,17 @@ export function MyQuizzes() {
     });
 
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const isMobile = windowWidth <= 768;
+
     const [searchQuery, setSearchQuery] = useState('');
     const [subjectFilter, setSubjectFilter] = useState('All');
     const [activeTab, setActiveTab] = useState<'quizzes' | 'drafts' | 'templates' | 'settings'>('quizzes');
@@ -127,79 +138,67 @@ export function MyQuizzes() {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>
-
-            <TeacherSidebar />
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
             {/* ── Main ── */}
-            <main style={{ flex: 1, marginLeft: '240px', padding: '0 2rem 2rem', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8 mt-16 lg:mt-0">
 
                 {/* Top navbar */}
-                <header style={{
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '0 32px', height: 64,
-                    background: '#fff', borderBottom: '1px solid #E5E7EB',
-                    position: 'sticky', top: 0, zIndex: 50,
-                }}>
-                    <h1 style={{ fontSize: 22, fontWeight: 800, color: '#FF5C1A', margin: 0, flex: 1 }}>My Quizzes</h1>
+                {!isMobile && (
+                    <header className="flex items-center gap-4 px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
+                        <h1 className="text-[22px] font-extrabold text-[#FF5C1A] m-0 flex-1">My Quizzes</h1>
 
-                    {/* Search */}
-                    <div style={{ position: 'relative', width: 240 }}>
-                        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-                        <input
-                            type="text"
-                            placeholder="Search quizzes..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            style={{
-                                width: '100%', padding: '8px 12px 8px 34px',
-                                border: '1px solid #E5E7EB', borderRadius: 8,
-                                fontSize: 13, color: '#111827', background: '#F9FAFB',
-                                outline: 'none', boxSizing: 'border-box',
-                            }}
-                        />
+                        {/* Search */}
+                        <div className="relative w-60">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search quizzes..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full pl-[34px] pr-3 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-900 bg-gray-50 outline-none focus:ring-2 focus:ring-[#FF5C1A] transition-all"
+                            />
+                        </div>
+
+                        <button className="bg-none border-none cursor-pointer text-gray-500 p-1 hover:text-gray-700 transition-colors">
+                            <Bell size={18} />
+                        </button>
+                        <button className="bg-none border-none cursor-pointer text-gray-500 p-1 hover:text-gray-700 transition-colors">
+                            <HelpCircle size={18} />
+                        </button>
+
+                        <Link
+                            to="/teacher/quiz/new"
+                            className="inline-flex items-center gap-[7px] bg-[#FF5C1A] text-white px-[18px] py-[9px] rounded-lg font-bold text-[13px] no-underline whitespace-nowrap hover:bg-[#e65317] transition-colors shadow-sm"
+                        >
+                            <Plus size={15} />
+                            Create New Quiz
+                        </Link>
+                    </header>
+                )}
+
+                {/* Mobile Header Title */}
+                {isMobile && (
+                    <div className="mt-4 flex justify-between items-center px-2">
+                        <h1 className="text-xl font-extrabold text-[#FF5C1A]">My Quizzes</h1>
+                        <Link
+                            to="/teacher/quiz/new"
+                            className="inline-flex items-center gap-1 bg-[#FF5C1A] text-white p-2 rounded-full shadow-lg"
+                        >
+                            <Plus size={20} />
+                        </Link>
                     </div>
-
-                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4 }}>
-                        <Bell size={18} />
-                    </button>
-                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4 }}>
-                        <HelpCircle size={18} />
-                    </button>
-
-                    <Link
-                        to="/teacher/quiz/new"
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 7,
-                            background: '#FF5C1A', color: '#fff',
-                            padding: '9px 18px', borderRadius: 8,
-                            fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap',
-                        }}
-                    >
-                        <Plus size={15} />
-                        Create New Quiz
-                    </Link>
-                </header>
+                )}
 
                 {/* Tab bar */}
-                <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: '#EBEBEB', borderRadius: 12,
-                    padding: 4, margin: '20px 32px 0', alignSelf: 'flex-start',
-                }}>
+                <div className="inline-flex items-center gap-1 bg-gray-200/50 rounded-xl p-1 mt-5 ml-2 sm:ml-0 self-start max-w-[calc(100%-16px)] overflow-x-auto no-scrollbar">
                     {(['quizzes', 'drafts', 'templates', 'settings'] as const).map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            style={{
-                                padding: '7px 20px', borderRadius: 9, border: 'none',
-                                fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                                background: activeTab === tab ? '#FFFFFF' : 'transparent',
-                                color: activeTab === tab ? '#111827' : '#6B7280',
-                                boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
-                                transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
-                                textTransform: 'capitalize',
-                            }}
+                            className={`px-5 py-[7px] rounded-[9px] border-none text-[14px] font-bold cursor-pointer transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-500 hover:text-gray-700'}`}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
                         </button>
@@ -207,62 +206,41 @@ export function MyQuizzes() {
                 </div>
 
                 {/* Content */}
-                <div style={{ padding: '24px 32px', flex: 1 }}>
+                <div className={`${isMobile ? 'py-4 px-2' : 'py-6 px-0'} flex-1 min-w-0`}>
 
                     {/* Content Router */}
                     {(activeTab === 'quizzes' || activeTab === 'drafts') && (
                         <>
                             {/* Filter bar */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                            <div className="flex items-center gap-[10px] mb-6 flex-wrap">
                                 {/* Subject dropdown */}
-                                <div style={{ position: 'relative' }}>
+                                <div className="relative">
                                     <select
                                         value={subjectFilter}
                                         onChange={e => setSubjectFilter(e.target.value)}
-                                        style={{
-                                            appearance: 'none', padding: '7px 32px 7px 12px',
-                                            border: '1px solid #E5E7EB', borderRadius: 8,
-                                            fontSize: 13, fontWeight: 500, color: '#374151',
-                                            background: '#fff', cursor: 'pointer', outline: 'none',
-                                        }}
+                                        className="appearance-none pl-3 pr-8 py-[7px] border border-gray-200 rounded-lg text-[13px] font-medium text-gray-700 bg-white cursor-pointer outline-none focus:ring-1 focus:ring-[#FF5C1A]"
                                     >
                                         {subjects.map(s => <option key={s}>{s}</option>)}
                                     </select>
-                                    <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6B7280', pointerEvents: 'none' }} />
+                                    <ChevronDown size={13} className="absolute right-[10px] top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                                 </div>
 
                                 {/* Sort */}
-                                <div style={{ position: 'relative' }}>
+                                <div className="relative">
                                     <div
                                         onClick={() => setIsSortOpen(!isSortOpen)}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: 6,
-                                            padding: '7px 12px', border: '1px solid #E5E7EB', borderRadius: 8,
-                                            fontSize: 13, fontWeight: 500, color: '#374151', background: '#fff', cursor: 'pointer',
-                                            userSelect: 'none'
-                                        }}
+                                        className="flex items-center gap-[6px] px-3 py-[7px] border border-gray-200 rounded-lg text-[13px] font-medium text-gray-700 bg-white cursor-pointer select-none hover:bg-gray-50 transition-colors"
                                     >
-                                        <SlidersHorizontal size={13} color="#6B7280" />
+                                        <SlidersHorizontal size={13} className="text-gray-500" />
                                         Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
                                     </div>
                                     {isSortOpen && (
-                                        <div style={{
-                                            position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                                            background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8,
-                                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, width: 140, overflow: 'hidden'
-                                        }}>
+                                        <div className="absolute top-[calc(100%+4px)] left-0 sm:right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-[140px] overflow-hidden">
                                             {(['recent', 'oldest', 'title', 'score'] as const).map(option => (
                                                 <div
                                                     key={option}
                                                     onClick={() => { setSortBy(option); setIsSortOpen(false); }}
-                                                    style={{
-                                                        padding: '8px 12px', fontSize: 13, cursor: 'pointer',
-                                                        background: sortBy === option ? '#F9FAFB' : '#fff',
-                                                        color: sortBy === option ? '#111827' : '#374151',
-                                                        borderBottom: option !== 'score' ? '1px solid #F3F4F6' : 'none'
-                                                    }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = sortBy === option ? '#F9FAFB' : '#fff'}
+                                                    className={`px-3 py-2 text-[13px] cursor-pointer transition-colors ${sortBy === option ? 'bg-gray-50 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                                                 >
                                                     {option.charAt(0).toUpperCase() + option.slice(1)}
                                                 </div>
@@ -271,49 +249,49 @@ export function MyQuizzes() {
                                     )}
                                 </div>
 
-                                <div style={{ marginLeft: 'auto', fontSize: 13, color: '#6B7280', fontWeight: 500 }}>
+                                <div className="ml-auto text-[13px] text-gray-400 font-medium">
                                     Showing {filtered.length} {filtered.length === 1 ? 'Quiz' : 'Quizzes'}
                                 </div>
                             </div>
 
                             {/* Quiz grid */}
                             {isError ? (
-                                <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-                                    <div style={{ width: 56, height: 56, background: '#FEF2F2', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                        <AlertTriangle size={26} color="#EF4444" />
+                                <div className="text-center py-20 px-6">
+                                    <div className="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                        <AlertTriangle size={26} className="text-red-500" />
                                     </div>
-                                    <h3 style={{ fontSize: 17, fontWeight: 700, color: '#EF4444', margin: '0 0 8px' }}>
+                                    <h3 className="text-[17px] font-bold text-red-500 mb-2">
                                         Failed to load quizzes
                                     </h3>
-                                    <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+                                    <p className="text-[13px] text-gray-500 mb-5">
                                         {(error as any)?.message || 'There was an error loading your quizzes. Please try again.'}
                                     </p>
                                     {(error as any)?.message?.toLowerCase().includes('authorized') && (
-                                        <p style={{ fontSize: 12, color: '#9CA3AF', maxWidth: 400, margin: '0 auto' }}>
+                                        <p className="text-[12px] text-gray-400 max-w-[400px] mx-auto">
                                             Tip: If you are testing as a student in the same browser, your session may have been overwritten.
                                             Please log out and log back in as a teacher, or use Incognito mode for students.
                                         </p>
                                     )}
                                 </div>
                             ) : filtered.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-                                    <div style={{ width: 56, height: 56, background: '#F3F4F6', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                        <BookOpen size={26} color="#9CA3AF" />
+                                <div className="text-center py-20 px-6">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                        <BookOpen size={26} className="text-gray-400" />
                                     </div>
-                                    <h3 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                                    <h3 className="text-[17px] font-bold text-gray-900 mb-2">
                                         {quizzes.length === 0 ? 'No quizzes yet' : 'No quizzes match your filters'}
                                     </h3>
-                                    <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+                                    <p className="text-[13px] text-gray-500 mb-5">
                                         {quizzes.length === 0 ? 'Create your first quiz to get started.' : 'Try adjusting your search or filter.'}
                                     </p>
                                     {quizzes.length === 0 && (
-                                        <Link to="/teacher/quiz/new" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FF5C1A', color: '#fff', padding: '9px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
+                                        <Link to="/teacher/quiz/new" className="inline-flex items-center gap-[7px] bg-[#FF5C1A] text-white px-5 py-[9px] rounded-lg font-semibold text-[13px] no-underline hover:bg-[#e65317] transition-colors shadow-sm">
                                             <Plus size={15} /> Create Your First Quiz
                                         </Link>
                                     )}
                                 </div>
                             ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {filtered.map((quiz, i) => {
                                         const subjectStyle = SUBJECT_COLORS[quiz.subject || ''] || SUBJECT_COLORS.Default;
                                         const scoreColor = SCORE_COLORS[i % SCORE_COLORS.length];
@@ -325,90 +303,77 @@ export function MyQuizzes() {
                                                 initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: i * 0.05 }}
-                                                style={{
-                                                    background: '#fff',
-                                                    borderRight: '1px solid #E5E7EB',
-                                                    borderBottom: '1px solid #E5E7EB',
-                                                    padding: '24px 24px 20px',
-                                                    display: 'flex', flexDirection: 'column', gap: 16,
-                                                }}
+                                                className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group"
                                             >
 
                                                 {/* Subject + date */}
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                    <span style={{
-                                                        fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                                                        textTransform: 'uppercase', padding: '3px 8px',
-                                                        borderRadius: 4, background: subjectStyle.bg, color: subjectStyle.text,
-                                                    }}>
+                                                <div className="flex items-center justify-between">
+                                                    <span
+                                                        className="text-[10px] font-bold tracking-wider uppercase px-2 py-[3px] rounded-[4px]"
+                                                        style={{ background: subjectStyle.bg, color: subjectStyle.text }}
+                                                    >
                                                         {quiz.subject || 'General'}
                                                     </span>
-                                                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>{quiz.date}</span>
+                                                    <span className="text-[11px] text-gray-400">{quiz.date}</span>
                                                 </div>
 
                                                 {/* Title */}
-                                                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: 0, lineHeight: 1.3 }}>
+                                                <h3 className="text-[17px] font-bold text-gray-900 m-0 leading-[1.3] group-hover:text-[#FF5C1A] transition-colors line-clamp-2 min-h-[2.6em]">
                                                     {quiz.title}
                                                 </h3>
 
                                                 {/* Stats row */}
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                                <div className="grid grid-cols-2 gap-[10px]">
                                                     {[
                                                         { label: 'Questions', value: quiz.questionCount ?? 0 },
                                                         { label: 'Attempts', value: quiz.attempts ?? 0 },
                                                     ].map(stat => (
-                                                        <div key={stat.label} style={{ background: '#F9FAFB', borderRadius: 8, padding: '10px 12px', border: '1px solid #F3F4F6' }}>
-                                                            <div style={{ fontSize: 9, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{stat.label}</div>
-                                                            <div style={{ fontSize: 20, fontWeight: 700, color: '#111827' }}>{stat.value}</div>
+                                                        <div key={stat.label} className="bg-gray-50 rounded-lg p-[10px_12px] border border-gray-100 transition-colors group-hover:bg-white group-hover:border-gray-200">
+                                                            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">{stat.label}</div>
+                                                            <div className="text-xl font-bold text-gray-900">{stat.value}</div>
                                                         </div>
                                                     ))}
                                                 </div>
 
                                                 {/* Avg score */}
-                                                <div style={{ background: '#F9FAFB', borderRadius: 8, padding: '10px 12px', border: '1px solid #F3F4F6' }}>
-                                                    <div style={{ fontSize: 9, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Avg Score</div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                        <span style={{ fontSize: 20, fontWeight: 700, color: scoreColor }}>{quiz.avgScore ?? 0}%</span>
-                                                        <div style={{ width: 80, height: 3, background: '#E5E7EB', borderRadius: 99, overflow: 'hidden' }}>
-                                                            <div style={{ width: scoreWidth, height: '100%', background: scoreColor, borderRadius: 99 }} />
+                                                <div className="bg-gray-50 rounded-lg p-[10px_12px] border border-gray-100 transition-colors group-hover:bg-white group-hover:border-gray-200">
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-[6px]">Avg Score</div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xl font-bold" style={{ color: scoreColor }}>{quiz.avgScore ?? 0}%</span>
+                                                        <div className="w-20 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                                            <div className="h-full rounded-full transition-all duration-500" style={{ width: scoreWidth, background: scoreColor }} />
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Actions */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+                                                <div className="flex items-center gap-3 pt-1">
                                                     <Link
                                                         to={`/teacher/quiz/${quiz._id}/edit`}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4, display: 'flex', alignItems: 'center' }}
+                                                        className="text-gray-400 hover:text-[#6366F1] transition-colors p-1"
                                                         title="Edit"
                                                     >
                                                         <Edit2 size={16} />
                                                     </Link>
                                                     <button
                                                         onClick={() => setShowDeleteConfirm(quiz._id)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}
+                                                        className="bg-transparent border-none cursor-pointer text-gray-400 hover:text-red-500 transition-colors p-1"
                                                         title="Delete"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
-                                                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }} title="Duplicate">
+                                                    <button className="bg-transparent border-none cursor-pointer text-gray-400 hover:text-[#FF5C1A] transition-colors p-1" title="Duplicate">
                                                         <Copy size={16} />
                                                     </button>
-                                                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }} title="Analytics">
+                                                    <button className="bg-transparent border-none cursor-pointer text-gray-400 hover:text-[#10B981] transition-colors p-1" title="Analytics">
                                                         <BarChart2 size={16} />
                                                     </button>
                                                     <Link
                                                         to={`/teacher/quiz/${quiz._id}/host`}
-                                                        style={{
-                                                            marginLeft: 'auto',
-                                                            display: 'inline-flex', alignItems: 'center', gap: 7,
-                                                            background: '#FF5C1A', color: '#fff',
-                                                            padding: '8px 18px', borderRadius: 20,
-                                                            fontWeight: 700, fontSize: 13, textDecoration: 'none',
-                                                        }}
+                                                        className="ml-auto inline-flex items-center gap-[7px] bg-[#FF5C1A] text-white px-[18px] py-2 rounded-full font-bold text-[13px] no-underline hover:bg-[#e65317] transition-colors shadow-sm"
                                                     >
                                                         <Play size={13} fill="currentColor" />
-                                                        Live Session
+                                                        Host
                                                     </Link>
                                                 </div>
 
@@ -422,36 +387,26 @@ export function MyQuizzes() {
 
                     {activeTab === 'templates' && (
                         <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {MOCK_TEMPLATES.map(t => (
-                                    <div key={t._id} style={{
-
-                                        background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16,
-                                        padding: 24, display: 'flex', flexDirection: 'column', gap: 16
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <span style={{
-                                                fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                                                textTransform: 'uppercase', padding: '3px 8px',
-                                                borderRadius: 4, background: SUBJECT_COLORS[t.subject]?.bg || SUBJECT_COLORS.Default.bg, color: SUBJECT_COLORS[t.subject]?.text || SUBJECT_COLORS.Default.text,
-                                            }}>
+                                    <div key={t._id} className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all">
+                                        <div className="flex items-center justify-between">
+                                            <span
+                                                className="text-[10px] font-bold tracking-wider uppercase px-2 py-[3px] rounded-[4px]"
+                                                style={{ background: SUBJECT_COLORS[t.subject]?.bg || SUBJECT_COLORS.Default.bg, color: SUBJECT_COLORS[t.subject]?.text || SUBJECT_COLORS.Default.text }}
+                                            >
                                                 {t.subject}
                                             </span>
-                                            <BookOpen size={16} color="#9CA3AF" />
+                                            <BookOpen size={16} className="text-gray-400" />
                                         </div>
                                         <div>
-                                            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>{t.title}</h3>
-                                            <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>{t.desc}</p>
+                                            <h3 className="text-[17px] font-bold text-gray-900 mb-[6px]">{t.title}</h3>
+                                            <p className="text-[13px] text-gray-500 m-0 leading-[1.5] line-clamp-3">{t.desc}</p>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#9CA3AF', fontWeight: 500 }}>
+                                        <div className="flex items-center gap-[6px] text-[13px] text-gray-400 font-medium">
                                             <HelpCircle size={14} /> {t.questionCount} Questions
                                         </div>
-                                        <button style={{
-                                            marginTop: 'auto', width: '100%', padding: '10px 0',
-                                            background: '#F3F4F6', color: '#374151', borderRadius: 8,
-                                            border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                                        }}>
+                                        <button className="mt-auto w-full py-[10px] bg-gray-100 text-gray-700 rounded-lg border-none font-semibold text-[13px] cursor-pointer inline-flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
                                             <Copy size={16} /> Use Template
                                         </button>
                                     </div>
@@ -461,53 +416,53 @@ export function MyQuizzes() {
                     )}
 
                     {activeTab === 'settings' && (
-                        <div style={{ maxWidth: 600, background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', padding: '32px 40px' }}>
-                            <h2 style={{ margin: '0 0 24px', fontSize: 20, fontWeight: 800, color: '#111827' }}>Quiz Defaults & Preferences</h2>
+                        <div className="max-w-2xl bg-white rounded-2xl border border-gray-200 p-8 shadow-sm mx-auto sm:mx-0">
+                            <h2 className="m-0 mb-6 text-xl font-extrabold text-gray-900 text-center sm:text-left">Quiz Defaults & Preferences</h2>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                            <div className="flex flex-col gap-6">
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Default Time Limit (Minutes)</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 16px', width: 200 }}>
-                                        <Clock size={16} color="#9CA3AF" />
-                                        <input type="number" defaultValue={30} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 14, color: '#111827', fontWeight: 500 }} />
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Default Time Limit (Minutes)</label>
+                                    <div className="flex items-center gap-[10px] border border-gray-200 rounded-lg p-[10px_16px] w-full sm:w-[200px] focus-within:ring-2 focus-within:ring-[#FF5C1A] transition-all">
+                                        <Clock size={16} className="text-gray-400" />
+                                        <input type="number" defaultValue={30} className="border-none outline-none w-full text-sm text-gray-900 font-medium bg-transparent" />
                                     </div>
                                 </div>
 
-                                <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: 0 }} />
+                                <hr className="border-none border-t border-gray-200 m-0" />
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Grading Scale</label>
-                                    <select style={{ width: 200, padding: '10px 16px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', background: '#fff' }}>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Grading Scale</label>
+                                    <select className="w-full sm:w-[200px] p-[10px_16px] border border-gray-200 rounded-lg text-sm text-gray-900 outline-none bg-white focus:ring-2 focus:ring-[#FF5C1A] transition-all">
                                         <option>Percentage (%)</option>
                                         <option>Points (10, 20, etc)</option>
                                         <option>Letter Grade (A, B, C)</option>
                                     </select>
                                 </div>
 
-                                <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: 0 }} />
+                                <hr className="border-none border-t border-gray-200 m-0" />
 
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                                        <input type="checkbox" defaultChecked style={{ width: 16, height: 16, accentColor: '#FF5C1A' }} />
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Email Notifications</span>
-                                            <span style={{ fontSize: 13, color: '#6B7280' }}>Notify me when a student completes a quiz</span>
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input type="checkbox" defaultChecked className="w-4 h-4 accent-[#FF5C1A]" />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold text-gray-700 group-hover:text-[#FF5C1A] transition-colors">Email Notifications</span>
+                                            <span className="text-[13px] text-gray-500">Notify me when a student completes a quiz</span>
                                         </div>
                                     </label>
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                                        <input type="checkbox" defaultChecked style={{ width: 16, height: 16, accentColor: '#FF5C1A' }} />
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Student Reports</span>
-                                            <span style={{ fontSize: 13, color: '#6B7280' }}>Automatically email students their score report</span>
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input type="checkbox" defaultChecked className="w-4 h-4 accent-[#FF5C1A]" />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold text-gray-700 group-hover:text-[#FF5C1A] transition-colors">Student Reports</span>
+                                            <span className="text-[13px] text-gray-500">Automatically email students their score report</span>
                                         </div>
                                     </label>
                                 </div>
 
-                                <div style={{ marginTop: 16 }}>
-                                    <button onClick={handleSaveSettings} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FF5C1A', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                                <div className="mt-4 flex justify-center sm:justify-start">
+                                    <button onClick={handleSaveSettings} className="inline-flex items-center gap-2 bg-[#FF5C1A] text-white border-none p-[10px_24px] rounded-lg font-bold text-[14px] cursor-pointer hover:bg-[#e65317] transition-all shadow-md">
                                         <Save size={16} /> Save Preferences
                                     </button>
                                 </div>
@@ -520,48 +475,45 @@ export function MyQuizzes() {
             {/* Delete confirmation modal */}
             <AnimatePresence>
                 {showDeleteConfirm && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
-                        onClick={() => setShowDeleteConfirm(null)}
-                    >
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[200] p-4" onClick={() => setShowDeleteConfirm(null)}>
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-2xl p-7 w-full max-w-[360px] shadow-2xl overflow-hidden"
                             onClick={e => e.stopPropagation()}
-                            style={{ background: '#fff', borderRadius: 16, padding: 28, width: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <div style={{ width: 36, height: 36, background: '#FEF2F2', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <AlertTriangle size={18} color="#EF4444" />
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-[10px]">
+                                    <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center">
+                                        <AlertTriangle size={18} className="text-red-500" />
                                     </div>
-                                    <span style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>Delete Quiz</span>
+                                    <span className="text-base font-bold text-gray-900">Delete Quiz</span>
                                 </div>
-                                <button onClick={() => setShowDeleteConfirm(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
+                                <button onClick={() => setShowDeleteConfirm(null)} className="bg-transparent border-none cursor-pointer text-gray-400 hover:text-gray-600 transition-colors p-1">
                                     <X size={18} />
                                 </button>
                             </div>
-                            <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 24, lineHeight: 1.6 }}>
+                            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
                                 Are you sure you want to delete this quiz? This action cannot be undone.
                             </p>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                                <button onClick={() => setShowDeleteConfirm(null)} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                            <div className="flex gap-[10px]">
+                                <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-[10px] rounded-lg border border-gray-200 bg-white text-gray-700 font-bold text-sm cursor-pointer hover:bg-gray-50 transition-colors">
                                     Cancel
                                 </button>
-                                <button onClick={() => handleDelete(showDeleteConfirm)} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#EF4444', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                                <button onClick={() => handleDelete(showDeleteConfirm)} className="flex-1 py-[10px] rounded-lg border-none bg-red-500 text-white font-bold text-sm cursor-pointer hover:bg-red-600 transition-colors shadow-sm">
                                     Delete
                                 </button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
+
             {/* Toast Notification */}
             <AnimatePresence>
                 {showToast && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-                        style={{ position: 'fixed', bottom: 32, right: 32, background: '#10B981', color: '#fff', padding: '12px 24px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, fontSize: 14, boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)', zIndex: 100 }}
+                        className="fixed bottom-8 right-8 bg-emerald-500 text-white p-[12px_24px] rounded-lg flex items-center gap-[10px] font-bold text-sm shadow-xl shadow-emerald-500/30 z-[100]"
                     >
                         <CheckCircle size={18} /> Settings saved successfully!
                     </motion.div>

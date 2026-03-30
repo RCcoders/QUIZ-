@@ -8,7 +8,7 @@ import {
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../hooks/useNotes';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 import type { Note } from '../types/student';
 
 export interface LibraryQuiz {
@@ -101,6 +101,7 @@ export function Library() {
     const [subjectFilter, setSubjectFilter] = useState('all');
     const [sortBy, setSortBy] = useState('plays');
     const [showSortMenu, setShowSortMenu] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [previewQuiz, setPreviewQuiz] = useState<LibraryQuiz | null>(null);
 
     const [showNoteForm, setShowNoteForm] = useState(false);
@@ -168,46 +169,76 @@ export function Library() {
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>
-            <TeacherSidebar />
-            <main style={{ flex: 1, marginLeft: '240px', padding: '0 2rem 2rem', minWidth: 0 }}>
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-                <div style={{ background: 'linear-gradient(135deg, #FF5C1A 0%, #FF8C42 100%)', padding: '48px 0 0' }}>
-                    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: 32 }}>
-                            <div>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '4px 12px', marginBottom: 12 }}>
-                                    <LibraryIcon size={13} color="rgba(255,255,255,0.9)" />
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>Public Library</span>
+            {/* Main Content - Adjust margin-left for mobile when sidebar is hidden/collapsed if applicable */}
+            <main className="flex-1 lg:ml-[240px] p-0 pb-8 min-w-0 transition-all duration-300 mt-16 lg:mt-0">
+
+                {/* Header Section */}
+                <div className="bg-gradient-to-br from-[#FF5C1A] to-[#FF8C42] pt-12 pb-8 px-4 sm:px-6">
+                    <div className="max-w-[1100px] mx-auto">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                            <div className="space-y-3">
+                                <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 scale-95 origin-left">
+                                    <LibraryIcon size={13} className="text-white/90" />
+                                    <span className="text-[12px] font-semibold text-white/90 uppercase tracking-wider">Public Library</span>
                                 </div>
-                                <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', margin: '0 0 8px', lineHeight: 1.2 }}>Discover Quizzes</h1>
-                                <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', margin: 0 }}>Browse {quizzes.length} community-made quizzes across all subjects</p>
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">Discover Quizzes</h1>
+                                <p className="text-white/80 text-sm sm:text-base max-w-md">
+                                    Browse {quizzes.length} community-made quizzes across all subjects
+                                </p>
                             </div>
-                            <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-                                {[{ icon: BookOpen, label: `${quizzes.length} Quizzes` }, { icon: Users, label: `${(totalPlays / 1000).toFixed(1)}k Plays` }].map(stat => (
-                                    <div key={stat.label} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 16px' }}>
-                                        <stat.icon size={15} color="rgba(255,255,255,0.9)" />
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{stat.label}</span>
-                                    </div>
-                                ))}
+
+                            <div className="flex flex-wrap gap-3">
+                                <div className="flex items-center gap-2 bg-white/20 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+                                    <BookOpen size={16} className="text-white/90" />
+                                    <span className="text-sm font-bold text-white whitespace-nowrap">{quizzes.length} Quizzes</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-white/20 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+                                    <Users size={16} className="text-white/90" />
+                                    <span className="text-sm font-bold text-white whitespace-nowrap">{(totalPlays / 1000).toFixed(1)}k Plays</span>
+                                </div>
                             </div>
                         </div>
-                        <div style={{ background: '#fff', borderRadius: '14px 14px 0 0', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ position: 'relative', flex: 1 }}>
-                                <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-                                <input type="text" placeholder="Search by title or subject..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                                    style={{ width: '100%', padding: '10px 14px 10px 42px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, color: '#111827', background: '#F9FAFB', outline: 'none', boxSizing: 'border-box' }} />
+
+                        {/* Search Bar Container */}
+                        <div className="bg-white rounded-t-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-sm">
+                            <div className="relative flex-1">
+                                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by title or subject..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-1.5 border-gray-100 rounded-xl text-sm focus:outline-none focus:border-[#FF5C1A] transition-colors"
+                                />
                             </div>
-                            <div style={{ position: 'relative' }}>
-                                <button onClick={() => setShowSortMenu(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 10, border: '1.5px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
-                                    <Filter size={14} color="#6B7280" />{activeSortLabel}
+
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowSortMenu(v => !v)}
+                                    className="flex items-center justify-between sm:justify-start gap-2 px-4 py-2.5 bg-white border-1.5 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Filter size={16} className="text-gray-400" />
+                                        <span>{activeSortLabel}</span>
+                                    </div>
+                                    <TrendingUp size={14} className={showSortMenu ? "rotate-180 transition-transform" : "transition-transform"} />
                                 </button>
+
                                 {showSortMenu && (
-                                    <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB', zIndex: 50, minWidth: 160, overflow: 'hidden' }}>
+                                    <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 min-w-[180px] overflow-hidden py-1">
                                         {SORT_OPTIONS.map(opt => (
-                                            <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSortMenu(false); }}
-                                                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '10px 14px', border: 'none', background: sortBy === opt.value ? '#FFF3EE' : '#fff', color: sortBy === opt.value ? '#FF5C1A' : '#374151', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
-                                                <opt.icon size={14} />{opt.label}
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => { setSortBy(opt.value); setShowSortMenu(false); }}
+                                                className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors text-left
+                                                    ${sortBy === opt.value ? 'bg-[#FFF3EE] text-[#FF5C1A] font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                                            >
+                                                <opt.icon size={16} />
+                                                {opt.label}
                                             </button>
                                         ))}
                                     </div>
@@ -217,124 +248,202 @@ export function Library() {
                     </div>
                 </div>
 
-                <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 48px' }}>
-                    <div style={{ background: '#fff', borderRadius: '0 0 14px 14px', padding: '0 20px 16px', marginBottom: 24 }}>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pb-12">
+                    <div className="bg-white rounded-b-2xl p-4 sm:p-5 pt-0 mb-6 border-t border-gray-100 shadow-sm">
+                        <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
                             {subjects.map(s => {
                                 const active = subjectFilter === s;
                                 const color = s !== 'all' ? (SUBJECT_COLORS[s] ?? SUBJECT_COLORS.Default) : null;
                                 return (
-                                    <button key={s} onClick={() => setSubjectFilter(s)}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, border: '1.5px solid', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderColor: active ? '#FF5C1A' : '#E5E7EB', background: active ? '#FF5C1A' : '#fff', color: active ? '#fff' : '#374151' }}>
-                                        {color && !active && <span style={{ width: 7, height: 7, borderRadius: '50%', background: color.dot, flexShrink: 0 }} />}
+                                    <button
+                                        key={s}
+                                        onClick={() => setSubjectFilter(s)}
+                                        className={`flex items-center gap-2 px-4 py-1.5 rounded-full border-1.5 text-sm font-bold whitespace-nowrap transition-all
+                                            ${active
+                                                ? 'bg-[#FF5C1A] border-[#FF5C1A] text-white shadow-md shadow-[#FF5C1A]/20'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-[#FF5C1A] hover:text-[#FF5C1A]'}`}
+                                    >
+                                        {color && !active && (
+                                            <span
+                                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                                style={{ background: color.dot }}
+                                            />
+                                        )}
                                         {s === 'all' ? 'All Subjects' : s}
                                     </button>
                                 );
                             })}
                         </div>
                     </div>
-                    <div style={{ marginBottom: 16 }}>
-                        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{filtered.length} {filtered.length === 1 ? 'quiz' : 'quizzes'} found</span>
+
+                    <div className="mb-4 flex items-center justify-between">
+                        <span className="text-sm text-gray-500 font-semibold">
+                            {filtered.length} {filtered.length === 1 ? 'quiz' : 'quizzes'} found
+                        </span>
                     </div>
+
                     {filtered.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '80px 24px', background: '#fff', borderRadius: 14 }}>
-                            <LibraryIcon size={28} color="#9CA3AF" />
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '16px 0 8px' }}>No quizzes found</h3>
-                            <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>Try a different search term or subject filter.</p>
+                        <div className="text-center py-20 px-6 bg-white rounded-2xl border border-dashed border-gray-200">
+                            <LibraryIcon size={32} className="mx-auto text-gray-300 mb-4" />
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">No quizzes found</h3>
+                            <p className="text-sm text-gray-500">Try a different search term or subject filter.</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filtered.map((quiz, i) => {
                                 const subjectStyle = SUBJECT_COLORS[quiz.subject] ?? SUBJECT_COLORS.Default;
                                 const diffStyle = quiz.difficulty ? DIFFICULTY_COLORS[quiz.difficulty] : null;
-                                return <QuizCard key={quiz.id} quiz={quiz} index={i} subjectStyle={subjectStyle} diffStyle={diffStyle} onPreview={() => setPreviewQuiz(quiz)} />;
+                                return (
+                                    <QuizCard
+                                        key={quiz.id}
+                                        quiz={quiz}
+                                        index={i}
+                                        subjectStyle={subjectStyle}
+                                        diffStyle={diffStyle}
+                                        onPreview={() => setPreviewQuiz(quiz)}
+                                    />
+                                );
                             })}
                         </div>
                     )}
                 </div>
 
-                <div style={{ maxWidth: 1100, margin: '0 auto 48px', padding: '0 24px' }}>
-                    <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F3F4F6' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <FileText size={18} color="#FF5C1A" />
-                                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: 0 }}>My Notes</h2>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', background: '#F3F4F6', borderRadius: 999, padding: '2px 8px' }}>{notes.length}</span>
+                {/* Notes Section */}
+                <div className="max-w-[1100px] mx-auto px-4 sm:px-6 mb-12">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-50">
+                            <div className="flex items-center gap-3">
+                                <FileText size={20} className="text-[#FF5C1A]" />
+                                <h2 className="text-lg font-bold text-gray-900">My Notes</h2>
+                                <span className="text-[11px] font-bold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{notes.length}</span>
                             </div>
-                            <button onClick={() => setShowNoteForm(v => !v)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 9, border: 'none', background: '#FF5C1A', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                                <Plus size={14} />New Note
+                            <button
+                                onClick={() => setShowNoteForm(v => !v)}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#FF5C1A] text-white rounded-xl text-sm font-bold hover:bg-[#e65217] transition-colors shadow-sm"
+                            >
+                                <Plus size={16} />
+                                <span>New Note</span>
                             </button>
                         </div>
 
-                        {showNoteForm && (
-                            <form onSubmit={handleNoteSubmit} style={{ padding: '20px 24px', borderBottom: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Title</label>
-                                    <input type="text" placeholder="Note title" value={noteForm.title}
-                                        onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))}
-                                        style={{ width: '100%', padding: '9px 12px', border: `1.5px solid ${noteFormErrors.title ? '#EF4444' : '#E5E7EB'}`, borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }} />
-                                    {noteFormErrors.title && (
-                                        <span data-testid="title-error" style={{ fontSize: 12, color: '#EF4444', marginTop: 4, display: 'block' }}>{noteFormErrors.title}</span>
-                                    )}
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Subject</label>
-                                    <input type="text" placeholder="e.g. Mathematics" value={noteForm.subject}
-                                        onChange={e => setNoteForm(f => ({ ...f, subject: e.target.value }))}
-                                        style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }} />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Content</label>
-                                    <textarea placeholder="Note content..." value={noteForm.content} rows={5}
-                                        onChange={e => setNoteForm(f => ({ ...f, content: e.target.value }))}
-                                        style={{ width: '100%', padding: '9px 12px', border: `1.5px solid ${noteFormErrors.content ? '#EF4444' : '#E5E7EB'}`, borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-                                    {noteFormErrors.content && (
-                                        <span data-testid="content-error" style={{ fontSize: 12, color: '#EF4444', marginTop: 4, display: 'block' }}>{noteFormErrors.content}</span>
-                                    )}
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Linked Quiz ID (optional)</label>
-                                    <input type="text" placeholder="Quiz ID" value={noteForm.linkedQuizId}
-                                        onChange={e => setNoteForm(f => ({ ...f, linkedQuizId: e.target.value }))}
-                                        style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }} />
-                                </div>
-                                <div style={{ display: 'flex', gap: 10 }}>
-                                    <button type="submit" disabled={noteSubmitting}
-                                        style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#FF5C1A', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                                        {noteSubmitting ? 'Saving...' : 'Save Note'}
-                                    </button>
-                                    <button type="button" onClick={() => { setShowNoteForm(false); setNoteForm(EMPTY_NOTE_FORM); setNoteFormErrors({}); }}
-                                        style={{ padding: '9px 20px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                        <AnimatePresence>
+                            {showNoteForm && (
+                                <motion.form
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    onSubmit={handleNoteSubmit}
+                                    className="p-5 border-b border-gray-50 bg-gray-50/50 space-y-4 overflow-hidden"
+                                >
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Title</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Note title"
+                                                value={noteForm.title}
+                                                onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))}
+                                                className={`w-full px-4 py-2 bg-white border-1.5 rounded-xl text-sm focus:outline-none transition-colors
+                                                    ${noteFormErrors.title ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#FF5C1A]'}`}
+                                            />
+                                            {noteFormErrors.title && (
+                                                <span data-testid="title-error" className="text-[11px] font-semibold text-red-500 ml-1">{noteFormErrors.title}</span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Subject</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Mathematics"
+                                                value={noteForm.subject}
+                                                onChange={e => setNoteForm(f => ({ ...f, subject: e.target.value }))}
+                                                className="w-full px-4 py-2 bg-white border-1.5 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#FF5C1A] transition-colors"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Content</label>
+                                        <textarea
+                                            placeholder="Write your note here..."
+                                            value={noteForm.content}
+                                            rows={4}
+                                            onChange={e => setNoteForm(f => ({ ...f, content: e.target.value }))}
+                                            className={`w-full px-4 py-3 bg-white border-1.5 rounded-xl text-sm focus:outline-none transition-colors resize-none
+                                                ${noteFormErrors.content ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#FF5C1A]'}`}
+                                        />
+                                        {noteFormErrors.content && (
+                                            <span data-testid="content-error" className="text-[11px] font-semibold text-red-500 ml-1">{noteFormErrors.content}</span>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Linked Quiz ID <span className="text-gray-400 font-medium">(optional)</span></label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter quiz ID to link"
+                                            value={noteForm.linkedQuizId}
+                                            onChange={e => setNoteForm(f => ({ ...f, linkedQuizId: e.target.value }))}
+                                            className="w-full px-4 py-2 bg-white border-1.5 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#FF5C1A] transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <button
+                                            type="submit"
+                                            disabled={noteSubmitting}
+                                            className="flex-1 sm:flex-none px-6 py-2.5 bg-[#FF5C1A] text-white rounded-xl text-sm font-bold hover:bg-[#e65217] transition-all disabled:opacity-50"
+                                        >
+                                            {noteSubmitting ? 'Saving...' : 'Save Note'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowNoteForm(false); setNoteForm(EMPTY_NOTE_FORM); setNoteFormErrors({}); }}
+                                            className="flex-1 sm:flex-none px-6 py-2.5 bg-white border-1.5 border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </motion.form>
+                            )}
+                        </AnimatePresence>
 
                         {notes.length === 0 ? (
-                            <div style={{ padding: '40px 24px', textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
-                                No notes yet. Click "New Note" to create your first note.
+                            <div className="p-12 text-center">
+                                <FileText size={24} className="mx-auto text-gray-300 mb-3" />
+                                <p className="text-sm text-gray-500 font-medium">No notes yet. Start by creating one!</p>
                             </div>
                         ) : (
-                            <div>
+                            <div className="divide-y divide-gray-50">
                                 {notes.map(note => (
-                                    <div key={note.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid #F9FAFB', gap: 16 }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>{note.title}</div>
-                                            <div style={{ fontSize: 12, color: '#9CA3AF' }}>{note.subject}</div>
+                                    <div key={note.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 hover:bg-gray-50/50 transition-colors gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">{note.title}</h4>
+                                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-tight">{note.subject}</p>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                                            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: note.published ? '#DCFCE7' : '#F3F4F6', color: note.published ? '#166534' : '#6B7280' }}>
-                                                {note.published ? 'Published' : 'Draft'}
-                                            </span>
-                                            <button onClick={() => handlePublishToggle(note)} title={note.published ? 'Unpublish' : 'Publish'}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                                                {note.published ? <ToggleRight size={20} color="#22C55E" /> : <ToggleLeft size={20} color="#9CA3AF" />}
-                                            </button>
-                                            <button onClick={() => handleDeleteNote(note.id || (note as any)._id)} title="Delete Note"
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                                                <Trash2 size={18} color="#EF4444" />
+                                        <div className="flex items-center justify-between sm:justify-end gap-5">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full
+                                                    ${note.published ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {note.published ? 'Published' : 'Draft'}
+                                                </span>
+                                                <button
+                                                    onClick={() => handlePublishToggle(note)}
+                                                    className="p-1 hover:bg-gray-200 rounded-lg transition-colors group"
+                                                    title={note.published ? 'Unpublish' : 'Publish'}
+                                                >
+                                                    {note.published
+                                                        ? <ToggleRight size={24} className="text-emerald-500" />
+                                                        : <ToggleLeft size={24} className="text-gray-400 group-hover:text-gray-600" />
+                                                    }
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteNote(note.id || (note as any)._id)}
+                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Delete Note"
+                                            >
+                                                <Trash2 size={18} />
                                             </button>
                                         </div>
                                     </div>
@@ -354,42 +463,56 @@ export function Library() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setPreviewQuiz(null)}
-                        style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6"
                     >
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
                             onClick={e => e.stopPropagation()}
-                            style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+                            className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
                         >
-                            <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: SUBJECT_COLORS[previewQuiz.subject]?.bg || SUBJECT_COLORS.Default.bg, color: SUBJECT_COLORS[previewQuiz.subject]?.text || SUBJECT_COLORS.Default.text }}>{previewQuiz.subject}</span>
-                                        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{previewQuiz.questionCount} Questions</span>
+                            <div className="p-5 sm:p-6 border-b border-gray-100 flex items-start justify-between bg-white sticky top-0 z-10">
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full"
+                                            style={{
+                                                background: SUBJECT_COLORS[previewQuiz.subject]?.bg || SUBJECT_COLORS.Default.bg,
+                                                color: SUBJECT_COLORS[previewQuiz.subject]?.text || SUBJECT_COLORS.Default.text
+                                            }}
+                                        >
+                                            {previewQuiz.subject}
+                                        </span>
+                                        <span className="text-xs font-bold text-gray-400 flex items-center gap-1">
+                                            <Hash size={12} />
+                                            {previewQuiz.questionCount} Questions
+                                        </span>
                                     </div>
-                                    <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: 0 }}>{previewQuiz.title}</h2>
+                                    <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 leading-tight">{previewQuiz.title}</h2>
                                 </div>
-                                <button onClick={() => setPreviewQuiz(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6B7280' }}>
-                                    <X size={18} />
+                                <button
+                                    onClick={() => setPreviewQuiz(null)}
+                                    className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X size={20} />
                                 </button>
                             </div>
 
-                            <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16, background: '#F9FAFB' }}>
+                            <div className="p-5 sm:p-6 overflow-y-auto flex-1 bg-gray-50/50 space-y-4">
                                 {Array.from({ length: Math.min(previewQuiz.questionCount, 5) }).map((_, i) => (
-                                    <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: 20 }}>
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-                                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#FFF3EE', color: '#FF5C1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                                    <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                        <div className="flex items-start gap-4 mb-5">
+                                            <div className="w-8 h-8 rounded-xl bg-[#FFF3EE] text-[#FF5C1A] flex items-center justify-center text-sm font-black flex-shrink-0 shadow-sm shadow-[#FF5C1A]/10">
                                                 {i + 1}
                                             </div>
-                                            <h4 style={{ fontSize: 15, fontWeight: 600, color: '#374151', margin: 0, marginTop: 4 }}>
+                                            <h4 className="text-sm sm:text-[15px] font-bold text-gray-700 leading-relaxed pt-1">
                                                 This is a mock sample question about {previewQuiz.subject.toLowerCase()} matching the difficulty level of this quiz. Can you select the correct answer below?
                                             </h4>
                                         </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingLeft: 40 }}>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:pl-12">
                                             {['Option A', 'Option B', 'Option C', 'Option D'].map((opt, optIdx) => (
-                                                <div key={optIdx} style={{ padding: '10px 14px', border: '1.5px solid #F3F4F6', borderRadius: 8, fontSize: 13, color: '#4B5563', fontWeight: 500 }}>
+                                                <div key={optIdx} className="px-4 py-3 bg-gray-50 border-1.5 border-gray-100 rounded-xl text-sm font-semibold text-gray-600 hover:border-[#FF5C1A]/30 hover:bg-white transition-all cursor-default">
                                                     {opt}
                                                 </div>
                                             ))}
@@ -397,16 +520,22 @@ export function Library() {
                                     </div>
                                 ))}
                                 {previewQuiz.questionCount > 5 && (
-                                    <div style={{ textAlign: 'center', padding: 16, color: '#6B7280', fontSize: 14, fontWeight: 500 }}>
-                                        + {previewQuiz.questionCount - 5} more questions...
+                                    <div className="text-center py-4 text-gray-400 text-sm font-bold bg-white/50 rounded-xl border border-dashed border-gray-200">
+                                        + {previewQuiz.questionCount - 5} more questions in the full quiz
                                     </div>
                                 )}
                             </div>
 
-                            <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#fff' }}>
-                                <button onClick={() => setPreviewQuiz(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                                <button style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#FF5C1A', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Copy size={16} /> duplicate to my quizzes
+                            <div className="p-5 sm:p-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3 bg-white sticky bottom-0">
+                                <button
+                                    onClick={() => setPreviewQuiz(null)}
+                                    className="flex-1 sm:flex-none px-6 py-3 border-1.5 border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all text-center"
+                                >
+                                    Close Preview
+                                </button>
+                                <button className="flex-1 px-6 py-3 bg-[#FF5C1A] text-white rounded-xl text-sm font-bold hover:bg-[#e65217] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#FF5C1A]/20">
+                                    <Copy size={18} />
+                                    <span>Duplicate to My Quizzes</span>
                                 </button>
                             </div>
                         </motion.div>
@@ -435,48 +564,80 @@ function QuizCard({ quiz, index, subjectStyle, diffStyle, onPreview }: QuizCardP
             transition={{ delay: index * 0.05 }}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            style={{ background: '#fff', borderRadius: 14, border: `1.5px solid ${hovered ? '#FF5C1A' : '#E5E7EB'}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', cursor: 'default' }}
+            className={`group bg-white rounded-2xl border-1.5 transition-all duration-300 flex flex-col overflow-hidden h-full
+                ${hovered ? 'border-[#FF5C1A] shadow-xl shadow-[#FF5C1A]/10 -translate-y-1' : 'border-gray-100 shadow-sm'}`}
         >
-            <div style={{ height: 4, background: `linear-gradient(90deg, ${subjectStyle.dot}, ${subjectStyle.text})` }} />
-            <div style={{ padding: '18px 20px 16px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: subjectStyle.bg, color: subjectStyle.text }}>{quiz.subject}</span>
+            <div
+                className="h-1.5 w-full bg-gradient-to-r"
+                style={{ backgroundImage: `linear-gradient(to right, ${subjectStyle.dot}, ${subjectStyle.text})` }}
+            />
+            <div className="p-5 flex flex-col flex-1">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex flex-wrap gap-2">
+                        <span
+                            className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full"
+                            style={{ background: subjectStyle.bg, color: subjectStyle.text }}
+                        >
+                            {quiz.subject}
+                        </span>
                         {diffStyle && quiz.difficulty && (
-                            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: diffStyle.bg, color: diffStyle.text }}>{quiz.difficulty}</span>
+                            <span
+                                className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full"
+                                style={{ background: diffStyle.bg, color: diffStyle.text }}
+                            >
+                                {quiz.difficulty}
+                            </span>
                         )}
                     </div>
                     {quiz.rating && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                            <Star size={13} color="#FBBF24" fill="#FBBF24" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{quiz.rating}</span>
+                        <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-lg">
+                            <Star size={12} className="text-amber-500 fill-amber-500" />
+                            <span className="text-xs font-black text-amber-700">{quiz.rating}</span>
                         </div>
                     )}
                 </div>
-                <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{quiz.title}</h3>
-                    {quiz.author && <span style={{ fontSize: 12, color: '#9CA3AF' }}>by {quiz.author}</span>}
+
+                <div className="mb-5 flex-1">
+                    <h3 className="text-[17px] font-black text-gray-900 leading-tight mb-1 group-hover:text-[#FF5C1A] transition-colors line-clamp-2">
+                        {quiz.title}
+                    </h3>
+                    {quiz.author && (
+                        <p className="text-xs font-bold text-gray-400">by <span className="text-gray-600">{quiz.author}</span></p>
+                    )}
                 </div>
-                <div style={{ display: 'flex', gap: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Hash size={13} color="#9CA3AF" />
-                        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{quiz.questionCount} questions</span>
+
+                <div className="flex items-center justify-between py-4 border-t border-gray-50 mb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-gray-500">
+                            <Hash size={14} className="text-gray-400" />
+                            <span className="text-[13px] font-bold">{quiz.questionCount}</span>
+                        </div>
+                        {quiz.plays !== undefined && (
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <Users size={14} className="text-gray-400" />
+                                <span className="text-[13px] font-bold">
+                                    {quiz.plays >= 1000 ? `${(quiz.plays / 1000).toFixed(1)}k` : quiz.plays}
+                                </span>
+                            </div>
+                        )}
                     </div>
-                    {quiz.plays !== undefined && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <Users size={13} color="#9CA3AF" />
-                            <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{quiz.plays >= 1000 ? `${(quiz.plays / 1000).toFixed(1)}k` : quiz.plays} plays</span>
-                        </div>
-                    )}
                     {quiz.createdAt && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-                            <Clock size={12} color="#9CA3AF" />
-                            <span style={{ fontSize: 12, color: '#9CA3AF' }}>{quiz.createdAt}</span>
+                        <div className="flex items-center gap-1.5 text-gray-400">
+                            <Clock size={13} />
+                            <span className="text-[11px] font-bold font-mono tracking-tighter uppercase">{quiz.createdAt}</span>
                         </div>
                     )}
                 </div>
-                <button onClick={onPreview} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '9px', borderRadius: 9, border: 'none', cursor: 'pointer', background: hovered ? '#FF5C1A' : '#F3F4F6', color: hovered ? '#fff' : '#374151', fontWeight: 600, fontSize: 13, marginTop: 'auto' }}>
-                    <Eye size={14} />Preview Quiz
+
+                <button
+                    onClick={onPreview}
+                    className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[13px] font-black transition-all duration-300
+                        ${hovered
+                            ? 'bg-[#FF5C1A] text-white shadow-lg shadow-[#FF5C1A]/20'
+                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                >
+                    <Eye size={16} />
+                    <span>PREVIEW QUIZ</span>
                 </button>
             </div>
         </motion.div>

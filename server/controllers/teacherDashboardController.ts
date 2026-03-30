@@ -4,7 +4,16 @@ import Quiz from '../models/Quiz.js';
 import GameSession from '../models/GameSession.js';
 import ScoreRecord from '../models/ScoreRecord.js';
 
-export const getDashboardStats = async (req: Request, res: Response) => {
+interface AuthenticatedRequest extends Request {
+    user?: {
+        _id: string;
+        role: string;
+        email?: string;
+        displayName?: string;
+    };
+}
+
+export const getDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const teacherId = req.user?._id;
 
@@ -20,7 +29,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         // 2. Active Sessions
         // A session is active if status is not 'ended'
         const activeSessions = await GameSession.countDocuments({
-            teacherId: teacherId, // GameSession stores teacherId as string usually, but let's check
+            teacherId: teacherId.toString(),
             status: { $ne: 'ended' }
         });
 
@@ -98,10 +107,12 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             if (maxCount > 0) {
                 weeklyStats.forEach(stat => {
                     const arrayIndex = dayMap[stat._id];
-                    // Calculate percentage relative to the day with the most completions (simulating the chart height)
-                    // Alternatively, we could just return raw counts and let frontend calculate height.
-                    // Returning a percentage out of highest count makes the chart look proportional.
-                    weeklyData[arrayIndex].pct = Math.round((stat.count / maxCount) * 100);
+                    if (arrayIndex !== undefined && weeklyData[arrayIndex]) {
+                        // Calculate percentage relative to the day with the most completions (simulating the chart height)
+                        // Alternatively, we could just return raw counts and let frontend calculate height.
+                        // Returning a percentage out of highest count makes the chart look proportional.
+                        weeklyData[arrayIndex].pct = Math.round((stat.count / maxCount) * 100);
+                    }
                 });
             }
         }

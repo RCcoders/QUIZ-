@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Zap, Shield, Sparkles } from 'lucide-react';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 import { loadRazorpayScript } from '../utils/razorpay';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -61,6 +61,7 @@ const PRICING_PLANS = [
 
 export function Billing() {
     const [isAnnual, setIsAnnual] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
     const { user } = useAuth();
@@ -153,100 +154,77 @@ export function Billing() {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
-            <TeacherSidebar />
-            <main style={{ flex: 1, marginLeft: '240px', padding: '0 2rem 4rem', minWidth: 0 }}>
+        <div className="flex min-h-screen bg-[#F9FAFB] overflow-x-hidden text-gray-900">
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
+            <main className="flex-1 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-16 mt-16 lg:mt-0 min-w-0">
                 {/* Header Section */}
-                <div style={{ textAlign: 'center', padding: '64px 24px 48px' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#FFF3EE', padding: '6px 16px', borderRadius: 'full', marginBottom: '24px' }}>
-                        <Sparkles size={16} color="#FF5C1A" />
-                        <span style={{ color: '#FF5C1A', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Pricing Plans</span>
+                <div className="text-center pt-16 pb-12 px-6">
+                    <div className="inline-flex items-center gap-2 bg-[#FFF3EE] px-4 py-1.5 rounded-full mb-6">
+                        <Sparkles size={16} className="text-[#FF5C1A]" />
+                        <span className="text-[#FF5C1A] text-[13px] font-bold tracking-widest uppercase">Pricing Plans</span>
                     </div>
-                    <h1 style={{ fontSize: '42px', fontWeight: 800, color: '#111827', margin: '0 0 16px', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                        Upgrade to Quizly <span style={{ color: '#FF5C1A' }}>Pro</span>
+                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 leading-tight">
+                        Upgrade to Quizly <span className="text-[#FF5C1A]">Pro</span>
                     </h1>
-                    <p style={{ fontSize: '18px', color: '#6B7280', margin: '0 auto 40px', maxWidth: '600px', lineHeight: 1.5 }}>
+                    <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
                         Unlock advanced AI generation, unlimited classrooms, and deep analytics to supercharge your teaching experience.
                     </p>
 
                     {/* Toggle */}
-                    <div style={{ display: 'inline-flex', alignItems: 'center', background: '#E5E7EB', padding: '4px', borderRadius: '12px', gap: '4px' }}>
+                    <div className="inline-flex items-center bg-gray-200 p-1 rounded-2xl gap-1">
                         <button
                             onClick={() => setIsAnnual(false)}
-                            style={{
-                                padding: '10px 24px', borderRadius: '8px', border: 'none',
-                                background: !isAnnual ? '#FFFFFF' : 'transparent',
-                                color: !isAnnual ? '#111827' : '#6B7280',
-                                fontSize: '15px', fontWeight: !isAnnual ? 700 : 500,
-                                boxShadow: !isAnnual ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                cursor: 'pointer', transition: 'all 0.2s'
-                            }}
+                            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all
+                                ${!isAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             Monthly
                         </button>
                         <button
                             onClick={() => setIsAnnual(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '8px',
-                                padding: '10px 24px', borderRadius: '8px', border: 'none',
-                                background: isAnnual ? '#FFFFFF' : 'transparent',
-                                color: isAnnual ? '#111827' : '#6B7280',
-                                fontSize: '15px', fontWeight: isAnnual ? 700 : 500,
-                                boxShadow: isAnnual ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                cursor: 'pointer', transition: 'all 0.2s'
-                            }}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all
+                                ${isAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                            Annually <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '11px', padding: '2px 8px', borderRadius: 'full', fontWeight: 800 }}>SAVE 25%</span>
+                            Annually <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">SAVE 25%</span>
                         </button>
                     </div>
                 </div>
 
                 {/* Pricing Cards */}
-                <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', padding: '0 24px' }}>
+                <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
                     {PRICING_PLANS.map((plan, i) => (
                         <motion.div
                             key={plan.name}
                             initial={{ opacity: 0, y: 24 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1 }}
-                            style={{
-                                background: '#FFFFFF',
-                                borderRadius: '24px',
-                                padding: '32px',
-                                position: 'relative',
-                                border: plan.popular ? '2px solid #FF5C1A' : '1px solid #E5E7EB',
-                                boxShadow: plan.popular ? '0 20px 25px -5px rgba(255, 92, 26, 0.1), 0 10px 10px -5px rgba(255, 92, 26, 0.04)' : '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                transform: plan.popular ? 'scale(1.03)' : 'scale(1)',
-                                zIndex: plan.popular ? 10 : 1
-                            }}
+                            className={`bg-white rounded-[2rem] p-8 relative flex flex-col transition-all duration-300
+                                ${plan.popular ? 'ring-2 ring-[#FF5C1A] shadow-xl md:scale-105 z-10' : 'border border-gray-100 shadow-sm'}`}
                         >
                             {plan.popular && (
-                                <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', background: '#FF5C1A', color: '#FFFFFF', padding: '6px 16px', borderRadius: 'full', fontSize: '12px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF5C1A] text-white px-4 py-1.5 rounded-full text-[11px] font-black tracking-widest uppercase flex items-center gap-1.5 shadow-lg shadow-[#FF5C1A]/20">
                                     <Zap size={14} fill="currentColor" />
                                     Most Popular
                                 </div>
                             )}
 
-                            <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>{plan.name}</h3>
-                            <p style={{ fontSize: '14px', color: '#6B7280', margin: '0 0 24px', lineHeight: 1.5, minHeight: '42px' }}>{plan.description}</p>
+                            <h3 className="text-xl font-black text-gray-900 mb-2">{plan.name}</h3>
+                            <p className="text-sm text-gray-500 mb-6 leading-relaxed min-h-[42px]">{plan.description}</p>
 
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '42px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
+                            <div className="flex items-baseline gap-1 mb-2">
+                                <span className="text-5xl font-black text-gray-900 tracking-tight">
                                     ${isAnnual ? plan.priceAnnually : plan.priceMonthly}
                                 </span>
-                                <span style={{ fontSize: '15px', color: '#6B7280', fontWeight: 500 }}>/ month</span>
+                                <span className="text-base text-gray-400 font-bold">/ month</span>
                             </div>
 
-                            {isAnnual && plan.priceAnnually > 0 && (
-                                <p style={{ fontSize: '13px', color: '#10B981', margin: '0 0 24px', fontWeight: 600 }}>
+                            {isAnnual && plan.priceAnnually > 0 ? (
+                                <p className="text-[13px] text-emerald-500 font-black mb-6">
                                     Billed ${plan.priceAnnually * 12} yearly
                                 </p>
-                            )}
-                            {(!isAnnual || plan.priceAnnually === 0) && (
-                                <div style={{ height: '37px', marginBottom: '8px' }} /> // Spacer if no annual text
+                            ) : (
+                                <div className="h-[37px] mb-2" />
                             )}
 
                             <button
@@ -255,42 +233,30 @@ export function Billing() {
                                     if (plan.buttonVariant === 'secondary') handleContactSales(plan);
                                 }}
                                 disabled={isProcessing}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 0',
-                                    borderRadius: '12px',
-                                    fontSize: '15px',
-                                    fontWeight: 700,
-                                    cursor: isProcessing ? 'not-allowed' : 'pointer',
-                                    opacity: isProcessing && plan.buttonVariant === 'primary' ? 0.7 : 1,
-                                    border: plan.buttonVariant === 'primary' ? 'none' : '1px solid #E5E7EB',
-                                    background: plan.buttonVariant === 'primary' ? '#FF5C1A' : plan.buttonVariant === 'secondary' ? '#111827' : '#F9FAFB',
-                                    color: plan.buttonVariant === 'primary' ? '#FFFFFF' : plan.buttonVariant === 'secondary' ? '#FFFFFF' : '#374151',
-                                    transition: 'background 0.2s',
-                                    marginBottom: '32px'
-                                }}
+                                className={`w-full py-4 rounded-2xl text-base font-black transition-all mb-8
+                                    ${plan.buttonVariant === 'primary' ? 'bg-[#FF5C1A] text-white hover:bg-[#e65317] shadow-lg shadow-[#FF5C1A]/20' :
+                                        plan.buttonVariant === 'secondary' ? 'bg-gray-900 text-white hover:bg-black shadow-lg shadow-gray-900/10' :
+                                            'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-100'}
+                                    ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'}`}
                             >
                                 {isProcessing && plan.buttonVariant === 'primary' ? 'Processing...' : plan.buttonText}
                             </button>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-                                <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                            <div className="space-y-4 flex-1">
+                                <div className="text-[11px] font-black text-gray-400 tracking-widest uppercase mb-4">
                                     What's included
                                 </div>
                                 {plan.features.map((feature, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                                        <div style={{
-                                            width: '20px', height: '20px', borderRadius: '50%',
-                                            background: feature.included ? (plan.popular ? '#FFF3EE' : '#ECFDF5') : '#F3F4F6',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                                        }}>
+                                    <div key={idx} className="flex items-start gap-3">
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5
+                                            ${feature.included ? (plan.popular ? 'bg-orange-50' : 'bg-emerald-50') : 'bg-gray-50'}`}>
                                             {feature.included ? (
-                                                <Check size={12} color={plan.popular ? '#FF5C1A' : '#10B981'} strokeWidth={3} />
+                                                <Check size={12} className={plan.popular ? 'text-[#FF5C1A]' : 'text-emerald-500'} strokeWidth={4} />
                                             ) : (
-                                                <X size={12} color="#9CA3AF" strokeWidth={3} />
+                                                <X size={12} className="text-gray-300" strokeWidth={4} />
                                             )}
                                         </div>
-                                        <span style={{ fontSize: '14px', color: feature.included ? '#374151' : '#9CA3AF', fontWeight: feature.included ? 500 : 400, lineHeight: 1.4 }}>
+                                        <span className={`text-[14px] leading-snug ${feature.included ? 'text-gray-700 font-bold' : 'text-gray-300 font-medium line-through'}`}>
                                             {feature.name}
                                         </span>
                                     </div>
@@ -300,15 +266,16 @@ export function Billing() {
                     ))}
                 </div>
 
-                {/* FAQ or Trust Badge (Optional but adds to realistic UI) */}
-                <div style={{ maxWidth: '800px', margin: '64px auto 0', textAlign: 'center' }}>
-                    <Shield size={32} color="#9CA3AF" style={{ margin: '0 auto 16px' }} />
-                    <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>Secure Payments & Guaranteed Satisfaction</h4>
-                    <p style={{ fontSize: '14px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
-                        You can securely upgrade or downgrade your plan at any time. We use Stripe for completely secure, encrypted payment processing. Educational discounts are available for accredited institutions.
+                {/* FAQ/Trust Badge */}
+                <div className="max-w-2xl mx-auto mt-24 text-center px-6">
+                    <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Shield size={24} className="text-gray-400" />
+                    </div>
+                    <h4 className="text-lg font-black text-gray-900 mb-2">Secure Payments & Guaranteed Satisfaction</h4>
+                    <p className="text-sm text-gray-500 leading-relaxed font-bold">
+                        You can securely upgrade or downgrade your plan at any time. We use PCI-compliant systems for completely secure, encrypted payment processing. Educational discounts are available for accredited institutions.
                     </p>
                 </div>
-
             </main>
 
             {/* Contact Sales Modal */}
