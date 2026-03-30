@@ -28,8 +28,8 @@ describe('PrivacyPage', () => {
     expect(privacySource).toContain('Privacy Policy');
   });
 
-  it('has a Helmet title of "Privacy Policy — QuizMaster"', () => {
-    expect(privacySource).toContain('Privacy Policy — QuizMaster');
+  it('has a Helmet title of "Privacy Policy — Quizly"', () => {
+    expect(privacySource).toContain('Privacy Policy — Quizly');
   });
 
   it('has a unique meta description', () => {
@@ -48,8 +48,8 @@ describe('TermsPage', () => {
     expect(termsSource).toContain('Terms of Service');
   });
 
-  it('has a Helmet title of "Terms of Service — QuizMaster"', () => {
-    expect(termsSource).toContain('Terms of Service — QuizMaster');
+  it('has a Helmet title of "Terms of Service — Quizly"', () => {
+    expect(termsSource).toContain('Terms of Service — Quizly');
   });
 
   it('has a unique meta description', () => {

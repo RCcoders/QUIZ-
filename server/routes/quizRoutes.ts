@@ -1,15 +1,15 @@
 import express from 'express';
 import Quiz from '../models/Quiz.js';
-
+import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Create Quiz
-router.post('/', async (req, res) => {
+router.post('/', protect, authorize('teacher'), async (req: any, res) => {
     try {
-        const { teacherId, title, description, subject, timerEnabled, timerSeconds, questions } = req.body;
+        const { title, description, subject, timerEnabled, timerSeconds, questions } = req.body;
         const quiz = await Quiz.create({
-            teacherId,
+            teacherId: req.user._id, // Set from auth middleware
             title,
             description,
             subject,
@@ -23,9 +23,23 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get Teacher Quizzes
-router.get('/teacher/:teacherId', async (req, res) => {
+// Get My Quizzes (Teacher)
+router.get('/teacher/my-quizzes', protect, authorize('teacher'), async (req: any, res) => {
     try {
+        const quizzes = await Quiz.find({ teacherId: req.user._id });
+        res.json(quizzes);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+});
+
+// Get Teacher Quizzes (Public/Admin)
+router.get('/teacher/:teacherId', protect, async (req: any, res) => {
+    try {
+        // Teachers can see their own, admins could see all, etc.
+        if (req.user.role !== 'admin' && req.user._id !== req.params.teacherId) {
+            return res.status(403).json({ message: 'Not authorized to view these quizzes' });
+        }
         const quizzes = await Quiz.find({ teacherId: req.params.teacherId });
         res.json(quizzes);
     } catch (error) {

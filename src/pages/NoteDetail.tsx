@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { doc, getDoc } from 'firebase/firestore';
 import { BookOpen, ArrowLeft, Brain, ClipboardList } from 'lucide-react';
-import { db } from '../lib/firebase';
+import { apiFetch } from '../utils/api';
 import { StudentNavbar } from '../components/StudentNavbar';
 import type { Note } from '../types/student';
 
@@ -22,13 +21,8 @@ export function NoteDetail() {
 
     const fetchNote = async () => {
       try {
-        const docRef = doc(db, 'notes', noteId);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
-          setNotFound(true);
-        } else {
-          setNote({ id: docSnap.id, ...docSnap.data() } as Note);
-        }
+        const data = await apiFetch(`/api/notes/${noteId}`);
+        setNote(data);
       } catch {
         setNotFound(true);
       } finally {
@@ -54,7 +48,7 @@ export function NoteDetail() {
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
       <Helmet>
-        <title>{note ? `${note.title} — QuizMaster` : 'Note — QuizMaster'}</title>
+        <title>{note ? `${note.title} — Quizly` : 'Note — Quizly'}</title>
       </Helmet>
       <StudentNavbar />
 

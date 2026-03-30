@@ -16,7 +16,7 @@ const robotsContent = readFileSync(robotsPath, 'utf-8');
 
 describe('robots.txt', () => {
   it('contains the Sitemap directive pointing to the production URL', () => {
-    expect(robotsContent).toContain('Sitemap: https://quizmaster.app/sitemap.xml');
+    expect(robotsContent).toContain('Sitemap: https://quizly.app/sitemap.xml');
   });
 
   it('contains User-agent: *', () => {

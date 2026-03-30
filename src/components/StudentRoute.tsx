@@ -21,7 +21,7 @@ export function StudentRoute({ children }: StudentRouteProps) {
         return <Navigate to="/login" replace />;
     }
 
-    if ((userProfile?.role as any) === 'teacher') {
+    if ((userProfile?.role as any) !== 'student' && (userProfile?.role as any) !== 'admin') {
         return <Navigate to="/teacher" replace />;
     }
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiFetch } from '../utils/api';
 import type { BadgeRecord } from '../types/student';
 
 interface UseBadgesResult {
@@ -22,24 +21,19 @@ export function useBadges(uid: string | undefined | null): UseBadgesResult {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
-    const badgesRef = collection(db, 'users', uid, 'badges');
-    const unsubscribe = onSnapshot(
-      badgesRef,
-      (snapshot) => {
-        const records: BadgeRecord[] = snapshot.docs.map((doc) => doc.data() as BadgeRecord);
-        setBadges(records);
-        setLoading(false);
-      },
-      (err) => {
+    const fetchBadges = async () => {
+      setLoading(true);
+      try {
+        const data = await apiFetch('/api/badges');
+        setBadges(data);
+      } catch (err: any) {
         setError(err);
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchBadges();
   }, [uid]);
 
   return { badges, loading, error };

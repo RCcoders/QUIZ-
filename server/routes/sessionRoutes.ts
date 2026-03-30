@@ -1,6 +1,7 @@
 import express from 'express';
-import GameSession from '../models/Session.js';
+import GameSession from '../models/GameSession.js';
 import Quiz from '../models/Quiz.js';
+import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -10,35 +11,31 @@ const generateCode = () => {
 };
 
 // Host a Session
-router.post('/host', async (req, res) => {
+// @desc    Host a new game session
+// @route   POST /api/sessions/host
+router.post('/host', protect, authorize('teacher'), async (req: any, res) => {
     try {
-        const { quizId, teacherId } = req.body;
+        const { quizId, quizTitle } = req.body;
 
-        // Check if quiz exists
-        const quiz = await Quiz.findById(quizId);
-        if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+        // Logic update: We no longer reuse 'waiting' sessions to ensure fresh game codes
+        // and prevent participant duplication from previous orphaned sessions.
+        // The front-end will handle creating a new session each time the host button is clicked.
 
-        let gameCode = generateCode();
-        let codeExists = await GameSession.findOne({ gameCode });
-
-        // Ensure unique code
-        while (codeExists) {
-            gameCode = generateCode();
-            codeExists = await GameSession.findOne({ gameCode });
-        }
+        // Generate a random 6-character game code
+        const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const session = await GameSession.create({
             quizId,
-            teacherId,
+            quizTitle,
+            teacherId: req.user._id,
             gameCode,
             status: 'waiting',
             participants: [],
-            currentQuestionIndex: 0
         });
 
         res.status(201).json(session);
-    } catch (error) {
-        res.status(500).json({ message: (error as Error).message });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
     }
 });
 
@@ -54,6 +51,17 @@ router.post('/join', async (req, res) => {
 
         if (session.status !== 'waiting') {
             return res.status(400).json({ message: 'Game has already started or ended.' });
+        }
+
+        // Prevent duplicate participants by name or userId
+        const duplicate = session.participants.find(p =>
+            p.name.toLowerCase() === name.toLowerCase() ||
+            (userId && p.userId?.toString() === userId.toString())
+        );
+
+        if (duplicate) {
+            // If participant exists, return current session state rather than adding dynamic duplicate
+            return res.json(session);
         }
 
         // Add participant
@@ -84,14 +92,22 @@ router.get('/code/:code', async (req, res) => {
 });
 
 // Update Session Status
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', protect, authorize('teacher'), async (req: any, res) => {
     try {
         const { status, currentQuestionIndex } = req.body;
-        const session = await GameSession.findByIdAndUpdate(
-            req.params.id,
-            { status, currentQuestionIndex },
-            { new: true }
-        );
+        const session = await GameSession.findById(req.params.id);
+
+        if (!session) return res.status(404).json({ message: 'Session not found' });
+
+        // Ensure teacher ownership
+        if (session.teacherId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to manage this session' });
+        }
+
+        if (status) session.status = status;
+        if (currentQuestionIndex !== undefined) session.currentQuestionIndex = currentQuestionIndex;
+
+        await session.save();
         res.json(session);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -107,7 +123,7 @@ router.post('/:id/answer', async (req, res) => {
 
         if (!session) return res.status(404).json({ message: 'Session not found' });
 
-        const participant = session.participants.id(participantId);
+        const participant = session.participants.find((p: any) => p._id.toString() === participantId || p.id === participantId);
         if (!participant) return res.status(404).json({ message: 'Participant not found' });
 
         participant.score += pointsEarned;

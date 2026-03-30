@@ -134,20 +134,10 @@ export function getInitials(displayName: string, fallback = 'S'): string {
 // ─── Student scoring utilities ────────────────────────────────────────────────
 
 import type { ScoreRecord } from '../types/student';
-import { db } from '../lib/firebase';
-import {
-    collection,
-    addDoc,
-    getDocs,
-    query,
-    orderBy,
-} from 'firebase/firestore';
+import { apiFetch } from './api';
 
 /**
  * Returns a human-readable performance label for a given percentage score.
- * - ≥ 80 → 'Excellent'
- * - ≥ 60 → 'Good'
- * - < 60 → 'Keep Practicing'
  */
 export function getPerformanceLabel(percentage: number): 'Excellent' | 'Good' | 'Keep Practicing' {
     if (percentage >= 80) return 'Excellent';
@@ -156,8 +146,7 @@ export function getPerformanceLabel(percentage: number): 'Excellent' | 'Good' | 
 }
 
 /**
- * Computes the average percentage score across an array of ScoreRecords.
- * Returns 0 for an empty array.
+ * Computes the average percentage score.
  */
 export function computeAverageScore(records: ScoreRecord[]): number {
     if (records.length === 0) return 0;
@@ -166,21 +155,15 @@ export function computeAverageScore(records: ScoreRecord[]): number {
 }
 
 /**
- * Computes the current streak (consecutive days with at least one completed quiz)
- * based on the completedAt timestamps in the records.
- * Counts backwards from today.
+ * Computes the current streak.
  */
 export function computeStreak(records: ScoreRecord[]): number {
     if (records.length === 0) return 0;
-
-    // Collect unique active dates (YYYY-MM-DD) from records
     const activeDates = new Set(
-        records.map(r => r.completedAt.slice(0, 10))
+        records.map(r => (typeof r.completedAt === 'string' ? r.completedAt.slice(0, 10) : new Date(r.completedAt).toISOString().slice(0, 10)))
     );
-
     let streak = 0;
     const today = new Date();
-
     for (let i = 0; ; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
@@ -188,31 +171,27 @@ export function computeStreak(records: ScoreRecord[]): number {
         if (activeDates.has(dateStr)) {
             streak++;
         } else {
-            // Allow missing today (streak still counts from yesterday)
             if (i === 0) continue;
             break;
         }
     }
-
     return streak;
 }
 
 /**
- * Persists a score record to Firestore under `users/{uid}/scores`.
+ * Persists a score record to the Express backend.
  */
 export async function saveScoreRecord(
-    uid: string,
-    record: Omit<ScoreRecord, 'id'>
+    record: Omit<ScoreRecord, '_id' | 'id'>
 ): Promise<void> {
-    const scoresRef = collection(db, 'users', uid, 'scores');
-    await addDoc(scoresRef, record);
+    await apiFetch('/api/scores', {
+        method: 'POST',
+        body: JSON.stringify(record),
+    });
 }
 
 /**
- * Returns the last N score records sorted by completedAt descending.
- * Used for the "Continue Learning" section on the Student Dashboard.
- * @param records - Array of ScoreRecords (any order)
- * @param count - Number of records to return (default 3)
+ * Returns the last N score records.
  */
 export function getContinueLearning(records: ScoreRecord[], count = 3): ScoreRecord[] {
     return [...records]
@@ -221,15 +200,8 @@ export function getContinueLearning(records: ScoreRecord[], count = 3): ScoreRec
 }
 
 /**
- * Retrieves all score records for a user from Firestore,
- * ordered by completedAt descending (most recent first).
+ * Retrieves all score records for a user from the Express backend.
  */
 export async function getScoreRecords(uid: string): Promise<ScoreRecord[]> {
-    const scoresRef = collection(db, 'users', uid, 'scores');
-    const q = query(scoresRef, orderBy('completedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as Omit<ScoreRecord, 'id'>),
-    }));
+    return apiFetch(`/api/scores/${uid}`);
 }

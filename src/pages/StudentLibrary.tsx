@@ -31,7 +31,7 @@ export function StudentLibrary() {
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
       <Helmet>
-        <title>Student Library — QuizMaster</title>
+        <title>Student Library — Quizly</title>
         <meta name="description" content="Browse learning materials and notes published by your teachers." />
       </Helmet>
       <StudentNavbar />

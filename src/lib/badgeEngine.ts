@@ -1,5 +1,4 @@
-import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
-import { db } from './firebase';
+import { apiFetch } from '../utils/api';
 import type { BadgeId, BadgeRecord, ScoreRecord } from '../types/student';
 
 export interface BadgeDefinition {
@@ -110,49 +109,45 @@ export function evaluateBadgeConditions(
   return newBadges;
 }
 
-const RETRY_DELAYS_MS = [100, 200, 400];
-
 async function writeWithRetry(
-  uid: string,
   badge: BadgeRecord
 ): Promise<void> {
-  const ref = doc(db, 'users', uid, 'badges', badge.badgeId);
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      await setDoc(ref, badge);
-      return;
-    } catch (err) {
-      if (attempt < RETRY_DELAYS_MS.length) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
-      } else {
-        console.error(`[badgeEngine] Failed to write badge "${badge.badgeId}" after ${attempt} retries:`, err);
-      }
-    }
+  try {
+    await apiFetch('/api/badges', {
+      method: 'POST',
+      body: badge
+    });
+  } catch (err) {
+    console.error(`[badgeEngine] Failed to award badge "${badge.badgeId}":`, err);
   }
 }
 
 /**
- * Reads existing badges for the user, evaluates conditions, writes new badges
- * with exponential backoff retry, and returns newly awarded badges.
+ * Reads existing badges for the user, evaluates conditions, writes new badges,
+ * and returns newly awarded badges.
  */
 export async function evaluateBadges(
-  uid: string,
+  userId: string,
   scores: ScoreRecord[],
   streak: number
 ): Promise<BadgeRecord[]> {
-  // Read existing badges
-  const badgesRef = collection(db, 'users', uid, 'badges');
-  const snapshot = await getDocs(badgesRef);
-  const existingBadgeIds = new Set<BadgeId>(
-    snapshot.docs.map((d) => d.data().badgeId as BadgeId)
-  );
+  try {
+    // Read existing badges from backend
+    const existingBadges = await apiFetch('/api/badges');
+    const existingBadgeIds = new Set<BadgeId>(
+      existingBadges.map((b: any) => b.badgeId as BadgeId)
+    );
 
-  const newBadges = evaluateBadgeConditions(scores, streak, existingBadgeIds);
+    const newBadges = evaluateBadgeConditions(scores, streak, existingBadgeIds);
 
-  // Write new badges with retry (non-blocking on final failure)
-  await Promise.all(newBadges.map((badge) => writeWithRetry(uid, badge)));
+    // Write new badges
+    await Promise.all(newBadges.map((badge) => writeWithRetry(badge)));
 
-  return newBadges;
+    return newBadges;
+  } catch (err) {
+    console.error('[badgeEngine] Error in evaluateBadges:', err);
+    return [];
+  }
 }
 
 /**

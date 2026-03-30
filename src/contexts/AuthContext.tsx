@@ -1,23 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import {
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut as firebaseSignOut,
-    signInWithPopup,
-    GoogleAuthProvider,
-    onAuthStateChanged,
-    updateProfile,
-    type User as FirebaseUser,
-} from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import type { UserProfile } from '../types/student';
 
 interface User {
-    uid: string;
     _id: string;
     email: string;
     displayName: string;
-    role: string;
+    role: 'student' | 'teacher';
     token: string;
 }
 
@@ -26,103 +14,112 @@ interface AuthContextType {
     userProfile: UserProfile | null;
     loading: boolean;
     signUp: (email: string, password: string, displayName: string, role: string) => Promise<{ error: any }>;
-    signIn: (email: string, password: string) => Promise<{ error: any }>;
+    signIn: (email: string, password: string, role?: string) => Promise<{ error: any }>;
     signInWithGoogle: () => Promise<{ error: any }>;
     signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function toAppUser(fbUser: FirebaseUser, role = 'student'): User {
-    return {
-        uid: fbUser.uid,
-        _id: fbUser.uid,
-        email: fbUser.email ?? '',
-        displayName: fbUser.displayName ?? fbUser.email ?? '',
-        role,
-        token: '',
-    };
-}
-
-function buildUserProfile(fbUser: FirebaseUser, role: 'student' | 'teacher'): UserProfile {
-    return {
-        uid: fbUser.uid,
-        email: fbUser.email ?? '',
-        displayName: fbUser.displayName ?? fbUser.email ?? '',
-        role,
-        createdAt: new Date().toISOString(),
-        streak: 0,
-        lastActiveDate: new Date().toISOString().slice(0, 10),
-    };
-}
+const API_URL = '/api/auth';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Initial load: Check if token exists
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (fbUser) => {
-            if (fbUser) {
-                const stored = localStorage.getItem('userRole');
-                const role = (stored === 'teacher' ? 'teacher' : 'student') as 'student' | 'teacher';
-                setUser(toAppUser(fbUser, role));
-                setUserProfile(buildUserProfile(fbUser, role));
-            } else {
-                setUser(null);
-                setUserProfile(null);
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                setUser(parsedUser);
+                // Also set userProfile for compatibility with existing components
+                setUserProfile({
+                    uid: parsedUser._id,
+                    email: parsedUser.email,
+                    displayName: parsedUser.displayName,
+                    role: parsedUser.role,
+                    streak: 0,
+                    lastActiveDate: new Date().toISOString().slice(0, 10),
+                    createdAt: new Date().toISOString()
+                });
+            } catch (e) {
+                localStorage.removeItem('user');
             }
-            setLoading(false);
-        });
-        return unsub;
+        }
+        setLoading(false);
     }, []);
 
     const signUp = async (email: string, password: string, displayName: string, role: string) => {
         try {
-            const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
-            await updateProfile(fbUser, { displayName });
-            localStorage.setItem('userRole', role);
-            setUser(toAppUser(fbUser, role));
+            const response = await fetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, displayName, role }),
+            });
+
+            const data = await response.json().catch(() => ({ message: 'Invalid server response' }));
+            if (!response.ok) throw new Error(data.message || 'Signup failed');
+
+            localStorage.setItem('user', JSON.stringify(data));
+            setUser(data);
+            setUserProfile({
+                uid: data._id,
+                email: data.email,
+                displayName: data.displayName,
+                role: data.role,
+                streak: 0,
+                lastActiveDate: new Date().toISOString().slice(0, 10),
+                createdAt: new Date().toISOString()
+            });
+
             return { error: null };
         } catch (error: any) {
+            console.error('Signup error:', error);
             return { error };
         }
     };
 
-    const signIn = async (email: string, password: string) => {
+    const signIn = async (email: string, password: string, role?: string) => {
         try {
-            const { user: fbUser } = await signInWithEmailAndPassword(auth, email, password);
-            const role = (localStorage.getItem('userRole') === 'teacher' ? 'teacher' : 'student') as 'student' | 'teacher';
-            setUser(toAppUser(fbUser, role));
-            setUserProfile(buildUserProfile(fbUser, role));
-            return { error: null };
-        } catch (error: any) {
-            return { error };
-        }
-    };
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, role }),
+            });
 
-    const signInWithGoogle = async () => {
-        try {
-            const provider = new GoogleAuthProvider();
-            const { user: fbUser } = await signInWithPopup(auth, provider);
-            const role = (localStorage.getItem('userRole') === 'teacher' ? 'teacher' : 'student') as 'student' | 'teacher';
-            setUser(toAppUser(fbUser, role));
-            setUserProfile(buildUserProfile(fbUser, role));
+            const data = await response.json().catch(() => ({ message: 'Invalid server response' }));
+            if (!response.ok) throw new Error(data.message || 'Login failed');
+
+            localStorage.setItem('user', JSON.stringify(data));
+            setUser(data);
+            setUserProfile({
+                uid: data._id,
+                email: data.email,
+                displayName: data.displayName,
+                role: data.role,
+                streak: 0,
+                lastActiveDate: new Date().toISOString().slice(0, 10),
+                createdAt: new Date().toISOString()
+            });
+
             return { error: null };
         } catch (error: any) {
+            console.error('Signin error:', error);
             return { error };
         }
     };
 
     const signOut = async () => {
-        await firebaseSignOut(auth);
-        localStorage.removeItem('userRole');
+        localStorage.removeItem('user');
         setUser(null);
         setUserProfile(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signUp, signIn, signInWithGoogle, signOut }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, signUp, signIn, signOut, signInWithGoogle: async () => ({ error: 'Not implemented' }) }}>
             {children}
         </AuthContext.Provider>
     );

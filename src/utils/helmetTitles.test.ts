@@ -19,24 +19,24 @@ import * as fc from 'fast-check';
  * Validates: Requirements 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
  */
 const ROUTE_TITLES = [
-  { route: '/',        title: 'QuizMaster — Create AI Quizzes Instantly' },
-  { route: '/login',   title: 'Log In — QuizMaster' },
-  { route: '/signup',  title: 'Sign Up Free — QuizMaster' },
-  { route: '/student', title: 'Student Dashboard — QuizMaster' },
-  { route: '/join',    title: 'Join a Quiz — QuizMaster' },
-  { route: '/privacy', title: 'Privacy Policy — QuizMaster' },
-  { route: '/terms',   title: 'Terms of Service — QuizMaster' },
+  { route: '/', title: 'Quizly — Create AI Quizzes Instantly' },
+  { route: '/login', title: 'Log In — Quizly' },
+  { route: '/signup', title: 'Sign Up Free — Quizly' },
+  { route: '/student', title: 'Student Dashboard — Quizly' },
+  { route: '/join', title: 'Join a Quiz — Quizly' },
+  { route: '/privacy', title: 'Privacy Policy — Quizly' },
+  { route: '/terms', title: 'Terms of Service — Quizly' },
 ] as const;
 
 const TITLES = ROUTE_TITLES.map((r) => r.title);
 const INDICES = ROUTE_TITLES.map((_, i) => i);
 
 describe('Helmet titles — Property 4: unique titles per route', () => {
-  // Unit assertions: each title is non-empty and contains "QuizMaster"
+  // Unit assertions: each title is non-empty and contains "Quizly"
   for (const { route, title } of ROUTE_TITLES) {
-    it(`title for "${route}" is non-empty and contains "QuizMaster"`, () => {
+    it(`title for "${route}" is non-empty and contains "Quizly"`, () => {
       expect(title.length).toBeGreaterThan(0);
-      expect(title).toContain('QuizMaster');
+      expect(title).toContain('Quizly');
     });
   }
 
@@ -70,16 +70,16 @@ describe('Helmet titles — Property 4: unique titles per route', () => {
   });
 
   /**
-   * Property 4 (QuizMaster brand): For any route, its title contains "QuizMaster".
+   * Property 4 (Quizly brand): For any route, its title contains "Quizly".
    *
    * Validates: Requirements 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
    */
-  it('Property 4 (brand): for any route, its title contains "QuizMaster"', () => {
+  it('Property 4 (brand): for any route, its title contains "Quizly"', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...INDICES),
         (i) => {
-          return TITLES[i].includes('QuizMaster');
+          return TITLES[i].includes('Quizly');
         }
       ),
       { numRuns: 100 }

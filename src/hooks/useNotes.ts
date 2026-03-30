@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiFetch } from '../utils/api';
 import type { Note } from '../types/student';
 
 interface UseNotesOptions {
@@ -11,6 +10,7 @@ interface UseNotesResult {
   notes: Note[];
   loading: boolean;
   error: Error | null;
+  refresh: () => Promise<void>;
 }
 
 export function useNotes(options?: UseNotesOptions): UseNotesResult {
@@ -18,30 +18,25 @@ export function useNotes(options?: UseNotesOptions): UseNotesResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
+  const fetchNotes = async () => {
     setLoading(true);
     setError(null);
+    try {
+      const url = options?.authorUid
+        ? `/api/notes?authorUid=${options.authorUid}`
+        : '/api/notes';
+      const data = await apiFetch(url);
+      setNotes(data.notes || []);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const notesRef = collection(db, 'notes');
-    const q = options?.authorUid
-      ? query(notesRef, where('authorUid', '==', options.authorUid))
-      : query(notesRef);
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const records: Note[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Note));
-        setNotes(records);
-        setLoading(false);
-      },
-      (err) => {
-        setError(err);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
+  useEffect(() => {
+    fetchNotes();
   }, [options?.authorUid]);
 
-  return { notes, loading, error };
+  return { notes, loading, error, refresh: fetchNotes };
 }

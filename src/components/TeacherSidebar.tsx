@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Play,
   LayoutDashboard,
@@ -19,6 +19,7 @@ export const navItems = [
 
 export function TeacherSidebar() {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <aside style={{
@@ -55,7 +56,7 @@ export function TeacherSidebar() {
         }}>
           <Play fill="currentColor" size={18} />
         </div>
-        <span style={{ fontWeight: 700, fontSize: '17px', color: '#111827' }}>QuizMaster</span>
+        <span style={{ fontWeight: 700, fontSize: '17px', color: '#111827' }}>Quizly</span>
       </div>
 
       {/* Nav items */}
@@ -119,17 +120,19 @@ export function TeacherSidebar() {
           <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.5 }}>
             Unlock AI quiz generation, advanced analytics, and unlimited students.
           </p>
-          <button style={{
-            width: '100%',
-            padding: '7px 0',
-            background: 'transparent',
-            border: '1.5px solid #FF5C1A',
-            borderRadius: '6px',
-            color: '#FF5C1A',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}>
+          <button
+            onClick={() => navigate('/teacher/billing')}
+            style={{
+              width: '100%',
+              padding: '7px 0',
+              background: 'transparent',
+              border: '1.5px solid #FF5C1A',
+              borderRadius: '6px',
+              color: '#FF5C1A',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}>
             Upgrade to Pro
           </button>
         </div>

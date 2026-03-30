@@ -32,9 +32,9 @@ export function BadgeList({ badges, loading = false }: BadgeListProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
+        <SkeletonCard key="skeleton-1" />
+        <SkeletonCard key="skeleton-2" />
+        <SkeletonCard key="skeleton-3" />
       </div>
     );
   }
@@ -50,12 +50,12 @@ export function BadgeList({ badges, loading = false }: BadgeListProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {badges.map((badge) => {
+      {badges.map((badge, index) => {
         const def = BADGE_DEFINITIONS.find((d) => d.id === badge.badgeId);
         if (!def) return null;
         return (
           <div
-            key={badge.badgeId}
+            key={`${badge.badgeId}-${index}`}
             className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-orange-100 hover:border-[#FF5C1A] transition-all"
           >
             <div className="flex items-center gap-4">

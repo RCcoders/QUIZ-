@@ -50,7 +50,7 @@ export function LoginPage() {
         setLoading(true);
         try {
             localStorage.setItem('userRole', role);
-            const { error: signInError } = await signIn(email, password);
+            const { error: signInError } = await signIn(email, password, role);
             if (signInError) {
                 const code = (signInError as { code?: string }).code ?? signInError.message ?? '';
                 setError(friendlyError(code));
@@ -83,8 +83,8 @@ export function LoginPage() {
     return (
         <>
             <Helmet>
-                <title>Log In — QuizMaster</title>
-                <meta name="description" content="Sign in to your QuizMaster account to manage quizzes and view student results." />
+                <title>Log In — Quizly</title>
+                <meta name="description" content="Sign in to your Quizly account to manage quizzes and view student results." />
             </Helmet>
 
             {/* Full-viewport locked layout — no scroll */}
@@ -120,7 +120,7 @@ export function LoginPage() {
                             </svg>
                         </div>
                         <span style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', letterSpacing: '-0.2px' }}>
-                            QuizMaster
+                            Quizly
                         </span>
                     </Link>
                     <a
@@ -171,7 +171,7 @@ export function LoginPage() {
                                 Master your subjects with interactive quizzes.
                             </h2>
                             <p style={{ fontSize: '0.9rem', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
-                                Join over 10,000 students and teachers worldwide in the ultimate learning journey.
+                                Join over 10,000 students and teachers worldwide in the ultimate learning journey with Quizly.
                             </p>
                         </div>
                     </div>
@@ -432,7 +432,7 @@ export function LoginPage() {
                     fontSize: '0.78rem',
                     color: '#9CA3AF',
                 }}>
-                    <span>© {new Date().getFullYear()} QuizMaster Inc. All rights reserved.</span>
+                    <span>© {new Date().getFullYear()} Quizly. All rights reserved.</span>
                     <div style={{ display: 'flex', gap: 18 }}>
                         <Link to="/privacy" style={{ color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
                         <Link to="/terms" style={{ color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>

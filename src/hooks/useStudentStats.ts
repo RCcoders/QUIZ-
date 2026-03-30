@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getScoreRecords, computeStreak, computeAverageScore } from '../utils/scoring';
+import { apiFetch } from '../utils/api';
 import type { ScoreRecord } from '../types/student';
 
 interface StudentStats {
@@ -11,7 +11,17 @@ interface StudentStats {
 }
 
 export function useStudentStats(uid: string | undefined): StudentStats {
-    const [records, setRecords] = useState<ScoreRecord[]>([]);
+    const [stats, setStats] = useState<{
+        records: ScoreRecord[];
+        streak: number;
+        averageScore: number;
+        totalCompleted: number;
+    }>({
+        records: [],
+        streak: 0,
+        averageScore: 0,
+        totalCompleted: 0
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -21,27 +31,27 @@ export function useStudentStats(uid: string | undefined): StudentStats {
         }
         setLoading(true);
 
-        // Timeout fallback — don't hang forever if Firestore is slow/unreachable
-        const timeout = setTimeout(() => {
-            setLoading(false);
-        }, 5000);
-
-        getScoreRecords(uid)
-            .then(setRecords)
-            .catch(() => setRecords([]))
-            .finally(() => {
-                clearTimeout(timeout);
+        const fetchStats = async () => {
+            try {
+                const data = await apiFetch(`/api/scores/${uid}/stats`);
+                setStats({
+                    records: data.records,
+                    streak: data.streak,
+                    averageScore: data.averageScore,
+                    totalCompleted: data.totalCompleted
+                });
+            } catch (err) {
+                console.error('Failed to fetch stats:', err);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
 
-        return () => clearTimeout(timeout);
+        fetchStats();
     }, [uid]);
 
     return {
-        records,
-        streak: computeStreak(records),
-        averageScore: computeAverageScore(records),
-        totalCompleted: records.length,
+        ...stats,
         loading,
     };
 }

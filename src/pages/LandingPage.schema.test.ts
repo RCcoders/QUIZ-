@@ -34,9 +34,9 @@ describe('LandingPage Schema.org — WebApplication JSON-LD (Requirement 8.2)', 
     expect(source).toContain('Live quiz sessions');
   });
 
-  it('contains screenshot field pointing to quizmaster.app', () => {
+  it('contains screenshot field pointing to quizly.app', () => {
     expect(source).toContain('screenshot');
-    expect(source).toContain('https://quizmaster.app/screenshot.png');
+    expect(source).toContain('https://quizly.app/screenshot.png');
   });
 
   it('contains author field with Organization type', () => {
@@ -71,7 +71,7 @@ describe('LandingPage Schema.org — FAQPage JSON-LD (Requirement 8.3)', () => {
   });
 
   it('covers free tier question', () => {
-    expect(source).toContain('Is QuizMaster free to use?');
+    expect(source).toContain('Is Quizly free to use?');
   });
 
   it('covers how students join question', () => {
@@ -94,8 +94,8 @@ describe('LandingPage Schema.org — BreadcrumbList JSON-LD (Requirement 8.4)', 
     expect((matches as RegExpMatchArray).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('home breadcrumb points to quizmaster.app', () => {
-    expect(source).toContain('https://quizmaster.app/');
+  it('home breadcrumb points to quizly.app', () => {
+    expect(source).toContain('https://quizly.app/');
   });
 });
 

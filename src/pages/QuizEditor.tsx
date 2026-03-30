@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     Save, Plus, Trash2, CheckCircle, Loader, Clock, Target, XCircle,
     BookOpen, Zap, Eye, Lightbulb, ChevronDown
 } from 'lucide-react';
-import { generateQuestionsFromText, GeneratedQuestion } from '../lib/gemini';
 import { TeacherSidebar } from '../components/TeacherSidebar';
+import { apiFetch } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface QuestionForm {
     id?: string;
@@ -34,6 +35,7 @@ const SUBJECTS = ['Mathematics', 'Science', 'English', 'History', 'Geography', '
 export function QuizEditor() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const isEditing = Boolean(id);
 
     const [title, setTitle] = useState('');
@@ -47,28 +49,72 @@ export function QuizEditor() {
     const [expandedQuestion, setExpandedQuestion] = useState<number>(0);
     const [activeTab, setActiveTab] = useState<'drafts' | 'templates' | 'settings'>('drafts');
 
+    const [loading, setLoading] = useState(isEditing);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState('');
 
     // AI Generator state
     const [syllabusText, setSyllabusText] = useState('');
-    const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
 
-    // saveDraft — saves locally (no DB)
+    // Fetch quiz data if editing
+    useEffect(() => {
+        if (isEditing && id) {
+            const fetchQuiz = async () => {
+                try {
+                    const data = await apiFetch(`/api/quizzes/${id}`);
+                    setTitle(data.title);
+                    setDescription(data.description || '');
+                    setSubject(data.subject || '');
+                    setTimerEnabled(data.timerEnabled);
+                    setTimerSeconds(data.timerSeconds);
+                    setQuestions(data.questions.map((q: any) => ({
+                        ...q,
+                        // Ensure id is present if backend provides it
+                        id: q._id || q.id
+                    })));
+                } catch (err) {
+                    setError('Failed to load quiz data');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchQuiz();
+        }
+    }, [id, isEditing]);
+
     const saveDraft = async () => {
         if (!title.trim()) { setError('Please enter a quiz title'); return; }
         setSaving(true);
         setError('');
-        // Simulate save delay
-        await new Promise(r => setTimeout(r, 500));
-        setSaving(false);
+        try {
+            const body = {
+                title,
+                description,
+                subject,
+                timerEnabled,
+                timerSeconds,
+                questions,
+                status: 'draft'
+            };
+
+            const endpoint = isEditing ? `/api/quizzes/${id}` : '/api/quizzes';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            await apiFetch(endpoint, { method, body });
+            setSaving(false);
+        } catch (err: any) {
+            setError(err.message || 'Failed to save draft');
+            setSaving(false);
+        }
     };
 
-    // publishQuiz — validates fully then navigates
     const publishQuiz = async () => {
         if (!title.trim()) { setError('Please enter a quiz title'); return; }
         if (questions.length === 0 || !questions[0].questionText.trim()) { setError('Please add at least one question'); return; }
+
+        // Basic validation
         for (let i = 0; i < questions.length; i++) {
             const q = questions[i];
             if (!q.questionText.trim() || !q.optionA.trim() || !q.optionB.trim() || !q.optionC.trim() || !q.optionD.trim()) {
@@ -77,14 +123,31 @@ export function QuizEditor() {
                 return;
             }
         }
+
         setPublishing(true);
         setError('');
-        // Simulate publish delay
-        await new Promise(r => setTimeout(r, 500));
-        navigate('/teacher');
+        try {
+            const body = {
+                title,
+                description,
+                subject,
+                timerEnabled,
+                timerSeconds,
+                questions,
+                status: 'published'
+            };
+
+            const endpoint = isEditing ? `/api/quizzes/${id}` : '/api/quizzes';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            await apiFetch(endpoint, { method, body });
+            navigate('/teacher');
+        } catch (err: any) {
+            setError(err.message || 'Failed to publish quiz');
+            setPublishing(false);
+        }
     };
 
-    // Keep original handleSave for backward compat
     const handleSave = publishQuiz;
 
     const addQuestion = () => {
@@ -107,42 +170,37 @@ export function QuizEditor() {
         setQuestions(updated);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file && file.type === 'text/plain') {
-            const reader = new FileReader();
-            reader.onload = (event) => { setSyllabusText(event.target?.result as string); };
-            reader.readAsText(file);
-        }
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const generateQuestions = async () => {
-        if (!syllabusText.trim()) { setError('Please enter or upload syllabus content'); return; }
+        if (!syllabusText.trim()) { setError('Please enter content to generate questions'); return; }
+        setIsGenerating(true);
         setError('');
         try {
-            const generated = await generateQuestionsFromText(syllabusText, 10);
-            setGeneratedQuestions(generated);
-        } catch (error) {
-            console.error('Error generating questions:', error);
-            setError(error instanceof Error ? error.message : 'Failed to generate questions');
-        }
-    };
+            const data = await apiFetch('/api/adaptive/generate-from-text', {
+                method: 'POST',
+                body: { text: syllabusText, count: 5 }
+            });
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const addGeneratedQuestions = () => {
-        const newQuestions: QuestionForm[] = generatedQuestions.map(q => ({
-            questionText: q.question_text, optionA: q.option_a, optionB: q.option_b,
-            optionC: q.option_c, optionD: q.option_d, correctAnswer: q.correct_answer, difficulty: q.difficulty,
-        }));
-        if (questions.length === 1 && !questions[0].questionText.trim()) {
-            setQuestions(newQuestions);
-        } else {
-            setQuestions([...questions, ...newQuestions]);
+            const newQuestions: QuestionForm[] = data.questions.map((q: any) => ({
+                questionText: q.question_text,
+                optionA: q.option_a,
+                optionB: q.option_b,
+                optionC: q.option_c,
+                optionD: q.option_d,
+                correctAnswer: q.correct_answer,
+                difficulty: q.difficulty,
+            }));
+
+            if (questions.length === 1 && !questions[0].questionText.trim()) {
+                setQuestions(newQuestions);
+            } else {
+                setQuestions([...questions, ...newQuestions]);
+            }
+            setSyllabusText('');
+        } catch (err: any) {
+            setError(err.message || 'Failed to generate questions');
+        } finally {
+            setIsGenerating(false);
         }
-        setGeneratedQuestions([]);
-        setSyllabusText('');
     };
 
     // Quiz Strength score: 0–100 based on completeness of questions
@@ -472,7 +530,7 @@ export function QuizEditor() {
                                         <div style={{ position: 'relative' }}>
                                             <select
                                                 value="multiple_choice"
-                                                onChange={() => {}}
+                                                onChange={() => { }}
                                                 onClick={(e) => e.stopPropagation()}
                                                 style={{
                                                     padding: '4px 24px 4px 8px', borderRadius: 6,
@@ -569,7 +627,7 @@ export function QuizEditor() {
                                         color: '#FF5C1A', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', gap: 4,
                                     }}
-                                    onClick={() => {/* options are fixed A-D for now */}}
+                                    onClick={() => {/* options are fixed A-D for now */ }}
                                 >
                                     <Plus size={12} /> Add another option
                                 </button>

@@ -14,7 +14,7 @@ import * as fc from 'fast-check';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-const BASE_URL = 'https://quizmaster.app';
+const BASE_URL = 'https://quizly.app';
 
 const REQUIRED_PATHS = ['/', '/login', '/signup', '/student', '/join', '/library', '/privacy', '/terms'] as const;
 
@@ -37,8 +37,8 @@ function extractUrlBlocks(xml: string): string[] {
 
 /**
  * Build the fully qualified URL for a given path.
- * The root path "/" maps to "https://quizmaster.app/" and all others
- * map to "https://quizmaster.app{path}" (no trailing slash).
+ * The root path "/" maps to "https://quizly.app/" and all others
+ * map to "https://quizly.app{path}" (no trailing slash).
  */
 function fullyQualifiedUrl(path: string): string {
   if (path === '/') return `${BASE_URL}/`;

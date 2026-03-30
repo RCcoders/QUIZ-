@@ -6,90 +6,109 @@ import {
     BookOpen, Users, BarChart2, Download
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { TeacherSidebar } from '../components/TeacherSidebar';
 
 interface QuizWithCount {
-    id: string;
+    _id: string;
     title: string;
     isActive: boolean;
     questionCount?: number;
 }
 
-export async function fetchQuizzesForTeacher(uid: string): Promise<QuizWithCount[]> {
-    const q = query(collection(db, 'quizzes'), where('teacherId', '==', uid));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        title: doc.data().title ?? '',
-        isActive: doc.data().isActive ?? false,
-        questionCount: doc.data().questionCount,
-    }));
+export async function fetchQuizzesForTeacher(): Promise<QuizWithCount[]> {
+    return apiFetch('/api/quizzes/teacher/my-quizzes');
 }
 
-// Stat card data
-const statCards = [
-    {
-        label: 'Total Quizzes',
-        value: '128',
-        change: '+12%',
-        positive: true,
-        icon: BookOpen,
-        iconBg: '#EEF2FF',
-        iconColor: '#6366F1',
-    },
-    {
-        label: 'Active Sessions',
-        value: '5',
-        change: '+25%',
-        positive: true,
-        icon: TrendingUp,
-        iconBg: '#ECFDF5',
-        iconColor: '#10B981',
-    },
-    {
-        label: 'Total Students',
-        value: '842',
-        change: '-1%',
-        positive: false,
-        icon: Users,
-        iconBg: '#FFF7ED',
-        iconColor: '#F97316',
-    },
-    {
-        label: 'Average Score',
-        value: '76.2%',
-        change: '+5.4%',
-        positive: true,
-        icon: BarChart2,
-        iconBg: '#FFF3EE',
-        iconColor: '#FF5C1A',
-    },
-];
+export interface DashboardStats {
+    totalQuizzes: number;
+    activeSessions: number;
+    totalStudents: number;
+    averageScore: number;
+    averageTimeTakenMs: number;
+    weeklyData: { day: string; pct: number }[];
+}
 
-// Weekly bar chart data (heights as percentages)
-const weeklyData = [
-    { day: 'Mon', pct: 72 },
-    { day: 'Tue', pct: 58 },
-    { day: 'Wed', pct: 88 },
-    { day: 'Thu', pct: 52 },
-    { day: 'Fri', pct: 76 },
-    { day: 'Sat', pct: 40 },
-    { day: 'Sun', pct: 30 },
-];
+export async function fetchDashboardStats(): Promise<DashboardStats> {
+    return apiFetch('/api/teacher/dashboard-stats');
+}
 
 export function TeacherDashboard() {
     const { user } = useAuth();
-    const { data: quizzes = [], isLoading, isError } = useQuery({
-        queryKey: ['quizzes', user?.uid],
-        queryFn: () => fetchQuizzesForTeacher(user!.uid),
+    const { data: quizzes = [], isLoading: isQuizzesLoading, isError } = useQuery({
+        queryKey: ['quizzes', user?._id],
+        queryFn: () => fetchQuizzesForTeacher(),
         enabled: !!user,
     });
+
+    const { data: stats, isLoading: isStatsLoading } = useQuery({
+        queryKey: ['dashboardStats', user?._id],
+        queryFn: () => fetchDashboardStats(),
+        enabled: !!user,
+    });
+
+    // Format ms to m and s
+    const formatTime = (ms: number) => {
+        if (!ms) return '0m 0s';
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}m ${seconds}s`;
+    };
+
+    const statCards = [
+        {
+            label: 'Total Quizzes',
+            value: stats?.totalQuizzes?.toString() || '0',
+            change: '--',
+            positive: true,
+            icon: BookOpen,
+            iconBg: '#EEF2FF',
+            iconColor: '#6366F1',
+        },
+        {
+            label: 'Active Sessions',
+            value: stats?.activeSessions?.toString() || '0',
+            change: '--',
+            positive: true,
+            icon: TrendingUp,
+            iconBg: '#ECFDF5',
+            iconColor: '#10B981',
+        },
+        {
+            label: 'Total Students',
+            value: stats?.totalStudents?.toString() || '0',
+            change: '--',
+            positive: true,
+            icon: Users,
+            iconBg: '#FFF7ED',
+            iconColor: '#F97316',
+        },
+        {
+            label: 'Average Score',
+            value: stats ? `${stats.averageScore}%` : '0%',
+            change: '--',
+            positive: true,
+            icon: BarChart2,
+            iconBg: '#FFF3EE',
+            iconColor: '#FF5C1A',
+        },
+    ];
+
+    const weeklyData = stats?.weeklyData || [
+        { day: 'Mon', pct: 0 },
+        { day: 'Tue', pct: 0 },
+        { day: 'Wed', pct: 0 },
+        { day: 'Thu', pct: 0 },
+        { day: 'Fri', pct: 0 },
+        { day: 'Sat', pct: 0 },
+        { day: 'Sun', pct: 0 },
+    ];
+
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredQuizzes = quizzes.filter(q =>
+    const filteredQuizzes = quizzes.filter((q: QuizWithCount) =>
         q.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -283,7 +302,7 @@ export function TeacherDashboard() {
                             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                             overflow: 'hidden',
                         }}>
-                            {isLoading ? (
+                            {isQuizzesLoading ? (
                                 <div style={{ padding: '48px 24px', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
                                     Loading quizzes…
                                 </div>
@@ -324,9 +343,9 @@ export function TeacherDashboard() {
                                     )}
                                 </div>
                             ) : (
-                                filteredQuizzes.slice(0, 5).map((quiz, i) => (
+                                filteredQuizzes.slice(0, 5).map((quiz: QuizWithCount, i: number) => (
                                     <motion.div
-                                        key={quiz.id}
+                                        key={quiz._id}
                                         initial={{ opacity: 0, x: -12 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.06 }}
@@ -417,8 +436,8 @@ export function TeacherDashboard() {
                                 ))}
                             </div>
 
-                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>92%</div>
-                            <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>Weekly completion rate</div>
+                            <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', lineHeight: 1 }}>Recent</div>
+                            <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>Weekly completion breakdown</div>
                         </div>
 
                         {/* Avg student time card */}
@@ -430,7 +449,7 @@ export function TeacherDashboard() {
                             marginBottom: '16px',
                         }}>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', marginBottom: '8px' }}>Avg Student Time</div>
-                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827' }}>18m 42s</div>
+                            <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827' }}>{formatTime(stats?.averageTimeTakenMs || 0)}</div>
                             <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>Per quiz completion</div>
                         </div>
 

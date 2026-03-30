@@ -4,50 +4,28 @@ import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, HelpCircle, Search, Users } from 'lucide-react';
 import { StudentNavbar } from '../components/StudentNavbar';
-import { filterQuizzes } from '../utils/quizFilter';
-
-const practiceQuizzes = [
-    {
-        id: 'practice-quiz',
-        title: 'Machine Learning Practice',
-        description: 'Test your ML fundamentals with 10 questions.',
-        color: '#3B82F6',
-        bg: '#EFF6FF',
-    },
-    {
-        id: 'practice-sql',
-        title: 'SQL Fundamentals',
-        description: 'Master database queries with 10 SQL questions.',
-        color: '#10B981',
-        bg: '#ECFDF5',
-    },
-    {
-        id: 'practice-nn',
-        title: 'Neural Networks',
-        description: 'Deep dive into neurons, layers, and training.',
-        color: '#8B5CF6',
-        bg: '#F5F3FF',
-    },
-    {
-        id: 'practice-vcs',
-        title: 'Version Control (Git)',
-        description: 'Check your Git command knowledge.',
-        color: '#FF5C1A',
-        bg: '#FFF3EE',
-    },
-];
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../utils/api';
 
 export function StudentBrowse() {
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredQuizzes = filterQuizzes(practiceQuizzes, searchQuery);
+    const { data: quizzes = [], isLoading } = useQuery({
+        queryKey: ['quizzes'],
+        queryFn: () => apiFetch('/api/quizzes'),
+    });
+
+    const filteredQuizzes = quizzes.filter((q: any) =>
+        q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
             <Helmet>
-                <title>Student Dashboard — QuizMaster</title>
-                <meta name="description" content="View your quiz history, scores, and streaks on your QuizMaster student dashboard." />
+                <title>Student Dashboard — Quizly</title>
+                <meta name="description" content="View your quiz history, scores, and streaks on your Quizly student dashboard." />
             </Helmet>
             <StudentNavbar activePage="/student" />
 
@@ -122,7 +100,9 @@ export function StudentBrowse() {
                 </div>
 
                 {/* Quiz grid */}
-                {filteredQuizzes.length === 0 ? (
+                {isLoading ? (
+                    <p style={{ color: '#6B7280', fontSize: 15 }}>Loading quizzes...</p>
+                ) : filteredQuizzes.length === 0 ? (
                     <p style={{ color: '#6B7280', fontSize: 15 }}>No quizzes match your search.</p>
                 ) : (
                     <div style={{
@@ -130,15 +110,15 @@ export function StudentBrowse() {
                         gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
                         gap: 20,
                     }}>
-                        {filteredQuizzes.map((quiz, index) => (
+                        {filteredQuizzes.map((quiz: any, index: number) => (
                             <motion.div
-                                key={quiz.id}
+                                key={quiz._id}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: index * 0.08 }}
                             >
                                 <Link
-                                    to={`/student/quiz/${quiz.id}`}
+                                    to={`/student/quiz/${quiz._id}`}
                                     style={{ textDecoration: 'none' }}
                                 >
                                     <div style={{
@@ -167,27 +147,27 @@ export function StudentBrowse() {
                                         {/* Icon */}
                                         <div style={{
                                             width: 52, height: 52, borderRadius: '50%',
-                                            background: quiz.bg,
+                                            background: '#FFF3EE',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             marginBottom: 16,
                                         }}>
-                                            <HelpCircle size={24} color={quiz.color} />
+                                            <HelpCircle size={24} color="#FF5C1A" />
                                         </div>
 
                                         <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
                                             {quiz.title}
                                         </h3>
                                         <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 }}>
-                                            {quiz.description}
+                                            {quiz.description || `A quiz about ${quiz.subject}`}
                                         </p>
 
                                         {/* Meta */}
                                         <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <HelpCircle size={13} /> 10 Qs
+                                                <HelpCircle size={13} /> {quiz.questions?.length ?? 0} Qs
                                             </span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <Clock size={13} /> 30s
+                                                <Clock size={13} /> {quiz.timerSeconds ?? 30}s
                                             </span>
                                         </div>
 

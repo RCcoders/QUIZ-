@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart2, Users, CheckCircle, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart2, Users, CheckCircle, TrendingUp, Calendar, DownloadCloud } from 'lucide-react';
 import { TeacherSidebar } from '../components/TeacherSidebar';
+import { apiFetch } from '../utils/api';
 
 export interface QuizSession {
     id: string;
@@ -42,10 +43,60 @@ function computeStats(sessions: QuizSession[]) {
 }
 
 export function Reports() {
-    const [sessions] = useState<QuizSession[]>([]);
+    const [sessions, setSessions] = useState<QuizSession[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [dateFilter, setDateFilter] = useState<DateRange>('all');
 
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const data = await apiFetch('/api/reports');
+                setSessions(data);
+            } catch (err: any) {
+                console.error("Failed to fetch reports:", err);
+                setError(err.message || 'Failed to load reports');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchReports();
+    }, []);
+
     const filtered = filterSessionsByDate(sessions, dateFilter);
+
+    const handleDownloadCSV = () => {
+        if (filtered.length === 0) return;
+
+        // Define CSV headers
+        const headers = ['Quiz Title', 'Date', 'Participants', 'Average Score', 'Status'];
+
+        // Map filtered sessions to CSV rows
+        const rows = filtered.map(session => [
+            `"${session.quizTitle.replace(/"/g, '""')}"`, // Escape quotes
+            new Date(session.date).toLocaleDateString(),
+            session.participantCount.toString(),
+            `${session.averageScore}%`,
+            session.completed ? 'Completed' : 'In Progress'
+        ]);
+
+        // Combine headers and rows
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        // Create Blob and trigger download natively
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `quiz_reports_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const stats = computeStats(filtered);
 
     const statCards = [
@@ -65,7 +116,22 @@ export function Reports() {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '20px 0', borderBottom: '1px solid #E5E7EB', marginBottom: '28px',
                 }}>
-                    <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#111827', margin: 0 }}>Reports</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#111827', margin: 0 }}>Reports</h1>
+                        <button
+                            onClick={handleDownloadCSV}
+                            disabled={filtered.length === 0 || loading}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+                                borderRadius: '8px', border: '1px solid #E5E7EB', background: '#FFFFFF',
+                                fontSize: '13px', fontWeight: 600, color: '#374151', cursor: (filtered.length === 0 || loading) ? 'not-allowed' : 'pointer',
+                                opacity: (filtered.length === 0 || loading) ? 0.6 : 1, transition: 'all 0.2s'
+                            }}
+                        >
+                            <DownloadCloud size={16} />
+                            Download CSV
+                        </button>
+                    </div>
 
                     {/* Date range filter */}
                     <div style={{ display: 'flex', gap: '4px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '4px' }}>
@@ -130,7 +196,21 @@ export function Reports() {
                         <span>Avg Score</span>
                     </div>
 
-                    {filtered.length === 0 ? (
+                    {loading ? (
+                        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                            <div style={{
+                                width: '40px', height: '40px', border: '3px solid #F3F4F6',
+                                borderTopColor: '#FF5C1A', borderRightColor: '#FF5C1A', borderRadius: '50%',
+                                animation: 'spin 1s linear infinite', margin: '0 auto 16px'
+                            }} />
+                            <p style={{ fontSize: '14px', fontWeight: 600, color: '#6B7280', margin: 0 }}>Loading your analytics...</p>
+                            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                        </div>
+                    ) : error ? (
+                        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '14px', color: '#EF4444', margin: 0 }}>{error}</p>
+                        </div>
+                    ) : filtered.length === 0 ? (
                         <div style={{ padding: '64px 24px', textAlign: 'center' }}>
                             <div style={{
                                 width: '56px', height: '56px', background: '#F3F4F6', borderRadius: '12px',

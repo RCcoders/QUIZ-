@@ -21,7 +21,7 @@ export function Navbar() {
             background: '#FFFFFF',
             borderBottom: '1px solid #E5E7EB',
             backdropFilter: 'none',
-          };
+        };
 
     return (
         <nav className="navbar" style={navStyle}>
@@ -34,7 +34,7 @@ export function Navbar() {
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#FF5C1A' }}>
                         <Zap size={20} color="white" fill="white" />
                     </div>
-                    QuizMaster
+                    Quizly
                 </Link>
 
                 {isLandingPage && (

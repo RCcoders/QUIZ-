@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { doc, getDoc } from 'firebase/firestore';
-import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen } from 'lucide-react';
-import { db } from '../lib/firebase';
+import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen, Trophy, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
 import { useNotes } from '../hooks/useNotes';
 import { StudentNavbar } from '../components/StudentNavbar';
-import { buildPerformanceProfile, generateAdaptiveQuestions } from '../lib/adaptiveQuiz';
+import { apiFetch } from '../utils/api';
 import { saveScoreRecord } from '../utils/scoring';
 import { evaluateBadges } from '../lib/badgeEngine';
 import type { GeneratedQuestion } from '../lib/gemini';
@@ -52,25 +52,22 @@ export function AdaptiveQuiz() {
     setShowResult(false);
 
     try {
-      const profile = buildPerformanceProfile(records, resolvedSubject);
+      const data = await apiFetch('/api/adaptive/generate', {
+        method: 'POST',
+        body: {
+          subject: resolvedSubject,
+          topic: resolvedContent.slice(0, 100), // example topic extraction
+          count: 10
+        }
+      });
 
-      // 15-second timeout via Promise.race
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Question generation timed out. Please try again.')), 15000)
-      );
-
-      const generated = await Promise.race([
-        generateAdaptiveQuestions(profile, resolvedContent, 10),
-        timeoutPromise,
-      ]);
-
-      setQuestions(generated);
+      setQuestions(data.questions);
       setPageState('quiz');
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to generate questions. Please try again.');
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to generate questions. Please try again.');
       setPageState('error');
     }
-  }, [records]);
+  }, []);
 
   // Initial load: resolve noteId → subject + content, then generate
   useEffect(() => {
@@ -80,13 +77,9 @@ export function AdaptiveQuiz() {
 
       if (noteId) {
         try {
-          const docRef = doc(db, 'notes', noteId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const noteData = { id: docSnap.id, ...docSnap.data() } as Note;
-            resolvedSubject = noteData.subject;
-            resolvedContent = noteData.content;
-          }
+          const noteData = await apiFetch(`/api/notes/${noteId}`);
+          resolvedSubject = noteData.subject;
+          resolvedContent = noteData.content;
         } catch {
           // fall through with empty content
         }
@@ -132,7 +125,7 @@ export function AdaptiveQuiz() {
 
       if (user) {
         try {
-          await saveScoreRecord(user._id, {
+          await saveScoreRecord({
             quizId: `adaptive-${subject}-${Date.now()}`,
             quizTitle: `Adaptive Quiz: ${subject}`,
             score: finalScore,
@@ -190,7 +183,7 @@ export function AdaptiveQuiz() {
   return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: "'Inter', sans-serif" }}>
       <Helmet>
-        <title>Adaptive Quiz — QuizMaster</title>
+        <title>Adaptive Quiz — Quizly</title>
         <meta name="description" content="AI-powered adaptive quiz tailored to your performance." />
       </Helmet>
       <StudentNavbar />
@@ -268,121 +261,146 @@ export function AdaptiveQuiz() {
 
         {/* ── Quiz in progress ── */}
         {pageState === 'quiz' && questions.length > 0 && (
-          <div style={cardStyle}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            padding: '36px',
+            border: '1px solid #F1F5F9',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.04)',
+            marginBottom: '2.5rem'
+          }}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-              <Brain size={22} color="#6366F1" />
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#6366F1' }}>
-                Adaptive Quiz — {subject}
-              </span>
-              <span style={{ marginLeft: 'auto', fontSize: 13, color: '#9CA3AF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 12, background: 'rgba(99, 102, 241, 0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Brain size={20} color="#6366F1" />
+              </div>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  AI-Powered Adaptive Quiz
+                </span>
+                <h4 style={{ margin: 0, fontSize: 16, color: '#1E293B' }}>{subject}</h4>
+              </div>
+              <span style={{ marginLeft: 'auto', fontSize: 14, fontWeight: 700, color: '#94A3B8' }}>
                 {currentIndex + 1} / {questions.length}
               </span>
             </div>
 
             {/* Progress bar */}
-            <div style={{ height: 6, background: '#F1F5F9', borderRadius: 3, marginBottom: 28 }}>
-              <div style={{
-                height: '100%', borderRadius: 3,
-                background: 'linear-gradient(90deg, #6366F1, #818CF8)',
-                width: `${((currentIndex + 1) / questions.length) * 100}%`,
-                transition: 'width 0.3s ease',
-              }} />
+            <div style={{ height: 6, background: '#F1F5F9', borderRadius: 10, marginBottom: 32 }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+                style={{
+                  height: '100%', borderRadius: 10,
+                  background: 'var(--gradient-primary)',
+                  transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              />
             </div>
 
-            {/* Difficulty badge */}
-            <span style={{
-              display: 'inline-block', padding: '3px 10px', borderRadius: 12,
-              fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-              marginBottom: 14,
-              background: questions[currentIndex].difficulty === 'easy' ? '#DCFCE7' :
-                questions[currentIndex].difficulty === 'medium' ? '#FEF9C3' : '#FEE2E2',
-              color: questions[currentIndex].difficulty === 'easy' ? '#16A34A' :
-                questions[currentIndex].difficulty === 'medium' ? '#CA8A04' : '#DC2626',
-            }}>
-              {questions[currentIndex].difficulty}
-            </span>
-
-            {/* Question */}
-            <p style={{ fontSize: 17, fontWeight: 700, color: '#111827', lineHeight: 1.6, marginBottom: 24 }}>
-              {questions[currentIndex].question_text}
-            </p>
+            {/* Difficulty & Question */}
+            <div style={{ marginBottom: 32 }}>
+              <span style={{
+                display: 'inline-block', padding: '4px 12px', borderRadius: 8,
+                fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                marginBottom: 16,
+                background: questions[currentIndex].difficulty === 'easy' ? '#DCFCE7' :
+                  questions[currentIndex].difficulty === 'medium' ? '#FEF9C3' : '#FEE2E2',
+                color: questions[currentIndex].difficulty === 'easy' ? '#16A34A' :
+                  questions[currentIndex].difficulty === 'medium' ? '#CA8A04' : '#DC2626',
+              }}>
+                {questions[currentIndex].difficulty} Level
+              </span>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', lineHeight: 1.4, margin: 0 }}>
+                {questions[currentIndex].question_text}
+              </h2>
+            </div>
 
             {/* Options */}
-            {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-              const optionKey = `option_${letter.toLowerCase()}` as keyof GeneratedQuestion;
-              const optionText = questions[currentIndex][optionKey] as string;
-              const isSelected = selectedAnswer === letter;
-              const isCorrect = questions[currentIndex].correct_answer === letter;
-              let bg = '#F9FAFB';
-              let border = '2px solid #E5E7EB';
-              let color = '#374151';
-              if (showResult) {
-                if (isCorrect) { bg = '#DCFCE7'; border = '2px solid #16A34A'; color = '#15803D'; }
-                else if (isSelected && !isCorrect) { bg = '#FEE2E2'; border = '2px solid #DC2626'; color = '#B91C1C'; }
-              } else if (isSelected) {
-                bg = '#EEF2FF'; border = '2px solid #6366F1'; color = '#4338CA';
-              }
+            <div className="grid grid-2 gap-md" style={{ marginBottom: 32 }}>
+              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+                const optionKey = `option_${letter.toLowerCase()}` as keyof GeneratedQuestion;
+                const optionText = questions[currentIndex][optionKey] as string;
+                const isSelected = selectedAnswer === letter;
+                const isCorrect = questions[currentIndex].correct_answer === letter;
+                const showCorrectness = showResult;
 
-              return (
-                <button
-                  key={letter}
-                  onClick={() => selectAnswer(letter)}
-                  disabled={showResult}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    width: '100%', padding: '12px 16px', borderRadius: 10,
-                    background: bg, border, color,
-                    fontSize: 14, fontWeight: 500, cursor: showResult ? 'default' : 'pointer',
-                    textAlign: 'left', marginBottom: 10, transition: 'all 0.15s',
-                  }}
-                >
-                  <span style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    background: isSelected || (showResult && isCorrect) ? 'currentColor' : '#E5E7EB',
-                    color: isSelected || (showResult && isCorrect) ? 'white' : '#6B7280',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 800, flexShrink: 0,
-                  }}>
-                    {letter}
-                  </span>
-                  {optionText}
-                </button>
-              );
-            })}
+                return (
+                  <motion.button
+                    key={letter}
+                    whileHover={!showResult ? { scale: 1.02 } : {}}
+                    whileTap={!showResult ? { scale: 0.98 } : {}}
+                    onClick={() => selectAnswer(letter)}
+                    disabled={showResult}
+                    className={`answer-btn answer-${letter.toLowerCase()} ${isSelected ? 'selected' : ''} ${showCorrectness && isCorrect ? 'correct' : ''
+                      } ${showCorrectness && isSelected && !isCorrect ? 'incorrect' : ''}`}
+                    style={{
+                      opacity: showCorrectness && !isCorrect && !isSelected ? 0.4 : 1,
+                      pointerEvents: showResult ? 'none' : 'auto',
+                      minHeight: '70px',
+                      padding: '1rem 1.25rem',
+                      fontSize: '1rem',
+                      boxShadow: isSelected ? '0 0 0 3px rgba(99, 102, 241, 0.4)' : 'none'
+                    }}
+                  >
+                    <div style={{
+                      width: '28px', height: '28px',
+                      background: 'rgba(255, 255, 255, 0.25)',
+                      borderRadius: '8px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.875rem', fontWeight: 800, marginRight: '1rem', flexShrink: 0
+                    }}>
+                      {letter}
+                    </div>
+                    <span style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>
+                      {optionText}
+                    </span>
+                    {showCorrectness && isCorrect && <CheckCircle size={20} />}
+                    {showCorrectness && isSelected && !isCorrect && <XCircle size={20} />}
+                  </motion.button>
+                );
+              })}
+            </div>
 
             {/* Submit / Next */}
-            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               {!showResult ? (
                 <button
                   onClick={submitAnswer}
                   disabled={!selectedAnswer}
+                  className="btn btn-primary btn-lg"
                   style={{
-                    padding: '10px 24px', borderRadius: 10,
-                    background: selectedAnswer ? 'linear-gradient(135deg, #6366F1, #818CF8)' : '#E5E7EB',
-                    color: selectedAnswer ? 'white' : '#9CA3AF',
-                    border: 'none', fontSize: 14, fontWeight: 700,
-                    cursor: selectedAnswer ? 'pointer' : 'not-allowed',
+                    minWidth: '220px',
+                    background: selectedAnswer ? 'var(--gradient-primary)' : '#E2E8F0',
+                    boxShadow: selectedAnswer ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : 'none'
                   }}
                 >
-                  Submit
+                  Submit Answer
                 </button>
               ) : (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   onClick={nextQuestion}
-                  style={{
-                    padding: '10px 24px', borderRadius: 10,
-                    background: 'linear-gradient(135deg, #6366F1, #818CF8)',
-                    color: 'white', border: 'none', fontSize: 14,
-                    fontWeight: 700, cursor: 'pointer',
-                  }}
+                  className="btn btn-primary btn-lg"
+                  style={{ minWidth: '220px' }}
                 >
-                  {currentIndex + 1 >= questions.length ? 'See Results' : 'Next Question'}
-                </button>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {currentIndex + 1 >= questions.length ? (
+                      <><Trophy size={18} /> Finish Quiz</>
+                    ) : (
+                      <>Next Question <ArrowRight size={18} /></>
+                    )}
+                  </span>
+                </motion.button>
               )}
             </div>
           </div>
         )}
+
 
         {/* ── Results ── */}
         {pageState === 'results' && (

@@ -6,6 +6,8 @@ export interface IUser extends Document {
     password?: string;
     displayName: string;
     role: 'teacher' | 'student';
+    streak: number;
+    lastActiveDate?: string;
     matchPassword: (password: string) => Promise<boolean>;
 }
 
@@ -14,6 +16,8 @@ const UserSchema: Schema = new Schema({
     password: { type: String },
     displayName: { type: String, required: true },
     role: { type: String, enum: ['teacher', 'student'], default: 'student' },
+    streak: { type: Number, default: 0 },
+    lastActiveDate: { type: String },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function () {

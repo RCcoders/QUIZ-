@@ -12,6 +12,8 @@ import {
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import type { Quiz, Question, GameSession, GameParticipant, GameAnswer } from '../types/game';
+import { getSocket, connectSocket, disconnectSocket } from '../utils/socket';
+import { apiFetch } from '../utils/api';
 
 export function GameHost() {
     const { id } = useParams();
@@ -22,16 +24,15 @@ export function GameHost() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [session, setSession] = useState<GameSession | null>(null);
     const [participants, setParticipants] = useState<GameParticipant[]>([]);
-    // TODO: Populate via Firestore onSnapshot listener on gameAnswers sub-collection
     const [answers, setAnswers] = useState<GameAnswer[]>([]);
-    // Suppress unused warning until Firestore listener is wired up
-    void setAnswers;
     const [loading, setLoading] = useState(true);
     const [, setCopied] = useState(false);
 
     const [timeLeft, setTimeLeft] = useState(0);
 
     const currentQuestion = session ? questions[session.currentQuestionIndex] : null;
+
+    // Use participant answers from state
     const currentQuestionAnswers = answers.filter(
         a => a.questionIndex === session?.currentQuestionIndex
     );
@@ -42,113 +43,133 @@ export function GameHost() {
     };
 
     const getAnsweredParticipants = () => {
-        return getActiveParticipants().filter(p =>
-            currentQuestionAnswers.some(a => a.participantId === p.id)
-        );
+        const activeIds = getActiveParticipants().map(p => p.id);
+        return currentQuestionAnswers.filter(a => activeIds.includes(a.participantId));
     };
 
     const getWaitingParticipants = () => {
-        return getActiveParticipants().filter(p =>
-            !currentQuestionAnswers.some(a => a.participantId === p.id)
-        );
+        const answeredIds = currentQuestionAnswers.map(a => a.participantId);
+        return getActiveParticipants().filter(p => !answeredIds.includes(p.id));
     };
 
     useEffect(() => {
         initializeGame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
+    // Socket orchestration for teacher
     useEffect(() => {
-        // No real-time subscriptions — participants managed locally
-    }, [session?.id]);
+        if (!session?.gameCode || !user?.token) return;
 
-    // Timer Logic
-    useEffect(() => {
-        if (!session || session.status !== 'question' || !quiz?.timerEnabled) return;
+        const socket = connectSocket(user.token);
 
-        // Calculate initial time left based on start time
-        if (session.questionStartedAt) {
-            const startTime = new Date(session.questionStartedAt).getTime();
-            const now = Date.now();
-            const elapsed = Math.floor((now - startTime) / 1000);
-            const remaining = Math.max(0, quiz.timerSeconds - elapsed);
-            setTimeLeft(remaining);
-        }
+        const onConnect = () => {
+            console.log('Socket connected, joining room:', session.gameCode);
+            socket.emit('join_room', { gameCode: session.gameCode });
+        };
 
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) return 0;
-                return prev - 1;
+        const onPlayerJoined = (data: any) => {
+            setParticipants(prev => {
+                const existing = prev.find(p =>
+                    (data.participantId && p.id === data.participantId) ||
+                    p.socketId === data.socketId
+                );
+
+                if (existing) return prev;
+
+                return [...prev, {
+                    id: data.participantId || data.socketId,
+                    socketId: data.socketId,
+                    name: data.name,
+                    score: 0,
+                    answersCount: 0,
+                    status: 'active'
+                }];
             });
-        }, 1000);
+        };
 
-        return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session?.status, session?.questionStartedAt, quiz?.timerEnabled, quiz?.timerSeconds]);
+        const onAnswerReceived = (data: { participantId: string; isCorrect: boolean; pointsEarned: number; timeTakenMs?: number; answer?: string }) => {
+            setAnswers(prev => [...prev, {
+                participantId: data.participantId,
+                questionIndex: session.currentQuestionIndex,
+                answer: (data.answer as any) || 'A',
+                isCorrect: data.isCorrect,
+                pointsEarned: data.pointsEarned,
+                timeTakenMs: data.timeTakenMs || 0,
+                timestamp: new Date().toISOString()
+            } as GameAnswer]);
 
-    // Auto-Reveal Logic
+            setParticipants(prev => prev.map(p =>
+                p.id === data.participantId
+                    ? { ...p, score: p.score + data.pointsEarned, answersCount: p.answersCount + 1 }
+                    : p
+            ));
+        };
+
+        const onPlayerLeft = (data: { socketId: string, participantId: string }) => {
+            console.log('Player left:', data);
+            setParticipants(prev => prev.filter(p =>
+                (data.participantId ? p.id !== data.participantId : true) &&
+                p.socketId !== data.socketId
+            ));
+        };
+
+        if (socket.connected) {
+            onConnect();
+        }
+
+        socket.on('connect', onConnect);
+        socket.on('player_joined', onPlayerJoined);
+        socket.on('answer_received', onAnswerReceived);
+        socket.on('player_left', onPlayerLeft);
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('player_joined', onPlayerJoined);
+            socket.off('answer_received', onAnswerReceived);
+            socket.off('player_left', onPlayerLeft);
+        };
+    }, [session?.gameCode, user?.token, session?.currentQuestionIndex]);
+
+    // Cleanup on unmount
     useEffect(() => {
-        if (!session || session.status !== 'question') return;
+        return () => {
+            disconnectSocket();
+        };
+    }, []);
 
-        const allAnswered = participants.length > 0 && currentQuestionAnswers.length === participants.length;
-
-        // Verify time up explicitly to avoid initial state issues
-        let isTimeUp = false;
-        if (quiz?.timerEnabled && session.questionStartedAt) {
-            const startTime = new Date(session.questionStartedAt).getTime();
-            const now = Date.now();
-            const elapsed = Math.floor((now - startTime) / 1000);
-            if (elapsed >= quiz.timerSeconds) {
-                isTimeUp = true;
-            }
-        }
-
-        // Only use timeLeft === 0 as a trigger if we confirmed time is actually up
-        // or if we trust the timer effect has run (but explicit check is safer)
-        const timeTrigger = quiz?.timerEnabled && timeLeft === 0 && isTimeUp;
-
-        if (allAnswered || timeTrigger) {
-            revealAnswer();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session?.status, currentQuestionAnswers.length, participants.length, timeLeft, quiz?.timerEnabled, session?.questionStartedAt, quiz?.timerSeconds]);
-
-    const initializeGame = () => {
+    const initializeGame = async () => {
         if (!id || !user) return;
 
-        // Build a mock quiz and session from the URL param
-        const mockQuiz: Quiz = {
-            id,
-            title: 'Quiz Session',
-            timerEnabled: true,
-            timerSeconds: 30,
-        };
-        setQuiz(mockQuiz);
-        setQuestions([]);
+        try {
+            // Fetch the actual quiz
+            const quizData = await apiFetch(`/api/quizzes/${id}`);
+            setQuiz(quizData);
+            setQuestions(quizData.questions);
 
-        const gameCode = generateGameCode();
-        const newSession: GameSession = {
-            id: crypto.randomUUID(),
-            quizId: id,
-            teacherId: user.uid,
-            gameCode,
-            status: 'waiting',
-            currentQuestionIndex: 0,
-            questionStartedAt: null,
-            endedAt: null,
-            createdAt: new Date().toISOString(),
-        };
-        setSession(newSession);
-        setLoading(false);
-    };
+            // Create a live session on the backend
+            const sessionData = await apiFetch('/api/sessions/host', {
+                method: 'POST',
+                body: JSON.stringify({ quizId: id })
+            });
 
-    const generateGameCode = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
+            setSession(sessionData);
+
+            // Initialize participants from database (crucial for reloads or early joiners)
+            if (sessionData.participants) {
+                setParticipants(sessionData.participants.map((p: any) => ({
+                    id: p._id,
+                    name: p.name,
+                    score: p.score || 0,
+                    answersCount: 0,
+                    status: 'active'
+                })));
+            }
+
+            setLoading(false);
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            setLoading(false);
         }
-        return code;
     };
 
     const copyGameCode = () => {
@@ -161,24 +182,32 @@ export function GameHost() {
 
     const startGame = () => {
         if (!session) return;
-        const now = new Date().toISOString();
-        setSession({ ...session, status: 'question', currentQuestionIndex: 0, questionStartedAt: now });
+        const socket = getSocket();
+        socket.emit('start_game', { gameCode: session.gameCode });
+
+        // Optimistic update - transition directly to first question
+        setSession({ ...session, status: 'question', currentQuestionIndex: 0 });
     };
 
     const revealAnswer = () => {
         if (!session) return;
+        const socket = getSocket();
+        socket.emit('reveal_results', { gameCode: session.gameCode });
         setSession({ ...session, status: 'results' });
     };
 
     const nextQuestion = () => {
         if (!session) return;
         const nextIndex = session.currentQuestionIndex + 1;
+        const socket = getSocket();
+
         if (nextIndex >= questions.length) {
+            socket.emit('end_game', { gameCode: session.gameCode });
             setSession({ ...session, status: 'ended', endedAt: new Date().toISOString() });
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
-            const now = new Date().toISOString();
-            setSession({ ...session, status: 'question', currentQuestionIndex: nextIndex, questionStartedAt: now });
+            socket.emit('next_question', { gameCode: session.gameCode, nextIndex });
+            setSession({ ...session, status: 'question', currentQuestionIndex: nextIndex });
         }
     };
 
@@ -314,7 +343,7 @@ export function GameHost() {
                         <Play fill="currentColor" size={20} />
                     </div>
                     <span style={{ fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
-                        QuizMaster <span style={{ color: '#94A3B8', fontWeight: 500 }}>Host</span>
+                        Quizly <span style={{ color: '#94A3B8', fontWeight: 500 }}>Host</span>
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -360,7 +389,7 @@ export function GameHost() {
                                             fontSize: 13, fontWeight: 700, border: '1px solid #FDBA74',
                                         }}>
                                             <div style={{ width: 8, height: 8, background: '#FF5C1A', borderRadius: '50%' }} />
-                                            Join at quizmaster.com/join
+                                            Join at quizly.app/join
                                         </div>
                                         <div style={{
                                             background: '#F1F5F9', color: '#475569',
@@ -1200,7 +1229,7 @@ export function GameHost() {
                             </div>
                         </motion.div>
                     )}
-                                </AnimatePresence>
+                </AnimatePresence>
             </div>
         </div>
     );

@@ -71,7 +71,7 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                             <Zap size={18} color="white" fill="white" />
                         </div>
                         <span style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.3px' }}>
-                            QuizMaster
+                            Quizly
                         </span>
                     </Link>
 
@@ -105,7 +105,7 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                             );
                         })}
                         {/* Explicit desktop Reports link (mirrors navLinks entry) */}
-                        <Link to="/student/reports" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }}>Reports</Link>
+                        <Link key="hidden-reports-desktop" to="/student/reports" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }}>Reports</Link>
                     </div>
 
                     {/* Right side */}
@@ -214,16 +214,17 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
                             </Link>
                         ))}
                         {/* Explicit Reports link for mobile (also in navLinks above) */}
-                        <Link to="/student/reports" onClick={() => setMenuOpen(false)} style={{
+                        <Link key="hidden-reports-mobile" to="/student/reports" onClick={() => setMenuOpen(false)} style={{
                             display: 'none',
                         }}>
                             <BarChart2 size={16} />
                             Reports
                         </Link>
                         {/* Explicit Browse Quizzes link for mobile (also in navLinks above) */}
-                        <Link to="/student" onClick={() => setMenuOpen(false)} style={{
+                        <Link key="hidden-browse-mobile" to="/student" onClick={() => setMenuOpen(false)} style={{
                             display: 'none',
                         }}>
+                            <BookOpen size={16} />
                             Browse Quizzes
                         </Link>
                         <Link to="/join" onClick={() => setMenuOpen(false)} style={{

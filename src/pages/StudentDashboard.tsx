@@ -25,14 +25,14 @@ function formatDate(iso: string): string {
 export function StudentDashboard() {
     const { user, userProfile } = useAuth();
     const navigate = useNavigate();
-    const { records, streak, averageScore, totalCompleted, loading } = useStudentStats(userProfile?.uid);
-    const { badges, loading: badgesLoading } = useBadges(userProfile?.uid);
+    const { records, streak, averageScore, totalCompleted, loading } = useStudentStats(user?._id);
+    const { badges, loading: badgesLoading } = useBadges(user?._id);
     const [newBadges, setNewBadges] = useState<BadgeRecord[]>([]);
     const prevRecordsLengthRef = useRef<number | null>(null);
 
     // After records update (new score saved), evaluate badges asynchronously
     useEffect(() => {
-        const uid = userProfile?.uid;
+        const uid = user?._id;
         if (!uid || loading) return;
         // Only trigger when records length increases (new score recorded)
         if (prevRecordsLengthRef.current === null) {
@@ -52,7 +52,7 @@ export function StudentDashboard() {
         } else {
             prevRecordsLengthRef.current = records.length;
         }
-    }, [records, loading, userProfile?.uid, streak]);
+    }, [records, loading, user?._id, streak]);
 
     const handleDismissToast = () => {
         setNewBadges((prev) => prev.slice(1));
@@ -202,9 +202,9 @@ export function StudentDashboard() {
                                 Continue Learning
                             </h2>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                                {continueLearning.map(record => (
+                                {continueLearning.map((record: any) => (
                                     <div
-                                        key={record.id}
+                                        key={record._id || record.id}
                                         onClick={() => navigate(`/student/quiz/${record.quizId}`)}
                                         style={{
                                             background: '#fff', borderRadius: 12, padding: '20px 24px',

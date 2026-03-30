@@ -5,15 +5,15 @@ export default function PrivacyPage() {
   return (
     <>
       <Helmet>
-        <title>Privacy Policy — QuizMaster</title>
-        <meta name="description" content="Read how QuizMaster collects, uses, and protects your personal data." />
+        <title>Privacy Policy — Quizly</title>
+        <meta name="description" content="Read how Quizly collects, uses, and protects your personal data." />
       </Helmet>
 
       <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
         {/* Header */}
         <header style={{ padding: '1rem 2rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Link to="/" style={{ color: '#6366f1', fontWeight: 700, fontSize: '1.25rem', textDecoration: 'none' }}>
-            QuizMaster
+            Quizly
           </Link>
         </header>
 
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
 
           <section style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Introduction</h2>
-            <p>QuizMaster ("we", "us", or "our") is committed to protecting your privacy. This policy explains how we collect, use, and safeguard information when you use our platform.</p>
+            <p>Quizly ("we", "us", or "our") is committed to protecting your privacy. This policy explains how we collect, use, and safeguard information when you use our platform.</p>
           </section>
 
           <section style={{ marginBottom: '2rem' }}>
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
 
           <section style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>How We Use Data</h2>
-            <p>We use your data to operate and improve QuizMaster, provide quiz results and analytics to teachers, and communicate important service updates. We do not sell your personal data to third parties.</p>
+            <p>We use your data to operate and improve Quizly, provide quiz results and analytics to teachers, and communicate important service updates. We do not sell your personal data to third parties.</p>
           </section>
 
           <section style={{ marginBottom: '2rem' }}>
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
 
           <section style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Third-Party Services</h2>
-            <p>QuizMaster uses Firebase (Google) for authentication and data storage, and Google Gemini for AI quiz generation. These services have their own privacy policies. We encourage you to review them.</p>
+            <p>Quizly uses a custom backend with MongoDB for data storage, and Google Gemini for AI quiz generation. These services have their own privacy policies. We encourage you to review them.</p>
           </section>
 
           <section style={{ marginBottom: '2rem' }}>
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
 
           <section style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Contact</h2>
-            <p>For privacy-related questions, email us at <strong>privacy@quizmaster.app</strong>.</p>
+            <p>For privacy-related questions, email us at <strong>privacy@quizly.app</strong>.</p>
           </section>
         </main>
 

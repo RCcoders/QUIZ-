@@ -44,6 +44,7 @@ export interface GameSession {
 
 export interface GameParticipant {
     id: string;
+    socketId?: string;
     sessionId?: string;
     name: string;
     email?: string;
