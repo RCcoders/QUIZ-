@@ -1,7 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 
 const getSocketUrl = () => {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
+    }
 
     // Use current hostname but port 5000 for the backend
     const hostname = window.location.hostname;

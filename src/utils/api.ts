@@ -24,7 +24,15 @@ export const apiFetch = async (endpoint: string, options: any = {}) => {
         body: options.body && typeof options.body === 'object' ? JSON.stringify(options.body) : options.body
     };
 
-    const response = await fetch(endpoint, fetchOptions);
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+
+    // Avoid double /api/api
+    const finalEndpoint = cleanEndpoint.startsWith('api/') ? cleanEndpoint.slice(4) : cleanEndpoint;
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${cleanBaseUrl}/${finalEndpoint}`;
+
+    const response = await fetch(fullUrl, fetchOptions);
     const data = await response.json().catch(() => ({ message: 'Invalid server response' }));
 
     if (!response.ok) {
