@@ -7,7 +7,7 @@ const router = express.Router();
 // Create Quiz
 router.post('/', protect, authorize('teacher'), async (req: any, res) => {
     try {
-        const { title, description, subject, timerEnabled, timerSeconds, questions } = req.body;
+        const { title, description, subject, timerEnabled, timerSeconds, questions, status } = req.body;
         const quiz = await Quiz.create({
             teacherId: req.user._id, // Set from auth middleware
             title,
@@ -16,8 +16,32 @@ router.post('/', protect, authorize('teacher'), async (req: any, res) => {
             timerEnabled,
             timerSeconds,
             questions,
+            isActive: status === 'published',
         });
         res.status(201).json(quiz);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+});
+
+// Update Quiz
+router.put('/:id', protect, authorize('teacher'), async (req: any, res) => {
+    try {
+        const { title, description, subject, timerEnabled, timerSeconds, questions, status } = req.body;
+        const updateData: any = { title, description, subject, timerEnabled, timerSeconds, questions };
+        if (status) {
+            updateData.isActive = status === 'published';
+        }
+        const quiz = await Quiz.findOneAndUpdate(
+            { _id: req.params.id, teacherId: req.user._id },
+            updateData,
+            { new: true }
+        );
+        if (quiz) {
+            res.json(quiz);
+        } else {
+            res.status(404).json({ message: 'Quiz not found or not authorized' });
+        }
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -43,7 +67,7 @@ router.get('/teacher/my-quizzes', protect, authorize('teacher'), async (req: any
                 $project: {
                     title: 1,
                     subject: 1,
-                    isActive: { $ifNull: ['$isActive', true] },
+                    isActive: { $ifNull: ['$isActive', false] },
                     createdAt: 1,
                     questionCount: { $size: '$questions' },
                     attempts: { $size: '$records' },

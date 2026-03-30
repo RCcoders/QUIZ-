@@ -171,57 +171,74 @@ export function Reports() {
 
                 {/* Session list */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <div className="min-w-[600px]">
-                            {/* Table header */}
-                            <div className="grid grid-cols-[1fr,140px,120px,120px] px-6 py-3 border-b border-gray-50 bg-gray-50/50">
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quiz Title</span>
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</span>
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Participants</span>
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Avg Score</span>
-                            </div>
+                    {/* Table header — desktop only */}
+                    <div className="hidden sm:grid grid-cols-[1fr,140px,120px,120px] px-6 py-3 border-b border-gray-50 bg-gray-50/50">
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quiz Title</span>
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</span>
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Participants</span>
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Avg Score</span>
+                    </div>
 
-                            {loading ? (
-                                <div className="py-20 text-center">
-                                    <div className="w-10 h-10 border-4 border-gray-100 border-t-[#FF5C1A] rounded-full animate-spin mx-auto mb-4" />
-                                    <p className="text-sm font-bold text-gray-500">Loading your analytics...</p>
+                    {loading ? (
+                        <div className="py-20 text-center">
+                            <div className="w-10 h-10 border-4 border-gray-100 border-t-[#FF5C1A] rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-sm font-bold text-gray-500">Loading your analytics...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="p-12 text-center text-red-500 text-sm font-bold">{error}</div>
+                    ) : filtered.length === 0 ? (
+                        <div className="py-20 text-center px-6">
+                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Calendar size={32} className="text-gray-300" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">No sessions yet</h3>
+                            <p className="text-sm font-bold text-gray-500 m-0">Host a quiz to start seeing your analytics here.</p>
+                        </div>
+                    ) : (
+                        filtered.map((session, i) => (
+                            <motion.div
+                                key={session.id}
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                            >
+                                {/* Desktop row */}
+                                <div className={`hidden sm:grid grid-cols-[1fr,140px,120px,120px] px-6 py-4 items-center hover:bg-gray-50 transition-colors
+                                    ${i < filtered.length - 1 ? 'border-b border-gray-50' : ''}`}
+                                >
+                                    <span className="text-sm font-bold text-gray-900 truncate pr-4">{session.quizTitle}</span>
+                                    <span className="text-[13px] font-bold text-gray-500">
+                                        {new Date(session.date).toLocaleDateString()}
+                                    </span>
+                                    <span className="text-[13px] font-bold text-gray-600">
+                                        {session.participantCount} students
+                                    </span>
+                                    <span className={`text-[13px] font-black
+                                        ${session.averageScore >= 70 ? 'text-emerald-500' : session.averageScore >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
+                                        {session.averageScore}%
+                                    </span>
                                 </div>
-                            ) : error ? (
-                                <div className="p-12 text-center text-red-500 text-sm font-bold">{error}</div>
-                            ) : filtered.length === 0 ? (
-                                <div className="py-20 text-center px-6">
-                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                        <Calendar size={32} className="text-gray-300" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900 mb-2">No sessions yet</h3>
-                                    <p className="text-sm font-bold text-gray-500 m-0">Host a quiz to start seeing your analytics here.</p>
-                                </div>
-                            ) : (
-                                filtered.map((session, i) => (
-                                    <motion.div
-                                        key={session.id}
-                                        initial={{ opacity: 0, x: -12 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.05 }}
-                                        className={`grid grid-cols-[1fr,140px,120px,120px] px-6 py-4 items-center hover:bg-gray-50 transition-colors
-                                            ${i < filtered.length - 1 ? 'border-b border-gray-50' : ''}`}
-                                    >
-                                        <span className="text-sm font-bold text-gray-900 truncate pr-4">{session.quizTitle}</span>
-                                        <span className="text-[13px] font-bold text-gray-500">
-                                            {new Date(session.date).toLocaleDateString()}
-                                        </span>
-                                        <span className="text-[13px] font-bold text-gray-600">
-                                            {session.participantCount} students
-                                        </span>
-                                        <span className={`text-[13px] font-black
+
+                                {/* Mobile card */}
+                                <div className={`sm:hidden p-4 hover:bg-gray-50 transition-colors
+                                    ${i < filtered.length - 1 ? 'border-b border-gray-100' : ''}`}
+                                >
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <span className="text-sm font-bold text-gray-900 line-clamp-2">{session.quizTitle}</span>
+                                        <span className={`text-sm font-black shrink-0
                                             ${session.averageScore >= 70 ? 'text-emerald-500' : session.averageScore >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
                                             {session.averageScore}%
                                         </span>
-                                    </motion.div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-[12px] font-bold text-gray-400">
+                                        <span>{new Date(session.date).toLocaleDateString()}</span>
+                                        <span>•</span>
+                                        <span>{session.participantCount} students</span>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))
+                    )}
                 </div>
             </main>
         </div>

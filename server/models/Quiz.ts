@@ -18,6 +18,7 @@ export interface IQuiz extends Document {
     timerEnabled: boolean;
     timerSeconds: number;
     questions: IQuestion[];
+    isActive: boolean;
 }
 
 const QuestionSchema = new Schema({
@@ -38,7 +39,7 @@ const QuizSchema: Schema = new Schema({
     timerEnabled: { type: Boolean, default: true },
     timerSeconds: { type: Number, default: 30 },
     questions: [QuestionSchema],
-    isActive: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.model<IQuiz>('Quiz', QuizSchema);

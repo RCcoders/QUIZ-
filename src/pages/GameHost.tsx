@@ -7,7 +7,7 @@ import {
     Play, Users, CheckCircle, Clock, ArrowRight, Trophy,
     Eye, Copy, Download, XCircle, Pause, Radio, Lock,
     AlertTriangle, MessageSquare, Send, Medal, BarChart2,
-    Hash, UserCheck, Target
+    Hash, UserCheck, Target, Zap
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,6 +36,15 @@ export function GameHost() {
     const currentQuestionAnswers = answers.filter(
         a => a.questionIndex === session?.currentQuestionIndex
     );
+
+    // ── Task 5: Dynamic Average Stats ──
+    const classAveragePts = currentQuestionAnswers.length > 0
+        ? (currentQuestionAnswers.reduce((sum, a) => sum + a.pointsEarned, 0) / currentQuestionAnswers.length).toFixed(1)
+        : "0.0";
+
+    const classAverageTime = currentQuestionAnswers.length > 0
+        ? (currentQuestionAnswers.reduce((sum, a) => sum + (a.timeTakenMs || 0), 0) / currentQuestionAnswers.length / 1000).toFixed(1)
+        : "0.0";
 
     // Helper functions to categorize participants
     const getActiveParticipants = () => {
@@ -291,8 +300,8 @@ export function GameHost() {
     };
 
     const classAverage = participants.length > 0
-        ? Math.round(participants.reduce((sum, p) => sum + p.score, 0) / participants.length)
-        : 0;
+        ? (participants.reduce((sum, p) => sum + p.score, 0) / participants.length).toFixed(1)
+        : "0.0";
 
     const handlePause = () => setSessionPaused(p => !p);
     const handleLockStudents = () => setStudentsLocked(l => !l);
@@ -515,28 +524,29 @@ export function GameHost() {
                             <div style={{
                                 background: '#fff',
                                 borderBottom: '1px solid #E5E7EB',
-                                padding: '12px 24px',
+                                padding: '12px 16px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                gap: 16,
+                                flexWrap: 'wrap' as const,
+                                gap: 12,
                                 marginBottom: 0,
                             }}>
                                 {/* Left: quiz title + session badge */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{quiz.title}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: '1 1 auto' }}>
+                                    <span style={{ fontWeight: 700, fontSize: 16, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{quiz.title}</span>
                                     <span style={{
                                         display: 'inline-flex', alignItems: 'center', gap: 4,
                                         background: '#F3F4F6', borderRadius: 20, padding: '2px 10px',
-                                        fontSize: 12, fontWeight: 700, color: '#6B7280',
+                                        fontSize: 12, fontWeight: 700, color: '#6B7280', flexShrink: 0,
                                     }}>
                                         <Hash size={12} />
                                         {session.gameCode}
                                     </span>
                                 </div>
 
-                                {/* Center: stats */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                                {/* Center: stats — hidden on very small screens */}
+                                <div className="hidden md:flex" style={{ alignItems: 'center', gap: 20 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <Users size={15} color="#6B7280" />
                                         <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{getActiveParticipants().length}</span>
@@ -544,11 +554,16 @@ export function GameHost() {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <BarChart2 size={15} color="#6B7280" />
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{classAverage}</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{classAveragePts}</span>
                                         <span style={{ fontSize: 12, color: '#9CA3AF' }}>avg pts</span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <Clock size={15} color="#6B7280" />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{classAverageTime}s</span>
+                                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>avg time</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Zap size={15} color="#6B7280" />
                                         <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{formatElapsed(elapsedSeconds)}</span>
                                     </div>
                                     {quiz?.timerEnabled && (
@@ -566,7 +581,7 @@ export function GameHost() {
                                 </div>
 
                                 {/* Right: action buttons */}
-                                <div style={{ display: 'flex', gap: 8 }}>
+                                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                     <button
                                         onClick={handlePause}
                                         style={{
@@ -952,7 +967,7 @@ export function GameHost() {
                                                                 {p.name}
                                                             </td>
                                                             <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#FF5C1A' }}>
-                                                                {Math.round(p.score)}
+                                                                {(p.score).toFixed(1)}
                                                             </td>
                                                             <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6B7280' }}>
                                                                 {p.answersCount ?? 0}
@@ -1002,7 +1017,7 @@ export function GameHost() {
                                             </div>
                                             <div className="bg-slate-400 rounded-t-2xl p-4 text-center min-w-[140px] h-24 sm:h-32 flex flex-col justify-center shadow-lg">
                                                 <div className="text-white font-black text-base truncate max-w-[120px]">{participants[1].name}</div>
-                                                <div className="text-white/80 text-xs font-bold">{Math.round(participants[1].score)} pts</div>
+                                                <div className="text-white/80 text-xs font-bold">{(participants[1].score).toFixed(1)} pts</div>
                                             </div>
                                         </motion.div>
                                     )}
@@ -1011,7 +1026,7 @@ export function GameHost() {
                                         <div className="text-4xl mb-2">🏆</div>
                                         <div className="bg-[#FF5C1A] rounded-t-2xl p-5 text-center min-w-[160px] h-32 sm:h-40 flex flex-col justify-center shadow-xl border-b-4 border-[#e45217]">
                                             <div className="text-white font-black text-lg truncate max-w-[140px]">{participants[0].name}</div>
-                                            <div className="text-white/90 text-sm font-bold">{Math.round(participants[0].score)} pts</div>
+                                            <div className="text-white/90 text-sm font-bold">{(participants[0].score).toFixed(1)} pts</div>
                                         </div>
                                     </motion.div>
                                     {participants.length >= 3 && (
@@ -1022,7 +1037,7 @@ export function GameHost() {
                                             </div>
                                             <div className="bg-amber-700 rounded-t-2xl p-4 text-center min-w-[140px] h-20 sm:h-28 flex flex-col justify-center shadow-lg">
                                                 <div className="text-white font-black text-sm truncate max-w-[120px]">{participants[2].name}</div>
-                                                <div className="text-white/80 text-xs font-bold">{Math.round(participants[2].score)} pts</div>
+                                                <div className="text-white/80 text-xs font-bold">{(participants[2].score).toFixed(1)} pts</div>
                                             </div>
                                         </motion.div>
                                     )}
@@ -1064,7 +1079,7 @@ export function GameHost() {
                                                         <div style={{ fontWeight: 700, color: '#334155' }}>{p.name}</div>
                                                         <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
                                                     </td>
-                                                    <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{Math.round(p.score)}</td>
+                                                    <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{(p.score).toFixed(1)}</td>
                                                     {questions.map((q, qIndex) => {
                                                         const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
                                                         const isCorrect = answer?.isCorrect;

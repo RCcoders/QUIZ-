@@ -5,6 +5,8 @@ export interface IParticipant {
     name: string;
     email?: string;
     score: number;
+    lastAnswerTimeMs?: number;
+    hasAnsweredCurrentQuestion?: boolean;
     joinedAt: Date;
 }
 
@@ -16,6 +18,7 @@ export interface IGameSession extends Document {
     status: 'waiting' | 'playing' | 'question' | 'results' | 'ended';
     currentQuestionIndex: number;
     participants: IParticipant[];
+    currentQuestionAnswers: number[];
     questionStartedAt?: Date | null;
     endedAt?: Date | null;
 }
@@ -25,6 +28,8 @@ const ParticipantSchema = new Schema({
     name: { type: String, required: true },
     email: { type: String },
     score: { type: Number, default: 0 },
+    lastAnswerTimeMs: { type: Number, default: 0 },
+    hasAnsweredCurrentQuestion: { type: Boolean, default: false },
     joinedAt: { type: Date, default: Date.now },
 });
 
@@ -40,6 +45,7 @@ const GameSessionSchema: Schema = new Schema({
     },
     currentQuestionIndex: { type: Number, default: 0 },
     participants: [ParticipantSchema],
+    currentQuestionAnswers: [Number], // Track times for average calculation
     questionStartedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
 }, { timestamps: true });

@@ -5,7 +5,7 @@ import {
     Save, Plus, Trash2, CheckCircle, Loader, Clock, Target, XCircle,
     BookOpen, Zap, Eye, Lightbulb, ChevronDown
 } from 'lucide-react';
-import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -53,6 +53,18 @@ export function QuizEditor() {
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState('');
+
+    // Mobile responsiveness
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const isMobile = windowWidth <= 768;
 
     // AI Generator state
     const [syllabusText, setSyllabusText] = useState('');
@@ -228,20 +240,23 @@ export function QuizEditor() {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--ds-bg-page, #F5F5F5)', fontFamily: "'Inter', sans-serif" }}>
-            <TeacherSidebar />
+            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+            <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: '240px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: isMobile ? 0 : '240px', marginTop: isMobile ? 56 : 0 }}>
                 {/* ── TOP BAR (task 6.1) ── */}
                 <div style={{
                     background: '#fff',
                     borderBottom: '1px solid #E5E7EB',
-                    padding: '0 24px',
+                    padding: isMobile ? '8px 12px' : '0 24px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    height: 64,
+                    flexWrap: isMobile ? 'wrap' as const : 'nowrap' as const,
+                    gap: isMobile ? 8 : 0,
+                    minHeight: isMobile ? 'auto' : 64,
                     position: 'sticky',
-                    top: 0,
+                    top: isMobile ? 56 : 0,
                     zIndex: 10,
                 }}>
                     {/* Title + subtitle */}
@@ -253,36 +268,38 @@ export function QuizEditor() {
                     </div>
 
                     {/* Tab nav */}
-                    <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-                        {(['drafts', 'templates', 'settings'] as const).map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                style={{
-                                    padding: '6px 16px',
-                                    borderRadius: 6,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    background: activeTab === tab ? '#fff' : 'transparent',
-                                    color: activeTab === tab ? '#111827' : '#6B7280',
-                                    boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                    textTransform: 'capitalize',
-                                }}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
+                    {!isMobile && (
+                        <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+                            {(['drafts', 'templates', 'settings'] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    style={{
+                                        padding: '6px 16px',
+                                        borderRadius: 6,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        background: activeTab === tab ? '#fff' : 'transparent',
+                                        color: activeTab === tab ? '#111827' : '#6B7280',
+                                        boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        textTransform: 'capitalize',
+                                    }}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Action buttons */}
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
                         <button
                             onClick={saveDraft}
                             disabled={saving}
                             style={{
-                                padding: '8px 18px',
+                                padding: '8px 14px',
                                 borderRadius: 8,
                                 border: '1.5px solid #E5E7EB',
                                 background: '#fff',
@@ -294,6 +311,8 @@ export function QuizEditor() {
                                 alignItems: 'center',
                                 gap: 6,
                                 opacity: saving ? 0.7 : 1,
+                                flex: isMobile ? 1 : 'none',
+                                justifyContent: 'center',
                             }}
                         >
                             {saving ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}
@@ -303,7 +322,7 @@ export function QuizEditor() {
                             onClick={publishQuiz}
                             disabled={publishing}
                             style={{
-                                padding: '8px 18px',
+                                padding: '8px 14px',
                                 borderRadius: 8,
                                 border: 'none',
                                 background: '#FF5C1A',
@@ -315,6 +334,8 @@ export function QuizEditor() {
                                 alignItems: 'center',
                                 gap: 6,
                                 opacity: publishing ? 0.7 : 1,
+                                flex: isMobile ? 1 : 'none',
+                                justifyContent: 'center',
                             }}
                         >
                             {publishing ? <Loader size={14} className="animate-spin" /> : <Zap size={14} />}
@@ -339,16 +360,17 @@ export function QuizEditor() {
                     </motion.div>
                 )}
 
-                {/* ── BODY: three-panel layout ── */}
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                {/* ── BODY: responsive layout ── */}
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: 1, overflow: isMobile ? 'auto' : 'hidden' }}>
 
                     {/* ── LEFT PANEL — Quiz Information (task 6.2) ── */}
                     <div style={{
-                        width: 320,
-                        minWidth: 320,
+                        width: isMobile ? '100%' : 320,
+                        minWidth: isMobile ? 0 : 320,
                         background: '#fff',
-                        borderRight: '1px solid #E5E7EB',
-                        padding: '24px 20px',
+                        borderRight: isMobile ? 'none' : '1px solid #E5E7EB',
+                        borderBottom: isMobile ? '1px solid #E5E7EB' : 'none',
+                        padding: isMobile ? '16px' : '24px 20px',
                         overflowY: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
@@ -651,122 +673,124 @@ export function QuizEditor() {
                         </button>
                     </div>
 
-                    {/* ── RIGHT PANEL — Live Preview (task 6.4) ── */}
-                    <div style={{
-                        width: 300,
-                        minWidth: 300,
-                        background: '#fff',
-                        borderLeft: '1px solid #E5E7EB',
-                        padding: '24px 18px',
-                        overflowY: 'auto',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 18,
-                    }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
-                            Live Preview
-                        </div>
+                    {/* ── RIGHT PANEL — Live Preview (task 6.4) — hidden on mobile ── */}
+                    {!isMobile && (
+                        <div style={{
+                            width: 300,
+                            minWidth: 300,
+                            background: '#fff',
+                            borderLeft: '1px solid #E5E7EB',
+                            padding: '24px 18px',
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 18,
+                        }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
+                                Live Preview
+                            </div>
 
-                        {/* Quiz title display */}
-                        <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '12px 14px', border: '1px solid #F3F4F6' }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                                Quiz Title
+                            {/* Quiz title display */}
+                            <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '12px 14px', border: '1px solid #F3F4F6' }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                                    Quiz Title
+                                </div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', wordBreak: 'break-word' }}>
+                                    {title || <span style={{ color: '#D1D5DB' }}>Untitled Quiz</span>}
+                                </div>
+                                {description && (
+                                    <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {description}
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11, color: '#9CA3AF', fontWeight: 600 }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Clock size={12} /> {timerEnabled ? `${timerSeconds}s` : 'No timer'}
+                                    </span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <BookOpen size={12} /> {questions.length} Q
+                                    </span>
+                                </div>
                             </div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', wordBreak: 'break-word' }}>
-                                {title || <span style={{ color: '#D1D5DB' }}>Untitled Quiz</span>}
-                            </div>
-                            {description && (
-                                <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {description}
+
+                            {/* Question preview (first question, read-only) */}
+                            {questions[0] && (
+                                <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '12px 14px', border: '1px solid #F3F4F6' }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                                        Question Preview
+                                    </div>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 10, minHeight: 36 }}>
+                                        {questions[expandedQuestion >= 0 && expandedQuestion < questions.length ? expandedQuestion : 0].questionText || <span style={{ color: '#D1D5DB' }}>Write your question...</span>}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        {optionLetters.map((letter) => {
+                                            const q = questions[expandedQuestion >= 0 && expandedQuestion < questions.length ? expandedQuestion : 0];
+                                            const text = q[`option${letter}` as keyof QuestionForm] as string;
+                                            const isCorrect = q.correctAnswer === letter;
+                                            return (
+                                                <div key={letter} style={{
+                                                    padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                                                    background: isCorrect ? '#FFF3EE' : '#fff',
+                                                    border: isCorrect ? '1px solid #FF5C1A' : '1px solid #E5E7EB',
+                                                    color: isCorrect ? '#FF5C1A' : '#374151',
+                                                    display: 'flex', alignItems: 'center', gap: 6,
+                                                }}>
+                                                    <span style={{ fontWeight: 700, fontSize: 11 }}>{letter}.</span>
+                                                    {text || <span style={{ color: '#D1D5DB' }}>Option {letter}</span>}
+                                                    {isCorrect && <CheckCircle size={12} style={{ marginLeft: 'auto', color: '#FF5C1A' }} />}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
-                            <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11, color: '#9CA3AF', fontWeight: 600 }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Clock size={12} /> {timerEnabled ? `${timerSeconds}s` : 'No timer'}
-                                </span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <BookOpen size={12} /> {questions.length} Q
-                                </span>
-                            </div>
-                        </div>
 
-                        {/* Question preview (first question, read-only) */}
-                        {questions[0] && (
-                            <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '12px 14px', border: '1px solid #F3F4F6' }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                                    Question Preview
+                            {/* Quiz Strength indicator */}
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Quiz Strength</span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: strengthColor }}>{quizStrength}%</span>
                                 </div>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 10, minHeight: 36 }}>
-                                    {questions[expandedQuestion >= 0 && expandedQuestion < questions.length ? expandedQuestion : 0].questionText || <span style={{ color: '#D1D5DB' }}>Write your question...</span>}
+                                <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
+                                    <div style={{
+                                        height: '100%', borderRadius: 4,
+                                        width: `${quizStrength}%`,
+                                        background: strengthColor,
+                                        transition: 'width 0.4s ease, background 0.4s ease',
+                                    }} />
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {optionLetters.map((letter) => {
-                                        const q = questions[expandedQuestion >= 0 && expandedQuestion < questions.length ? expandedQuestion : 0];
-                                        const text = q[`option${letter}` as keyof QuestionForm] as string;
-                                        const isCorrect = q.correctAnswer === letter;
-                                        return (
-                                            <div key={letter} style={{
-                                                padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                                                background: isCorrect ? '#FFF3EE' : '#fff',
-                                                border: isCorrect ? '1px solid #FF5C1A' : '1px solid #E5E7EB',
-                                                color: isCorrect ? '#FF5C1A' : '#374151',
-                                                display: 'flex', alignItems: 'center', gap: 6,
-                                            }}>
-                                                <span style={{ fontWeight: 700, fontSize: 11 }}>{letter}.</span>
-                                                {text || <span style={{ color: '#D1D5DB' }}>Option {letter}</span>}
-                                                {isCorrect && <CheckCircle size={12} style={{ marginLeft: 'auto', color: '#FF5C1A' }} />}
-                                            </div>
-                                        );
-                                    })}
+                                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                                    {quizStrength < 40 ? 'Add more questions and options' : quizStrength < 70 ? 'Looking good — fill in all options' : 'Great quiz!'}
                                 </div>
                             </div>
-                        )}
 
-                        {/* Quiz Strength indicator */}
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Quiz Strength</span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: strengthColor }}>{quizStrength}%</span>
-                            </div>
-                            <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
-                                <div style={{
-                                    height: '100%', borderRadius: 4,
-                                    width: `${quizStrength}%`,
-                                    background: strengthColor,
-                                    transition: 'width 0.4s ease, background 0.4s ease',
-                                }} />
-                            </div>
-                            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-                                {quizStrength < 40 ? 'Add more questions and options' : quizStrength < 70 ? 'Looking good — fill in all options' : 'Great quiz!'}
+                            {/* Full Preview button */}
+                            <button
+                                style={{
+                                    width: '100%', padding: '10px', borderRadius: 8,
+                                    border: '1.5px solid #E5E7EB', background: '#fff',
+                                    color: '#374151', fontWeight: 600, fontSize: 13,
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                }}
+                            >
+                                <Eye size={14} /> Full Preview
+                            </button>
+
+                            {/* Quick Tip card */}
+                            <div style={{
+                                background: '#FFF3EE', borderRadius: 10, padding: '14px',
+                                border: '1px solid #FFD5C2',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                    <Lightbulb size={14} style={{ color: '#FF5C1A' }} />
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#FF5C1A' }}>Quick Tip</span>
+                                </div>
+                                <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5, margin: 0 }}>
+                                    Add at least 4 questions with all options filled in to maximize your Quiz Strength score and keep students engaged.
+                                </p>
                             </div>
                         </div>
-
-                        {/* Full Preview button */}
-                        <button
-                            style={{
-                                width: '100%', padding: '10px', borderRadius: 8,
-                                border: '1.5px solid #E5E7EB', background: '#fff',
-                                color: '#374151', fontWeight: 600, fontSize: 13,
-                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            }}
-                        >
-                            <Eye size={14} /> Full Preview
-                        </button>
-
-                        {/* Quick Tip card */}
-                        <div style={{
-                            background: '#FFF3EE', borderRadius: 10, padding: '14px',
-                            border: '1px solid #FFD5C2',
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                <Lightbulb size={14} style={{ color: '#FF5C1A' }} />
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#FF5C1A' }}>Quick Tip</span>
-                            </div>
-                            <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5, margin: 0 }}>
-                                Add at least 4 questions with all options filled in to maximize your Quiz Strength score and keep students engaged.
-                            </p>
-                        </div>
-                    </div>
+                    )}
 
                 </div>{/* end body */}
             </div>{/* end main column */}

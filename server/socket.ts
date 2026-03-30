@@ -110,6 +110,16 @@ export const setupSocket = (server: HttpServer) => {
                 session.status = 'question';
                 session.currentQuestionIndex = nextIndex;
                 session.questionStartedAt = new Date();
+                session.currentQuestionAnswers = []; // Reset for next question
+
+                // ── Task 2: Reset Answer Guards ──
+                if (session.participants) {
+                    session.participants.forEach((p: any) => {
+                        p.hasAnsweredCurrentQuestion = false;
+                    });
+                }
+
+                session.markModified('participants');
                 await session.save();
 
                 const quiz = await Quiz.findById(session.quizId);
@@ -122,29 +132,50 @@ export const setupSocket = (server: HttpServer) => {
         });
 
         // Student submits an answer
-        socket.on('submit_answer', async ({ gameCode, participantId, answer, isCorrect, timeTakenMs }: {
+        socket.on('submit_answer', async ({ gameCode, participantId, answer }: {
             gameCode: string;
             participantId: string;
             answer: string;
-            isCorrect: boolean;
-            timeTakenMs: number;
         }) => {
             try {
                 const session = await GameSession.findOne({ gameCode });
-                if (!session) return;
+                if (!session || session.status !== 'question') return;
 
-                // Point Allocation Logic
-                const basePoints = 10;
-                let bonus = 0;
-                if (isCorrect) {
-                    const seconds = timeTakenMs / 1000;
-                    // Formula: 1s -> 1.0, 2s -> 0.8... step 0.2
-                    // bonus = Max(0, 1.2 - (seconds * 0.2))
-                    if (seconds <= 10) {
-                        bonus = Math.max(0, 1.2 - (seconds * 0.2));
-                    }
+                // ── Task 1: Server-Side Timing Calculation ──
+                const now = new Date();
+                const startedAt = session.questionStartedAt || now;
+                const seconds = Math.max(0, (now.getTime() - new Date(startedAt).getTime()) / 1000);
+
+                // ── Task 3: Graceful Timeout Handling ──
+                if (seconds > 30) {
+                    return socket.emit('answer_result', {
+                        isCorrect: false,
+                        pointsEarned: 0,
+                        reason: 'Time exceeded'
+                    });
                 }
-                const pointsEarned = isCorrect ? (basePoints + Number(bonus.toFixed(1))) : 0;
+
+                const quiz = await Quiz.findById(session.quizId);
+                if (!quiz) return;
+
+                const currentQ = quiz.questions[session.currentQuestionIndex];
+                if (!currentQ) return;
+
+                const isCorrect = answer === currentQ.correctAnswer;
+
+                // ── Task 4: Detailed Scoring Logic ──
+                let bonus = 0;
+                if (isCorrect && seconds <= 10) {
+                    // Formula: bonus = max(0, 1.0 - (timeTaken / 10))
+                    bonus = Math.max(0, 1.0 - (seconds / 10));
+                    // Round to 1 decimal place
+                    bonus = Number(bonus.toFixed(1));
+                    // Clamp between 0 and 0.9
+                    if (bonus > 0.9) bonus = 0.9;
+                }
+
+                const pointsEarned = isCorrect ? (10 + bonus) : 0;
+                console.log(`[SCORING] participant: ${participantId}, time: ${seconds}s, bonus: ${bonus}, points: ${pointsEarned}`);
 
                 // Update participant in DB
                 const participant = session.participants.find((p: any) =>
@@ -152,19 +183,45 @@ export const setupSocket = (server: HttpServer) => {
                 );
 
                 if (participant) {
+                    // ── Task 2: Multiple Submission Guard ──
+                    if (participant.hasAnsweredCurrentQuestion) {
+                        return socket.emit('answer_result', {
+                            isCorrect: false,
+                            pointsEarned: 0,
+                            reason: 'Already answered'
+                        });
+                    }
+
                     participant.score = (participant.score || 0) + pointsEarned;
+                    participant.lastAnswerTimeMs = Math.round(seconds * 1000);
+                    participant.hasAnsweredCurrentQuestion = true;
+
+                    // ── Task 5: Dynamic Average Time Logic ──
+                    if (!session.currentQuestionAnswers) session.currentQuestionAnswers = [];
+                    session.currentQuestionAnswers.push(Math.round(seconds * 1000));
+
+                    // Calculate class average for THIS question
+                    const totalTimes = session.currentQuestionAnswers.reduce((sum, t) => sum + (t || 0), 0);
+                    const avgTimeMs = session.currentQuestionAnswers.length > 0
+                        ? Math.round(totalTimes / session.currentQuestionAnswers.length)
+                        : 0;
+
+                    // Notify room (teacher and students)
+                    io.to(gameCode).emit('answer_received', {
+                        participantId,
+                        answer,
+                        isCorrect,
+                        pointsEarned,
+                        timeTakenMs: Math.round(seconds * 1000),
+                        newTotalScore: participant.score,
+                        averageTimeMs: avgTimeMs // Dynamic update
+                    });
+
+                    // Ensure Mongoose detects the subdocument change
+                    session.markModified('participants');
+                    session.markModified('currentQuestionAnswers');
                     await session.save();
                 }
-
-                // Notify room (teacher and other students)
-                io.to(gameCode).emit('answer_received', {
-                    participantId,
-                    answer,
-                    isCorrect,
-                    pointsEarned,
-                    timeTakenMs,
-                    newTotalScore: participant ? participant.score : 0
-                });
 
                 // Specifically notify the student of their result
                 socket.emit('answer_result', {
@@ -209,7 +266,7 @@ export const setupSocket = (server: HttpServer) => {
 
                 if (session) {
                     const quiz = await Quiz.findById(session.quizId);
-                    const totalPossiblePoints = quiz ? (quiz.questions.length * 11) : 100;
+                    const totalPossiblePoints = quiz ? (quiz.questions.length * 10) : 100;
 
                     // Create score records for all participants
                     const ScoreRecord = (await import('./models/ScoreRecord.js')).default;

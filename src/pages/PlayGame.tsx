@@ -317,7 +317,7 @@ export function PlayGame() {
                                         <span className="text-[10px] font-black uppercase opacity-20 tracking-widest">of {questions.length}</span>
                                     </div>
                                     <div className="text-center order-first md:order-none">
-                                        <p className="text-5xl md:text-6xl font-black tabular-nums tracking-tighter text-zinc-900">{Math.round(participant?.score || 0).toLocaleString()}</p>
+                                        <p className="text-5xl md:text-6xl font-black tabular-nums tracking-tighter text-zinc-900">{(participant?.score || 0).toFixed(1)}</p>
                                         <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Global Arena Points</p>
                                     </div>
                                     <div className="card !py-3 !px-6 border-l-4 border-orange-500 flex items-center gap-4">
@@ -381,7 +381,7 @@ export function PlayGame() {
                                         </div>
                                         <div className="border-l border-zinc-100">
                                             <p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Total</p>
-                                            <p className="text-3xl font-black text-zinc-900">{Math.round(participant?.score || 0)}</p>
+                                            <p className="text-3xl font-black text-zinc-900">{(participant?.score || 0).toFixed(1)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -396,7 +396,7 @@ export function PlayGame() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                                     <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">#{currentPosition}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Final Rank</div></div>
-                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{Math.round(participant?.score || 0)}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Points</div></div>
+                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{(participant?.score || 0).toFixed(1)}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Points</div></div>
                                     <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{questions.length}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Rounds</div></div>
                                 </div>
 
