@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm install --prefix server && npm run build --prefix server && vite build",
-    "start": "npm start --prefix server",
+    "build": "vite build",
+    "build:spa": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest --run"
@@ -34,6 +34,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^3.0.0",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.1",

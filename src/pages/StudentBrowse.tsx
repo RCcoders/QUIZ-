@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -10,6 +10,12 @@ import { apiFetch } from '../utils/api';
 export function StudentBrowse() {
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        document.title = 'Browse Free Quizzes — Quizly';
+        document.querySelector('meta[name="description"]')
+            ?.setAttribute('content', 'Browse free quizzes on Machine Learning, SQL, Git, Neural Networks and more. Start learning with interactive MCQs now.');
+    }, []);
 
     const { data: quizzes = [], isLoading } = useQuery({
         queryKey: ['quizzes'],

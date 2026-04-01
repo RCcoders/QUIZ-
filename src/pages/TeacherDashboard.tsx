@@ -42,6 +42,10 @@ export function TeacherDashboard() {
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
     useEffect(() => {
+        document.title = 'Teacher Dashboard — Quizly';
+    }, []);
+
+    useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);

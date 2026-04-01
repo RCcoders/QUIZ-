@@ -27,8 +27,9 @@ const Billing = lazy(() => import('./pages/Billing').then(m => ({ default: m.Bil
 const StudentLibrary = lazy(() => import('./pages/StudentLibrary').then(m => ({ default: m.StudentLibrary })));
 const NoteDetail = lazy(() => import('./pages/NoteDetail').then(m => ({ default: m.NoteDetail })));
 const AdaptiveQuiz = lazy(() => import('./pages/AdaptiveQuiz').then(m => ({ default: m.AdaptiveQuiz })));
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
-const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
@@ -52,7 +53,8 @@ const MainContent = () => {
     || location.pathname === '/auth'
     || location.pathname === '/join'
     || location.pathname === '/privacy'
-    || location.pathname === '/terms';
+    || location.pathname === '/terms'
+    || location.pathname === '/about';
 
   return (
     <>
@@ -89,6 +91,7 @@ const MainContent = () => {
           />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/join" element={<JoinGame />} />
           <Route path="/play/:sessionId" element={<PlayGame />} />
 

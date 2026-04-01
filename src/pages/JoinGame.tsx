@@ -20,6 +20,12 @@ export function JoinGame() {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     useEffect(() => {
+        document.title = 'Join a Live Quiz — Quizly';
+        document.querySelector('meta[name="description"]')
+            ?.setAttribute('content', 'Enter your game code to join a live Quizly session. Play in real time with your classmates.');
+    }, []);
+
+    useEffect(() => {
         if (code && code.length === 6) {
             setOtp(code.toUpperCase().split(''));
         }

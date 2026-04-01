@@ -30,6 +30,10 @@ export function StudentDashboard() {
     const [newBadges, setNewBadges] = useState<BadgeRecord[]>([]);
     const prevRecordsLengthRef = useRef<number | null>(null);
 
+    useEffect(() => {
+        document.title = 'My Dashboard — Quizly';
+    }, []);
+
     // After records update (new score saved), evaluate badges asynchronously
     useEffect(() => {
         const uid = user?._id;

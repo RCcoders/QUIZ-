@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { LazyMotion, domAnimation, m } from 'framer-motion';
+import { useEffect } from 'react';
 import {
   Play, Zap, BarChart2, Trophy, CheckCircle2, Quote,
   ArrowRight, Instagram, Twitter, Facebook, Github
@@ -65,6 +66,13 @@ const jsonLdBreadcrumb = {
 
 export function LandingPage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'Quizly — Free AI Quiz Maker for Teachers & Students';
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute('content', 'Create interactive quizzes in seconds with AI. Host live classroom games, track student scores. Free for teachers and students.');
+  }, []);
 
   return (
     <LazyMotion features={domAnimation}>
@@ -585,8 +593,13 @@ export function LandingPage() {
                   The modern quiz platform for educators. Create, share, and analyze quizzes powered by AI.
                 </p>
                 <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                  {([['Twitter', Twitter], ['Instagram', Instagram], ['Facebook', Facebook], ['GitHub', Github]] as const).map(([label, Icon], idx) => (
-                    <a key={idx} href="#" aria-label={label} style={{
+                  {([
+                    { label: 'Twitter', Icon: Twitter, href: 'https://twitter.com/quizlyapp' },
+                    { label: 'Instagram', Icon: Instagram, href: 'https://instagram.com/quizlyapp' },
+                    { label: 'Facebook', Icon: Facebook, href: 'https://facebook.com/quizlyapp' },
+                    { label: 'GitHub', Icon: Github, href: 'https://github.com/quizlyapp' },
+                  ]).map(({ label, Icon, href }, idx) => (
+                    <a key={idx} href={href} aria-label={label} target="_blank" rel="noopener noreferrer" style={{
                       width: 36, height: 36, background: '#1E293B', borderRadius: 8,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: '#94A3B8', textDecoration: 'none',
@@ -601,11 +614,21 @@ export function LandingPage() {
               {[
                 {
                   heading: 'Product',
-                  links: ['Features', 'How It Works', 'Pricing', 'Changelog'],
+                  links: [
+                    { label: 'Features', href: '/#features' },
+                    { label: 'How It Works', href: '/#how-it-works' },
+                    { label: 'Pricing', href: '/#pricing' },
+                    { label: 'Changelog', href: '/changelog' },
+                  ],
                 },
                 {
                   heading: 'Company',
-                  links: ['About', 'Blog', 'Careers', 'Press'],
+                  links: [
+                    { label: 'About', href: '/about' },
+                    { label: 'Blog', href: '/blog' },
+                    { label: 'Careers', href: '/careers' },
+                    { label: 'Press', href: '/press' },
+                  ],
                 },
               ].map((col, i) => (
                 <div key={i}>
@@ -615,8 +638,8 @@ export function LandingPage() {
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {col.links.map((link, li) => (
                       <li key={li}>
-                        <a href="#" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>
-                          {link}
+                        <a href={link.href} style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>
+                          {link.label}
                         </a>
                       </li>
                     ))}
@@ -632,8 +655,8 @@ export function LandingPage() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <li><Link to="/privacy" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Privacy Policy</Link></li>
                   <li><Link to="/terms" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Terms of Service</Link></li>
-                  <li><Link to="/privacy" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Cookie Policy</Link></li>
-                  <li><a href="#" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>GDPR</a></li>
+                  <li><Link to="/privacy#cookies" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Cookie Policy</Link></li>
+                  <li><Link to="/privacy#gdpr" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>GDPR</Link></li>
                 </ul>
               </div>
             </div>

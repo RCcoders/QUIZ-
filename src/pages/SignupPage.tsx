@@ -19,6 +19,12 @@ export function SignupPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        document.title = 'Sign Up Free — Quizly';
+        document.querySelector('meta[name="description"]')
+            ?.setAttribute('content', 'Create a free Quizly account. Start building AI-powered quizzes for your classroom in minutes.');
+    }, []);
+
+    useEffect(() => {
         if (!authLoading && user) {
             navigate(getRedirectPath(user.role), { replace: true });
         }

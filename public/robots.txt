@@ -1,3 +1,22 @@
 User-agent: *
 Allow: /
+Allow: /student
+Allow: /library
+Allow: /join
+Allow: /login
+Allow: /signup
+Allow: /about
+Allow: /privacy
+Allow: /terms
+
+# Block all authenticated/private pages from indexing
+Disallow: /teacher/
+Disallow: /student/dashboard
+Disallow: /student/reports
+Disallow: /play/
+Disallow: /play-poll/
+
+# Block Vercel system files
+Disallow: /_vercel/
+
 Sitemap: https://quizly.app/sitemap.xml

@@ -39,6 +39,12 @@ export function LoginPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        document.title = 'Login — Quizly';
+        document.querySelector('meta[name="description"]')
+            ?.setAttribute('content', 'Sign in to your Quizly account. Access your teacher dashboard or student reports.');
+    }, []);
+
+    useEffect(() => {
         if (user && userProfile && !authLoading) {
             navigate(getRedirectPath(userProfile.role), { replace: true });
         }

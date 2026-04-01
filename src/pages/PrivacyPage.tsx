@@ -1,69 +1,114 @@
+// src/pages/PrivacyPage.tsx
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import { ArrowLeft } from 'lucide-react';
 
-export default function PrivacyPage() {
+export function PrivacyPage() {
+  useEffect(() => {
+    document.title = 'Privacy Policy — Quizly';
+    window.scrollTo(0, 0);
+  }, []);
+
+  const sectionStyle = { marginBottom: 40 };
+  const h2Style = { fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 12 };
+  const pStyle = { fontSize: 15, color: '#374151', lineHeight: 1.8, marginBottom: 12 };
+
   return (
-    <>
-      <Helmet>
-        <title>Privacy Policy — Quizly</title>
-        <meta name="description" content="Read how Quizly collects, uses, and protects your personal data." />
-      </Helmet>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: "'Inter', sans-serif" }}>
+      <header style={{
+        background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
+        padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16,
+      }}>
+        <Link to="/" style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          color: '#6B7280', textDecoration: 'none', fontSize: 14, fontWeight: 500,
+        }}>
+          <ArrowLeft size={16} />
+          Back to Quizly
+        </Link>
+        <div style={{ width: 1, height: 20, background: '#E5E7EB' }} />
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Privacy Policy</span>
+      </header>
 
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
-        {/* Header */}
-        <header style={{ padding: '1rem 2rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link to="/" style={{ color: '#6366f1', fontWeight: 700, fontSize: '1.25rem', textDecoration: 'none' }}>
-            Quizly
-          </Link>
-        </header>
+      <main style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px' }}>
+        <h1 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 8 }}>
+          Privacy Policy
+        </h1>
+        <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 48 }}>
+          Last updated: March 1, 2026
+        </p>
 
-        {/* Content */}
-        <main style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Privacy Policy</h1>
-          <p style={{ color: '#94a3b8', marginBottom: '2.5rem' }}>Last updated: March 25, 2026</p>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>1. Information We Collect</h2>
+          <p style={pStyle}>
+            Quizly collects information you provide when creating an account, including your
+            name, email address, and role (teacher or student). We also collect quiz performance
+            data, including scores, completion times, and answer history, to power your
+            personal dashboard and analytics.
+          </p>
+          <p style={pStyle}>
+            When you join a live game session, we collect your display name and the answers
+            you submit during the session.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Introduction</h2>
-            <p>Quizly ("we", "us", or "our") is committed to protecting your privacy. This policy explains how we collect, use, and safeguard information when you use our platform.</p>
-          </section>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>2. How We Use Your Information</h2>
+          <p style={pStyle}>
+            We use your information to provide and improve the Quizly service, including
+            authenticating your account, displaying your performance history, calculating
+            streaks and scores, and generating personalised quiz recommendations.
+          </p>
+          <p style={pStyle}>
+            We do not sell your personal data to third parties. We do not use your data
+            for advertising purposes.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Data We Collect</h2>
-            <p>We collect information you provide directly, such as your email address and display name when you create an account. We also collect usage data including quiz activity, scores, and session participation to power the platform's features.</p>
-          </section>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>3. Data Storage</h2>
+          <p style={pStyle}>
+            Your data is stored securely using Google Firebase (Firestore and Firebase Authentication),
+            which is hosted on Google Cloud infrastructure. Firebase complies with GDPR, SOC 2,
+            and ISO 27001 standards.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>How We Use Data</h2>
-            <p>We use your data to operate and improve Quizly, provide quiz results and analytics to teachers, and communicate important service updates. We do not sell your personal data to third parties.</p>
-          </section>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>4. Children's Privacy</h2>
+          <p style={pStyle}>
+            Quizly is designed for use in educational settings, including by students under 13.
+            Teachers are responsible for obtaining appropriate parental consent before having
+            students create accounts. Students can participate in live game sessions without
+            creating an account — only a display name is required.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Data Retention</h2>
-            <p>We retain your account data for as long as your account is active. Quiz session data is retained for up to 12 months. You may request deletion of your data at any time by contacting us.</p>
-          </section>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>5. Cookies</h2>
+          <p style={{ ...pStyle }} id="cookies">
+            Quizly uses essential cookies for authentication (Firebase Auth session tokens).
+            We do not use tracking cookies, advertising cookies, or third-party analytics cookies.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Third-Party Services</h2>
-            <p>Quizly uses a custom backend with MongoDB for data storage, and Google Gemini for AI quiz generation. These services have their own privacy policies. We encourage you to review them.</p>
-          </section>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>6. Your Rights (GDPR)</h2>
+          <p style={{ ...pStyle }} id="gdpr">
+            If you are located in the European Economic Area, you have the right to access,
+            correct, or delete your personal data. To exercise these rights, contact us at
+            privacy@quizly.app. We will respond within 30 days.
+          </p>
+        </div>
 
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Your Rights</h2>
-            <p>You have the right to access, correct, or delete your personal data. You may also object to or restrict certain processing. To exercise these rights, contact us at the address below.</p>
-          </section>
-
-          <section style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem', color: '#c7d2fe' }}>Contact</h2>
-            <p>For privacy-related questions, email us at <strong>privacy@quizly.app</strong>.</p>
-          </section>
-        </main>
-
-        {/* Footer */}
-        <footer style={{ padding: '1.5rem 2rem', borderTop: '1px solid #1e293b', textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
-          <Link to="/" style={{ color: '#6366f1', textDecoration: 'none', marginRight: '1rem' }}>Home</Link>
-          <Link to="/terms" style={{ color: '#6366f1', textDecoration: 'none' }}>Terms of Service</Link>
-        </footer>
-      </div>
-    </>
+        <div style={sectionStyle}>
+          <h2 style={h2Style}>7. Contact</h2>
+          <p style={pStyle}>
+            For privacy-related questions, contact us at{' '}
+            <a href="mailto:privacy@quizly.app" style={{ color: '#FF5C1A' }}>privacy@quizly.app</a>.
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
