@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle, XCircle, Trophy, Maximize } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +18,7 @@ interface QuizAnswer {
 export function StudentQuiz() {
     const { id } = useParams();
     const { user, userProfile } = useAuth();
+    const navigate = useNavigate();
 
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -35,29 +36,53 @@ export function StudentQuiz() {
     const [showResult, setShowResult] = useState(false);
     const [completed, setCompleted] = useState(false);
 
-    // Timer
+    // Timer — use a ref-based approach so reset is reliable
     const [timeLeft, setTimeLeft] = useState(0);
     const [questionStartTime, setQuestionStartTime] = useState(0);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const timeUpCalledRef = useRef(false);
 
     const handleTimeUp = useCallback(() => {
-        if (selectedAnswer) {
-            submitAnswer(selectedAnswer);
-        } else {
-            // Mark as wrong if no answer
-            const currentQuestion = questions[currentIndex];
-            const newAnswer: QuizAnswer = {
-                questionId: currentQuestion.id,
-                answer: 'A', // Default
-                isCorrect: false,
-                timeTakenMs: quiz?.timerSeconds ? quiz.timerSeconds * 1000 : 0,
-            };
-            setAnswers([...answers, newAnswer]);
-            setShowResult(true);
-        }
-    }, [selectedAnswer, questions, currentIndex, quiz, answers]);
+        if (timeUpCalledRef.current) return;
+        timeUpCalledRef.current = true;
+        if (timerRef.current) clearInterval(timerRef.current);
+
+        setAnswers(prev => {
+            // Use functional update to get latest questions/currentIndex
+            return prev; // will be updated below
+        });
+        setQuestions(qs => {
+            setCurrentIndex(ci => {
+                const currentQuestion = qs[ci];
+                if (!currentQuestion) return ci;
+                setAnswers(prev => [
+                    ...prev,
+                    {
+                        questionId: currentQuestion.id,
+                        answer: 'A',
+                        isCorrect: false,
+                        timeTakenMs: quiz?.timerSeconds ? quiz.timerSeconds * 1000 : 0,
+                    },
+                ]);
+                return ci;
+            });
+            return qs;
+        });
+        setShowResult(true);
+    }, [quiz]);
 
     const fetchQuiz = useCallback(async () => {
         if (!id) return;
+
+        // Fisher-Yates shuffle — randomizes question order to prevent cheating
+        function shuffleArray<T>(arr: T[]): T[] {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
 
         // Handle Practice Quizzes
         if (id?.startsWith('practice-')) {
@@ -102,7 +127,7 @@ export function StudentQuiz() {
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 } as any);
-                setQuestions(quizQuestions);
+                setQuestions(shuffleArray(quizQuestions));
                 setLoading(false);
                 return;
             }
@@ -112,7 +137,7 @@ export function StudentQuiz() {
             const data = await apiFetch(`/api/quizzes/${id}`);
             setQuiz(data);
             if (data.questions) {
-                setQuestions(data.questions);
+                setQuestions(shuffleArray(data.questions));
             }
         } catch (error) {
             console.error('Error fetching quiz:', error);
@@ -125,12 +150,22 @@ export function StudentQuiz() {
         fetchQuiz();
     }, [id, fetchQuiz]);
 
+    // ── Reliable timer: clears and restarts whenever currentIndex changes ──
     useEffect(() => {
-        if (!quiz?.timerEnabled || !started || showResult || completed) return;
+        if (!quiz?.timerEnabled || !started || showResult || completed) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return;
+        }
 
-        const timer = setInterval(() => {
+        // Reset guard and set initial time
+        timeUpCalledRef.current = false;
+        setTimeLeft(quiz.timerSeconds);
+
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
             setTimeLeft(prev => {
                 if (prev <= 1) {
+                    if (timerRef.current) clearInterval(timerRef.current);
                     handleTimeUp();
                     return 0;
                 }
@@ -138,8 +173,11 @@ export function StudentQuiz() {
             });
         }, 1000);
 
-        return () => clearInterval(timer);
-    }, [quiz?.timerEnabled, started, showResult, currentIndex, completed, handleTimeUp]);
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [quiz?.timerEnabled, quiz?.timerSeconds, started, showResult, currentIndex, completed]);
 
     const startQuiz = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -222,6 +260,18 @@ export function StudentQuiz() {
         };
     }, [started, completed, id]);
 
+    // ── Block browser back button during quiz ──
+    useEffect(() => {
+        if (!started || completed) return;
+        // Push a dummy state so back goes to it instead of leaving
+        window.history.pushState(null, '', window.location.href);
+        const handlePopState = () => {
+            window.history.pushState(null, '', window.location.href);
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [started, completed]);
+
     // Cleanup media stream on unmount
 
 
@@ -255,6 +305,7 @@ export function StudentQuiz() {
             const percentage = Math.round((score / total) * 100);
 
             setCompleted(true);
+            if (timerRef.current) clearInterval(timerRef.current);
 
             // Save score record for authenticated users
             if (user && quiz) {
@@ -276,9 +327,8 @@ export function StudentQuiz() {
             setSelectedAnswer(null);
             setShowResult(false);
             setQuestionStartTime(Date.now());
-            if (quiz?.timerEnabled) {
-                setTimeLeft(quiz.timerSeconds);
-            }
+            timeUpCalledRef.current = false;
+            // Timer resets automatically via the useEffect watching currentIndex
         }
     };
 
@@ -431,7 +481,7 @@ export function StudentQuiz() {
         <div className="page" style={{ background: '#F8FAFC', minHeight: '100vh', padding: '2rem 0' }}>
             <div className="container container-md">
                 {/* Progress Header */}
-                <div style={{ marginBottom: '2.5rem' }}>
+                <div style={{ marginBottom: '1.5rem' }}>
                     <div className="flex justify-between items-end mb-sm">
                         <div>
                             <span style={{
@@ -443,16 +493,16 @@ export function StudentQuiz() {
                             }}>
                                 Question {currentIndex + 1} of {questions.length}
                             </span>
-                            <h3 style={{ marginTop: '0.25rem', fontSize: '1.25rem', color: '#1E293B' }}>
+                            <h3 style={{ marginTop: '0.25rem', fontSize: '1rem', color: '#1E293B' }}>
                                 {quiz.title}
                             </h3>
                         </div>
                         {quiz.timerEnabled && (
                             <div className={`timer ${timeLeft <= 10 ? 'danger' : ''}`}
                                 style={{
-                                    width: '56px',
-                                    height: '56px',
-                                    fontSize: '1.25rem',
+                                    width: '48px',
+                                    height: '48px',
+                                    fontSize: '1.1rem',
                                     background: timeLeft <= 10 ? '#FEE2E2' : '#F1F5F9',
                                     color: timeLeft <= 10 ? '#EF4444' : '#475569',
                                     border: `2px solid ${timeLeft <= 10 ? '#FCA5A5' : '#E2E8F0'}`,
@@ -467,11 +517,11 @@ export function StudentQuiz() {
                         )}
                     </div>
                     <div style={{
-                        height: '6px',
+                        height: '5px',
                         background: '#E2E8F0',
                         borderRadius: 'var(--radius-full)',
                         overflow: 'hidden',
-                        marginTop: '1rem'
+                        marginTop: '0.75rem'
                     }}>
                         <motion.div
                             initial={{ width: 0 }}
@@ -496,18 +546,18 @@ export function StudentQuiz() {
                     >
                         <div style={{
                             background: '#FFFFFF',
-                            borderRadius: '20px',
-                            padding: '3rem 2rem',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                            marginBottom: '2.5rem',
+                            borderRadius: '16px',
+                            padding: '1.5rem 1.5rem',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
+                            marginBottom: '1.5rem',
                             border: '1px solid #F1F5F9',
                             textAlign: 'center'
                         }}>
                             <h2 style={{
-                                fontSize: '1.75rem',
-                                fontWeight: 800,
+                                fontSize: '1.25rem',
+                                fontWeight: 700,
                                 color: '#0F172A',
-                                lineHeight: 1.4
+                                lineHeight: 1.5
                             }}>
                                 {currentQuestion.questionText}
                             </h2>
@@ -536,31 +586,31 @@ export function StudentQuiz() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'flex-start',
-                                            padding: '1.25rem 1.5rem',
-                                            fontSize: '1.1rem',
-                                            fontWeight: 700,
+                                            padding: '0.75rem 1rem',
+                                            fontSize: '0.9rem',
+                                            fontWeight: 600,
                                             boxShadow: isSelected ? '0 0 0 3px rgba(99, 102, 241, 0.4)' : 'none'
                                         }}
                                     >
                                         <div style={{
-                                            width: '32px',
-                                            height: '32px',
+                                            width: '26px',
+                                            height: '26px',
                                             background: 'rgba(255, 255, 255, 0.25)',
-                                            borderRadius: '8px',
+                                            borderRadius: '6px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            fontSize: '0.9rem',
-                                            marginRight: '1rem',
+                                            fontSize: '0.8rem',
+                                            marginRight: '0.75rem',
                                             flexShrink: 0
                                         }}>
                                             {letter}
                                         </div>
-                                        <span style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>
+                                        <span style={{ flex: 1, textAlign: 'left', fontWeight: 600, fontSize: '0.875rem' }}>
                                             {currentQuestion[`option${letter}` as keyof Question]}
                                         </span>
-                                        {showCorrectness && isCorrect && <CheckCircle size={22} style={{ marginLeft: '1rem' }} />}
-                                        {showCorrectness && isSelected && !isCorrect && <XCircle size={22} style={{ marginLeft: '1rem' }} />}
+                                        {showCorrectness && isCorrect && <CheckCircle size={18} style={{ marginLeft: '0.75rem' }} />}
+                                        {showCorrectness && isSelected && !isCorrect && <XCircle size={18} style={{ marginLeft: '0.75rem' }} />}
                                     </motion.button>
                                 );
                             })}

@@ -216,6 +216,28 @@ export function PlayGame() {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [gameState]);
 
+    // ── Fullscreen: enter when game starts, exit when game ends ──
+    useEffect(() => {
+        if (gameState === 'playing' && !document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        }
+        if (gameState === 'ended' && document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        }
+    }, [gameState]);
+
+    // ── Block back button during live game ──
+    useEffect(() => {
+        if (gameState === 'lobby' || gameState === 'playing' || gameState === 'results') {
+            window.history.pushState(null, '', window.location.href);
+            const handlePopState = () => {
+                window.history.pushState(null, '', window.location.href);
+            };
+            window.addEventListener('popstate', handlePopState);
+            return () => window.removeEventListener('popstate', handlePopState);
+        }
+    }, [gameState]);
+
     if (!session) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center text-zinc-900 font-outfit">
@@ -311,7 +333,7 @@ export function PlayGame() {
 
                         {gameState === 'playing' && currentQuestion && (
                             <motion.div key={session.currentQuestionIndex} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col max-w-5xl mx-auto w-full pt-4">
-                                <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                                     <div className="card !py-3 !px-6 flex items-center gap-4">
                                         <span className="text-3xl font-black text-brand italic">Q{(session.currentQuestionIndex || 0) + 1}</span>
                                         <span className="text-[10px] font-black uppercase opacity-20 tracking-widest">of {questions.length}</span>
@@ -326,12 +348,12 @@ export function PlayGame() {
                                     </div>
                                 </div>
 
-                                <div className="card !p-10 md:!p-24 text-center mb-12">
-                                    <h2 className="text-3xl md:text-6xl font-black leading-tight tracking-tight uppercase italic">{currentQuestion.questionText}</h2>
+                                <div className="card !p-6 md:!p-10 text-center mb-8">
+                                    <h2 className="text-xl md:text-3xl font-black leading-tight tracking-tight">{currentQuestion.questionText}</h2>
                                 </div>
 
                                 {!hasAnswered ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {(['A', 'B', 'C', 'D'] as const).map((letter, idx) => {
                                             const optionText = currentQuestion[`option${letter}` as keyof Question];
                                             if (!optionText) return null;
@@ -339,10 +361,10 @@ export function PlayGame() {
                                             const SHAPES = [Triangle, Square, Circle, Diamond];
                                             const ShapeIcon: any = SHAPES[idx];
                                             return (
-                                                <button key={letter} onClick={() => submitAnswer(letter)} className={`relative overflow-hidden p-6 md:p-8 rounded-3xl flex items-center gap-4 md:gap-6 group transition-all active:scale-95 ${COLORS[idx]} border-b-[6px] border-black/20`}>
-                                                    <ShapeIcon className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 text-white/10 rotate-12 transition-transform group-hover:rotate-45" />
-                                                    <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0 border border-white/20"><ShapeIcon size={20} fill="white" /></div>
-                                                    <span className="font-black text-lg md:text-xl text-left uppercase">{optionText}</span>
+                                                <button key={letter} onClick={() => submitAnswer(letter)} className={`relative overflow-hidden p-4 md:p-5 rounded-2xl flex items-center gap-3 md:gap-4 group transition-all active:scale-95 ${COLORS[idx]} border-b-[4px] border-black/20`}>
+                                                    <ShapeIcon className="absolute -right-4 -bottom-4 w-16 h-16 md:w-20 md:h-20 text-white/10 rotate-12 transition-transform group-hover:rotate-45" />
+                                                    <div className="w-8 h-8 md:w-9 md:h-9 bg-white/20 rounded-lg flex items-center justify-center shrink-0 border border-white/20"><ShapeIcon size={16} fill="white" /></div>
+                                                    <span className="font-bold text-sm md:text-base text-left">{optionText}</span>
                                                 </button>
                                             );
                                         })}
