@@ -27,3 +27,13 @@ tmp/
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary and build files
+*.txt
+*.json
+!package.json
+!package-lock.json
+!tsconfig*.json
+!vercel.json
+!firestore.indexes.json
+!test_results.json
