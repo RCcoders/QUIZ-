@@ -47,7 +47,7 @@ router.get('/:userId', protect, async (req: any, res) => {
         }
         const records = await ScoreRecord.find({ userId: req.params.userId })
             .sort({ completedAt: -1 })
-            .lean();
+            .lean() as any[];
         res.json(records);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -62,7 +62,7 @@ router.get('/:userId/stats', protect, async (req: any, res) => {
             return res.status(403).json({ message: 'Not authorized to view these stats' });
         }
         const userId = req.params.userId;
-        const records = await ScoreRecord.find({ userId }).lean();
+        const records = await ScoreRecord.find({ userId }).lean() as any[];
 
         const totalCompleted = records.length;
         const averageScore = totalCompleted > 0
@@ -70,7 +70,7 @@ router.get('/:userId/stats', protect, async (req: any, res) => {
             : 0;
 
         // Simplified streak calculation logic
-        const user = await User.findById(userId).lean();
+        const user = await User.findById(userId).lean() as any;
 
         res.json({
             totalCompleted,

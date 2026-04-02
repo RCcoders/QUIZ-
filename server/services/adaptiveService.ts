@@ -20,7 +20,7 @@ export const generateAdaptiveQuiz = async (
     const scores = await ScoreRecord.find({ userId, subject: subject as any })
         .sort({ completedAt: -1 })
         .limit(10)
-        .lean();
+        .lean() as any[];
 
     // 2. Determine dominant weak difficulty
     let dominantWeakDifficulty: 'easy' | 'medium' | 'hard' = difficultyPreference || 'medium';

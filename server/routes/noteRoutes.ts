@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .lean();
+            .lean() as any[];
 
         const total = await Note.countDocuments(query);
 
@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
 // @route   GET /api/notes/:id
 router.get('/:id', async (req, res) => {
     try {
-        const note = await Note.findById(req.params.id).lean();
+        const note = await Note.findById(req.params.id).lean() as any;
         if (note) {
             res.json(note);
         } else {

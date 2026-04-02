@@ -24,7 +24,7 @@ export const apiFetch = async (endpoint: string, options: any = {}) => {
         body: options.body && typeof options.body === 'object' ? JSON.stringify(options.body) : options.body
     };
 
-    const vApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const vApiUrl = import.meta.env.VITE_API_URL || '/api';
     const cleanBaseUrl = vApiUrl.endsWith('/api') ? vApiUrl : `${vApiUrl.replace(/\/$/, '')}/api`;
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
 

@@ -5,9 +5,8 @@ const getSocketUrl = () => {
         return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
     }
 
-    // Use current hostname but port 5000 for the backend
-    const hostname = window.location.hostname;
-    return `http://${hostname}:5000`;
+    // Use current location as fallback
+    return window.location.origin;
 };
 
 const SOCKET_URL = getSocketUrl();

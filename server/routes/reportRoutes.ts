@@ -12,7 +12,7 @@ router.get('/', protect, authorize('teacher'), async (req: any, res) => {
         const sessions = await GameSession.find({ teacherId: req.user._id })
             .populate('quizId', 'title questions')
             .sort({ createdAt: -1 })
-            .lean();
+            .lean() as any[];
 
         const reports = sessions.map(session => {
             const quiz: any = session.quizId || {};
