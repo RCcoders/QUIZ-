@@ -219,10 +219,10 @@ export function PlayGame() {
     // ── Fullscreen: enter when game starts, exit when game ends ──
     useEffect(() => {
         if (gameState === 'playing' && !document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
+            document.documentElement.requestFullscreen().catch(() => { });
         }
         if (gameState === 'ended' && document.fullscreenElement) {
-            document.exitFullscreen().catch(() => {});
+            document.exitFullscreen().catch(() => { });
         }
     }, [gameState]);
 
@@ -423,8 +423,8 @@ export function PlayGame() {
                                 </div>
 
                                 <div className="flex gap-4 justify-center">
-                                    <button onClick={() => navigate('/library')} className="btn btn-primary h-16 px-12 uppercase italic">Library</button>
-                                    <button onClick={() => window.location.reload()} className="btn h-16 px-12 bg-zinc-50 border border-zinc-100 uppercase italic text-zinc-900">Replay</button>
+                                    <button onClick={() => navigate('/student/library')} className="btn btn-primary h-16 px-12 uppercase italic">Library</button>
+                                    <button onClick={() => navigate('/student/dashboard')} className="btn h-16 px-12 bg-zinc-50 border border-zinc-100 uppercase italic text-zinc-900">Exit</button>
                                 </div>
                             </motion.div>
                         )}
