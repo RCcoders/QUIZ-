@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:spa": "tsc -b && vite build",
-    "build:all": "npm run build && cd server && npm install && npm run build",
+    "build:all": "vite build && tsc -p server/tsconfig.json",
     "start": "node server/dist/index.js",
     "lint": "eslint .",
     "preview": "vite preview",
