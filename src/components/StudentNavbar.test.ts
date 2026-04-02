@@ -146,25 +146,3 @@ describe('StudentNavbar – Library link (Requirement 3.1)', () => {
     });
 });
 
-describe('StudentNavbar – avatar links to /student/settings (Requirement 8.1)', () => {
-    it('avatar/initials circle is a Link to /student/settings', () => {
-        expect(source).toContain('to="/student/settings"');
-    });
-
-    it('avatar renders initials inside the Link', () => {
-        expect(source).toContain('{initials}');
-        expect(source).toContain('to="/student/settings"');
-    });
-});
-
-describe('StudentNavbar – mobile menu Settings link (Requirement 8.1)', () => {
-    it('mobile menu includes a Settings link to /student/settings', () => {
-        // The mobile menu renders a Settings link when user is authenticated
-        const settingsLinkCount = (source.match(/to="\/student\/settings"/g) ?? []).length;
-        expect(settingsLinkCount).toBeGreaterThanOrEqual(2);
-    });
-
-    it('mobile Settings link uses the Settings icon', () => {
-        expect(source).toContain('Settings size={16}');
-    });
-});

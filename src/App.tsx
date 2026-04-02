@@ -30,7 +30,6 @@ const AdaptiveQuiz = lazy(() => import('./pages/AdaptiveQuiz').then(m => ({ defa
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
-const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
@@ -87,10 +86,6 @@ const MainContent = () => {
             element={<StudentRoute><NoteDetail /></StudentRoute>}
           />
           <Route
-            path="/student/settings"
-            element={<StudentRoute><Settings /></StudentRoute>}
-          />
-          <Route
             path="/student/adaptive-quiz"
             element={<StudentRoute><AdaptiveQuiz /></StudentRoute>}
           />
@@ -110,7 +105,6 @@ const MainContent = () => {
           <Route path="/teacher/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/teacher/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
           <Route path="/teacher/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-          <Route path="/teacher/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
