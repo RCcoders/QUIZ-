@@ -36,7 +36,7 @@ router.get('/', protect, authorize('teacher'), async (req: any, res) => {
             }
 
             return {
-                id: session._id,
+                id: session._id as string,
                 quizTitle,
                 date: (session as any).createdAt || new Date(),
                 participantCount,

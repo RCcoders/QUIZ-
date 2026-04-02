@@ -106,12 +106,15 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
 
             if (maxCount > 0) {
                 weeklyStats.forEach(stat => {
-                    const arrayIndex = dayMap[stat._id];
+                    const mongoDay = stat._id as number;
+                    const arrayIndex = dayMap[mongoDay];
                     if (arrayIndex !== undefined && weeklyData[arrayIndex]) {
-                        // Calculate percentage relative to the day with the most completions (simulating the chart height)
-                        // Alternatively, we could just return raw counts and let frontend calculate height.
-                        // Returning a percentage out of highest count makes the chart look proportional.
-                        weeklyData[arrayIndex].pct = Math.round((stat.count / maxCount) * 100);
+                        // Calculate percentage relative to the day with the most completions
+                        const pctValue = Math.round((stat.count / maxCount) * 100);
+                        const dataItem = weeklyData[arrayIndex];
+                        if (dataItem) {
+                            dataItem.pct = pctValue;
+                        }
                     }
                 });
             }

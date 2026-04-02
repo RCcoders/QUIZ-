@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Zap, LayoutDashboard, BookOpen, BarChart2, Gamepad2, LogOut, Menu, X, Library } from 'lucide-react';
+import { Zap, LayoutDashboard, BookOpen, BarChart2, Gamepad2, LogOut, Menu, X, Library, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getInitials } from '../utils/scoring';
 
@@ -31,6 +31,7 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
         { to: '/student', label: 'Browse Quizzes', icon: BookOpen },
         { to: '/student/library', label: 'Library', icon: Library },
         { to: '/student/reports', label: 'Reports', icon: BarChart2 },
+        { to: '/student/settings', label: 'Settings', icon: Settings },
     ];
 
     const displayName = userProfile?.displayName ?? user?.email ?? '';
@@ -125,14 +126,15 @@ export function StudentNavbar({ activePage }: StudentNavbarProps = {}) {
 
                         {user ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{
+                                <Link to="/student/settings" style={{
                                     width: 32, height: 32, borderRadius: '50%',
                                     background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontSize: 12, fontWeight: 700, color: 'white',
+                                    textDecoration: 'none'
                                 }}>
                                     {initials}
-                                </div>
+                                </Link>
                                 <button onClick={handleSignOut} style={{
                                     display: 'flex', alignItems: 'center', gap: 6,
                                     background: 'rgba(255,255,255,0.07)',

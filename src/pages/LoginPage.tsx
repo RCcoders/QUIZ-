@@ -32,10 +32,10 @@ export function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [role, setRole] = useState<'student' | 'teacher'>('student');
 
-    const { signIn, signInWithGoogle, user, userProfile, loading: authLoading } = useAuth();
+    const { signIn, signInWithGoogle, user, userProfile, loading } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -45,15 +45,15 @@ export function LoginPage() {
     }, []);
 
     useEffect(() => {
-        if (user && userProfile && !authLoading) {
+        if (user && userProfile && !loading) {
             navigate(getRedirectPath(userProfile.role), { replace: true });
         }
-    }, [user, userProfile, authLoading, navigate]);
+    }, [user, userProfile, loading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
+        setSubmitting(true);
         try {
             localStorage.setItem('userRole', role);
             const { error: signInError } = await signIn(email, password, role);
@@ -64,13 +64,13 @@ export function LoginPage() {
         } catch (err: any) {
             setError(err.message || 'An error occurred during sign in');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
     const handleGoogleSignIn = async () => {
         setError('');
-        setLoading(true);
+        setSubmitting(true);
         try {
             localStorage.setItem('userRole', role);
             const { error: googleError } = await signInWithGoogle();
@@ -82,7 +82,7 @@ export function LoginPage() {
             const code = (err as { code?: string }).code ?? (err instanceof Error ? err.message : '');
             setError(friendlyError(code));
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
@@ -340,22 +340,22 @@ export function LoginPage() {
                             {/* Sign In */}
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={submitting}
                                 data-testid="submit-button"
                                 style={{
                                     width: '100%', padding: '10px',
-                                    background: loading ? '#FDBA74' : '#FF5C1A',
+                                    background: submitting ? '#FDBA74' : '#FF5C1A',
                                     color: 'white', border: 'none', borderRadius: 7,
                                     fontWeight: 600, fontSize: '0.9rem',
-                                    cursor: loading ? 'not-allowed' : 'pointer',
+                                    cursor: submitting ? 'not-allowed' : 'pointer',
                                     marginBottom: 14,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                                     transition: 'background 0.15s',
                                 }}
-                                onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#E54E10'; }}
-                                onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#FF5C1A'; }}
+                                onMouseEnter={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = '#E54E10'; }}
+                                onMouseLeave={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = '#FF5C1A'; }}
                             >
-                                {loading && (
+                                {submitting && (
                                     <span
                                         data-testid="loading-indicator"
                                         style={{
@@ -367,7 +367,7 @@ export function LoginPage() {
                                         }}
                                     />
                                 )}
-                                {loading ? 'Signing in…' : 'Sign In'}
+                                {submitting ? 'Signing in…' : 'Sign In'}
                             </button>
                         </form>
 
@@ -382,7 +382,7 @@ export function LoginPage() {
                         <button
                             type="button"
                             onClick={handleGoogleSignIn}
-                            disabled={loading}
+                            disabled={submitting}
                             data-testid="google-signin-button"
                             style={{
                                 width: '100%', padding: '9px',

@@ -10,7 +10,8 @@ import {
   LogOut,
   Zap,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,6 +20,7 @@ export const navItems = [
   { icon: BookOpen, label: 'My Quizzes', path: '/teacher/my-quizzes' },
   { icon: BarChart2, label: 'Reports', path: '/teacher/reports' },
   { icon: Library, label: 'Library', path: '/teacher/library' },
+  { icon: Settings, label: 'Settings', path: '/teacher/settings' },
 ];
 
 interface TeacherSidebarProps {
