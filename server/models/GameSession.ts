@@ -7,6 +7,7 @@ export interface IParticipant {
     score: number;
     lastAnswerTimeMs?: number;
     hasAnsweredCurrentQuestion?: boolean;
+    violationCount?: number;
     joinedAt: Date;
 }
 
@@ -30,6 +31,7 @@ const ParticipantSchema = new Schema({
     score: { type: Number, default: 0 },
     lastAnswerTimeMs: { type: Number, default: 0 },
     hasAnsweredCurrentQuestion: { type: Boolean, default: false },
+    violationCount: { type: Number, default: 0 },
     joinedAt: { type: Date, default: Date.now },
 });
 

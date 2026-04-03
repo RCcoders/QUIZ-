@@ -122,6 +122,32 @@ export function GameHost() {
             ));
         };
 
+        const onViolationReport = (data: { participantId: string, violationCount: number, reason: string }) => {
+            setParticipants(prev => prev.map(p =>
+                p.id === data.participantId ? { ...p, violationCount: data.violationCount } : p
+            ));
+            setActivityMessages(prev => [
+                { id: Date.now(), text: `⚠️ Violation: ${data.reason} by participant`, time: 'now' },
+                ...prev
+            ]);
+        };
+
+        const onPlayerKicked = (data: { participantId: string }) => {
+            setParticipants(prev => prev.map(p =>
+                p.id === data.participantId ? { ...p, status: 'kicked' } : p
+            ));
+        };
+
+        const onAllAnswered = () => {
+            console.log("All participants answered! Auto-advancing...");
+            revealAnswer();
+
+            // Wait 4 seconds for students to see the results, then go to next question
+            setTimeout(() => {
+                nextQuestion();
+            }, 4000);
+        };
+
         if (socket.connected) {
             onConnect();
         }
@@ -130,12 +156,18 @@ export function GameHost() {
         socket.on('player_joined', onPlayerJoined);
         socket.on('answer_received', onAnswerReceived);
         socket.on('player_left', onPlayerLeft);
+        socket.on('violation_report', onViolationReport);
+        socket.on('player_kicked', onPlayerKicked);
+        socket.on('all_answered', onAllAnswered);
 
         return () => {
             socket.off('connect', onConnect);
             socket.off('player_joined', onPlayerJoined);
             socket.off('answer_received', onAnswerReceived);
             socket.off('player_left', onPlayerLeft);
+            socket.off('violation_report', onViolationReport);
+            socket.off('player_kicked', onPlayerKicked);
+            socket.off('all_answered', onAllAnswered);
         };
     }, [session?.gameCode, user?.token, session?.currentQuestionIndex]);
 
@@ -227,6 +259,9 @@ export function GameHost() {
 
     const handleKickParticipant = (participantId: string, participantName: string) => {
         if (!confirm(`Are you sure you want to kick ${participantName}?`)) return;
+        const socket = getSocket();
+        socket.emit('kick_player', { gameCode: session?.gameCode, participantId });
+
         setParticipants(prev => prev.map(p =>
             p.id === participantId ? { ...p, status: 'kicked' as const } : p
         ));
@@ -478,12 +513,20 @@ export function GameHost() {
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             className="bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col items-center gap-3 relative group hover:border-orange-500/30 hover:shadow-lg hover:shadow-zinc-200 transition-all cursor-default"
                                                         >
-                                                            <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-lg shadow-inner">
+                                                            <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-lg shadow-inner relative">
                                                                 {p.name.charAt(0).toUpperCase()}
+                                                                {p.violationCount && p.violationCount > 0 && (
+                                                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                                                                        {p.violationCount}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <div className="text-xs font-bold text-zinc-800 text-center truncate w-full px-2">
                                                                 {p.name}
                                                             </div>
+                                                            {p.violationCount && p.violationCount > 0 && (
+                                                                <div className="text-[10px] font-black text-red-500 uppercase tracking-tighter">Cheating Detected!</div>
+                                                            )}
                                                             <button
                                                                 onClick={() => handleKickParticipant(p.id, p.name)}
                                                                 className="absolute top-2 right-2 text-zinc-200 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all p-1"
@@ -949,35 +992,42 @@ export function GameHost() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {participants.slice(0, 8).map((p, i) => {
-                                                    const pAnswers = answers.filter(a => a.participantId === p.id);
-                                                    const accuracy = pAnswers.length > 0
-                                                        ? Math.round((pAnswers.filter(a => a.isCorrect).length / pAnswers.length) * 100) : 0;
-                                                    const medalColors = ['#F59E0B', '#94A3B8', '#CD7C2F'];
-                                                    return (
-                                                        <motion.tr key={p.id} layout style={{ borderBottom: '1px solid #F9FAFB' }}>
-                                                            <td style={{ padding: '6px 6px' }}>
-                                                                {i < 3 ? (
-                                                                    <Medal size={16} color={medalColors[i]} />
-                                                                ) : (
-                                                                    <span style={{ color: '#9CA3AF', fontWeight: 700 }}>{i + 1}</span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '6px 6px', fontWeight: 600, color: '#374151', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                {p.name}
-                                                            </td>
-                                                            <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#FF5C1A' }}>
-                                                                {(p.score).toFixed(1)}
-                                                            </td>
-                                                            <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6B7280' }}>
-                                                                {p.answersCount ?? 0}
-                                                            </td>
-                                                            <td style={{ padding: '6px 6px', textAlign: 'right', color: '#10B981', fontWeight: 600 }}>
-                                                                {accuracy}%
-                                                            </td>
-                                                        </motion.tr>
-                                                    );
-                                                })}
+                                                {[...participants]
+                                                    .sort((a, b) => {
+                                                        if ((b.score || 0) !== (a.score || 0)) {
+                                                            return (b.score || 0) - (a.score || 0);
+                                                        }
+                                                        return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+                                                    })
+                                                    .slice(0, 8).map((p, i) => {
+                                                        const pAnswers = answers.filter(a => a.participantId === p.id);
+                                                        const accuracy = pAnswers.length > 0
+                                                            ? Math.round((pAnswers.filter(a => a.isCorrect).length / pAnswers.length) * 100) : 0;
+                                                        const medalColors = ['#F59E0B', '#94A3B8', '#CD7C2F'];
+                                                        return (
+                                                            <motion.tr key={p.id} layout style={{ borderBottom: '1px solid #F9FAFB' }}>
+                                                                <td style={{ padding: '6px 6px' }}>
+                                                                    {i < 3 ? (
+                                                                        <Medal size={16} color={medalColors[i]} />
+                                                                    ) : (
+                                                                        <span style={{ color: '#9CA3AF', fontWeight: 700 }}>{i + 1}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '6px 6px', fontWeight: 600, color: '#374151', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    {p.name}
+                                                                </td>
+                                                                <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#FF5C1A' }}>
+                                                                    {(p.score).toFixed(1)}
+                                                                </td>
+                                                                <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6B7280' }}>
+                                                                    {p.answersCount ?? 0}
+                                                                </td>
+                                                                <td style={{ padding: '6px 6px', textAlign: 'right', color: '#10B981', fontWeight: 600 }}>
+                                                                    {accuracy}%
+                                                                </td>
+                                                            </motion.tr>
+                                                        );
+                                                    })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1007,42 +1057,50 @@ export function GameHost() {
                             </div>
 
                             {/* Podium */}
-                            {participants.length >= 1 && (
-                                <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-6 sm:gap-4 mb-12">
-                                    {participants.length >= 2 && (
-                                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                                            className="flex flex-col items-center order-2 sm:order-1">
-                                            <div className="w-14 h-14 rounded-full bg-slate-400 text-white flex items-center justify-center font-black text-xl mb-2 shadow-md">
-                                                {participants[1].name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="bg-slate-400 rounded-t-2xl p-4 text-center min-w-[140px] h-24 sm:h-32 flex flex-col justify-center shadow-lg">
-                                                <div className="text-white font-black text-base truncate max-w-[120px]">{participants[1].name}</div>
-                                                <div className="text-white/80 text-xs font-bold">{(participants[1].score).toFixed(1)} pts</div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                    <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                                        className="flex flex-col items-center order-1 sm:order-2">
-                                        <div className="text-4xl mb-2">🏆</div>
-                                        <div className="bg-[#FF5C1A] rounded-t-2xl p-5 text-center min-w-[160px] h-32 sm:h-40 flex flex-col justify-center shadow-xl border-b-4 border-[#e45217]">
-                                            <div className="text-white font-black text-lg truncate max-w-[140px]">{participants[0].name}</div>
-                                            <div className="text-white/90 text-sm font-bold">{(participants[0].score).toFixed(1)} pts</div>
-                                        </div>
-                                    </motion.div>
-                                    {participants.length >= 3 && (
-                                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-                                            className="flex flex-col items-center order-3">
-                                            <div className="w-12 h-12 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-lg mb-2 shadow-md">
-                                                {participants[2].name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="bg-amber-700 rounded-t-2xl p-4 text-center min-w-[140px] h-20 sm:h-28 flex flex-col justify-center shadow-lg">
-                                                <div className="text-white font-black text-sm truncate max-w-[120px]">{participants[2].name}</div>
-                                                <div className="text-white/80 text-xs font-bold">{(participants[2].score).toFixed(1)} pts</div>
+                            {(() => {
+                                const sortedP = [...participants].sort((a, b) => {
+                                    if ((b.score || 0) !== (a.score || 0)) {
+                                        return (b.score || 0) - (a.score || 0);
+                                    }
+                                    return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+                                });
+                                return sortedP.length >= 1 && (
+                                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-6 sm:gap-4 mb-12">
+                                        {sortedP.length >= 2 && (
+                                            <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+                                                className="flex flex-col items-center order-2 sm:order-1">
+                                                <div className="w-14 h-14 rounded-full bg-slate-400 text-white flex items-center justify-center font-black text-xl mb-2 shadow-md">
+                                                    {sortedP[1].name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="bg-slate-400 rounded-t-2xl p-4 text-center min-w-[140px] h-24 sm:h-32 flex flex-col justify-center shadow-lg">
+                                                    <div className="text-white font-black text-base truncate max-w-[120px]">{sortedP[1].name}</div>
+                                                    <div className="text-white/80 text-xs font-bold">{(sortedP[1].score).toFixed(1)} pts</div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                                            className="flex flex-col items-center order-1 sm:order-2">
+                                            <div className="text-4xl mb-2">🏆</div>
+                                            <div className="bg-[#FF5C1A] rounded-t-2xl p-5 text-center min-w-[160px] h-32 sm:h-40 flex flex-col justify-center shadow-xl border-b-4 border-[#e45217]">
+                                                <div className="text-white font-black text-lg truncate max-w-[140px]">{sortedP[0].name}</div>
+                                                <div className="text-white/90 text-sm font-bold">{(sortedP[0].score).toFixed(1)} pts</div>
                                             </div>
                                         </motion.div>
-                                    )}
-                                </div>
-                            )}
+                                        {sortedP.length >= 3 && (
+                                            <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+                                                className="flex flex-col items-center order-3">
+                                                <div className="w-12 h-12 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-lg mb-2 shadow-md">
+                                                    {sortedP[2].name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="bg-amber-700 rounded-t-2xl p-4 text-center min-w-[140px] h-20 sm:h-28 flex flex-col justify-center shadow-lg">
+                                                    <div className="text-white font-black text-sm truncate max-w-[120px]">{sortedP[2].name}</div>
+                                                    <div className="text-white/80 text-xs font-bold">{(sortedP[2].score).toFixed(1)} pts</div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Detailed Results Table */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-7 overflow-hidden">
@@ -1072,37 +1130,44 @@ export function GameHost() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {participants.map((p, i) => (
-                                                <tr key={p.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
-                                                    <td style={{ padding: '16px 0', fontWeight: 800, color: '#0F172A' }}>{i + 1}</td>
-                                                    <td style={{ padding: '16px 8px' }}>
-                                                        <div style={{ fontWeight: 700, color: '#334155' }}>{p.name}</div>
-                                                        <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
-                                                    </td>
-                                                    <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{(p.score).toFixed(1)}</td>
-                                                    {questions.map((q, qIndex) => {
-                                                        const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
-                                                        const isCorrect = answer?.isCorrect;
-                                                        return (
-                                                            <td key={qIndex} style={{ padding: '16px 4px', textAlign: 'center' }}>
-                                                                {answer ? (
-                                                                    <div style={{
-                                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                                        width: 28, height: 28, borderRadius: 6, fontWeight: 800, fontSize: 11,
-                                                                        background: isCorrect ? '#ECFDF5' : '#FEF2F2',
-                                                                        color: isCorrect ? '#10B981' : '#EF4444',
-                                                                        border: `1px solid ${isCorrect ? '#BBF7D0' : '#FECACA'}`,
-                                                                    }}>
-                                                                        {answer.answer}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#CBD5E1', fontWeight: 700, fontSize: 11 }}>�</div>
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
+                                            {[...participants]
+                                                .sort((a, b) => {
+                                                    if ((b.score || 0) !== (a.score || 0)) {
+                                                        return (b.score || 0) - (a.score || 0);
+                                                    }
+                                                    return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+                                                })
+                                                .map((p, i) => (
+                                                    <tr key={p.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
+                                                        <td style={{ padding: '16px 0', fontWeight: 800, color: '#0F172A' }}>{i + 1}</td>
+                                                        <td style={{ padding: '16px 8px' }}>
+                                                            <div style={{ fontWeight: 700, color: '#334155' }}>{p.name}</div>
+                                                            <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
+                                                        </td>
+                                                        <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{(p.score).toFixed(1)}</td>
+                                                        {questions.map((q, qIndex) => {
+                                                            const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
+                                                            const isCorrect = answer?.isCorrect;
+                                                            return (
+                                                                <td key={qIndex} style={{ padding: '16px 4px', textAlign: 'center' }}>
+                                                                    {answer ? (
+                                                                        <div style={{
+                                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                                            width: 28, height: 28, borderRadius: 6, fontWeight: 800, fontSize: 11,
+                                                                            background: isCorrect ? '#ECFDF5' : '#FEF2F2',
+                                                                            color: isCorrect ? '#10B981' : '#EF4444',
+                                                                            border: `1px solid ${isCorrect ? '#BBF7D0' : '#FECACA'}`,
+                                                                        }}>
+                                                                            {answer.answer}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#CBD5E1', fontWeight: 700, fontSize: 11 }}>�</div>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
                                         </tbody>
                                     </table>
                                 </div>

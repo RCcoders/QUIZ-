@@ -55,7 +55,7 @@ export function JoinGame() {
         e.preventDefault();
         setValidationError('');
 
-        const gameCode = otp.join('');
+        const gameCode = otp.join('').trim().toUpperCase();
         if (gameCode.length < 6) {
             setValidationError('Please enter a full 6-digit game code.');
             return;

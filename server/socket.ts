@@ -217,6 +217,14 @@ export const setupSocket = (server: HttpServer) => {
                         averageTimeMs: avgTimeMs // Dynamic update
                     });
 
+                    // Check if all active participants have answered
+                    const activeParticipants = session.participants.filter((p: any) => (p as any).status !== 'kicked');
+                    const answeredCount = activeParticipants.filter((p: any) => p.hasAnsweredCurrentQuestion).length;
+
+                    if (answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
+                        io.to(gameCode).emit('all_answered', { session });
+                    }
+
                     // Ensure Mongoose detects the subdocument change
                     session.markModified('participants');
                     session.markModified('currentQuestionAnswers');
@@ -232,6 +240,70 @@ export const setupSocket = (server: HttpServer) => {
 
             } catch (error) {
                 console.error('Submit answer error:', error);
+            }
+        });
+
+        // Teacher kicks a player
+        socket.on('kick_player', async ({ gameCode, participantId }: { gameCode: string; participantId: string }) => {
+            try {
+                if (!socket.user || socket.user.role !== 'teacher') return;
+
+                const session = await GameSession.findOne({ gameCode });
+                if (!session || String(session.teacherId) !== String(socket.user._id)) return;
+
+                const participantIndex = session.participants.findIndex((p: any) =>
+                    p._id.toString() === participantId || p.id === participantId
+                );
+
+                if (participantIndex !== -1) {
+                    const participant = session.participants[participantIndex];
+                    // Instead of removing, mark as kicked to keep history
+                    (participant as any).status = 'kicked';
+                    session.markModified('participants');
+                    await session.save();
+
+                    // Notify the room and specifically the kicked player
+                    io.to(gameCode).emit('player_kicked', { participantId });
+                    console.log(`Player ${participantId} kicked from room ${gameCode}`);
+                }
+            } catch (error) {
+                console.error('Kick player error:', error);
+            }
+        });
+
+        // Student reports a cheating violation
+        socket.on('cheating_violation', async ({ gameCode, participantId, reason }: { gameCode: string; participantId: string; reason: string }) => {
+            try {
+                const session = await GameSession.findOne({ gameCode });
+                if (!session) return;
+
+                const participant = session.participants.find((p: any) =>
+                    p._id.toString() === participantId || p.id === participantId
+                );
+
+                if (participant) {
+                    participant.violationCount = (participant.violationCount || 0) + 1;
+                    session.markModified('participants');
+                    await session.save();
+
+                    // Notify teacher
+                    io.to(gameCode).emit('violation_report', {
+                        participantId,
+                        name: participant.name,
+                        violationCount: participant.violationCount,
+                        reason
+                    });
+
+                    // Auto-kick if violations >= 3
+                    if (participant.violationCount >= 3) {
+                        (participant as any).status = 'kicked';
+                        session.markModified('participants');
+                        await session.save();
+                        io.to(gameCode).emit('player_kicked', { participantId, reason: 'Too many cheating violations' });
+                    }
+                }
+            } catch (error) {
+                console.error('Cheating violation error:', error);
             }
         });
 

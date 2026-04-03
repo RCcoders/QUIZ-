@@ -17,6 +17,8 @@ interface Participant {
     name: string;
     score: number;
     lastAnswerCorrect?: boolean;
+    lastAnswerTimeMs?: number;
+    violationCount?: number;
 }
 
 interface Question {
@@ -28,12 +30,13 @@ interface Question {
     optionD: string;
     correctAnswer: string;
     points: number;
+    timerSeconds?: number;
 }
 
 interface Session {
     _id: string;
     gameCode: string;
-    status: 'waiting' | 'question' | 'results' | 'ended';
+    status: 'waiting' | 'playing' | 'question' | 'results' | 'ended';
     quizId: string;
     quizTitle: string;
     currentQuestionIndex: number;
@@ -55,7 +58,11 @@ export function PlayGame() {
     const [participant, setParticipant] = useState<Participant | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
+    const [timerActive, setTimerActive] = useState(false);
+    const [showTimer, setShowTimer] = useState(false);
     const [gameState, setGameState] = useState<'lobby' | 'playing' | 'results' | 'ended'>('lobby');
+    const [questionStatus, setQuestionStatus] = useState<'showing' | 'answered' | 'revealed'>('showing');
     const [hasAnswered, setHasAnswered] = useState(false);
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const [pointsEarned, setPointsEarned] = useState(0);
@@ -101,7 +108,6 @@ export function PlayGame() {
             setAllParticipants(parts);
             const currentP = parts.find((p: any) => (p._id || p.id) === participantId);
             setParticipant(currentP);
-            updatePosition(parts);
 
             if (session.status === 'question' || session.status === 'playing') {
                 setGameState('playing');
@@ -150,7 +156,6 @@ export function PlayGame() {
             setAllParticipants(participants);
             const currentP = participants.find((p: any) => (p._id || p.id) === participantId);
             setParticipant(currentP);
-            updatePosition(participants);
         });
 
         newSocket.on('game_ended', ({ finalParticipants }) => {
@@ -158,7 +163,6 @@ export function PlayGame() {
             setAllParticipants(finalParticipants);
             const currentP = finalParticipants.find((p: any) => (p._id || p.id) === participantId);
             setParticipant(currentP);
-            updatePosition(finalParticipants);
             if (currentP && currentP.score > 0) {
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             }
@@ -173,30 +177,52 @@ export function PlayGame() {
         newSocket.on('answer_received', ({ participantId: pId, newTotalScore }) => {
             setAllParticipants(prev => {
                 const updated = prev.map(p => (p._id || p.id) === pId ? { ...p, score: newTotalScore } : p);
-                updatePosition(updated);
                 return updated;
             });
+        });
+
+        newSocket.on('player_kicked', ({ participantId: kickedId, reason }) => {
+            if ((participantId) === kickedId) {
+                alert(reason || 'You have been kicked from the game.');
+                navigate('/join');
+                disconnectSocket();
+            } else {
+                setAllParticipants(prev => prev.filter(p => (p._id || p.id) !== kickedId));
+            }
+        });
+
+        newSocket.on('violation_report', ({ participantId: violatorId, violationCount: count }) => {
+            setAllParticipants(prev => prev.map(p =>
+                (p._id || p.id) === violatorId ? { ...p, violationCount: count } : p
+            ));
         });
 
         return () => { disconnectSocket(); };
     }, [sessionId, playerName, participantId, navigate]);
 
-    const updatePosition = (participants: Participant[]) => {
-        if (!participants || !Array.isArray(participants)) return;
-        const sorted = [...participants].sort((a, b) => (b.score || 0) - (a.score || 0));
-        setCurrentPosition(sorted.findIndex(p => (p._id || p.id) === participantId) + 1);
+    const getLeaderboardPosition = () => {
+        const sorted = [...allParticipants].sort((a, b) => {
+            if ((b.score || 0) !== (a.score || 0)) {
+                return (b.score || 0) - (a.score || 0);
+            }
+            return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+        });
+        const index = sorted.findIndex(p => (p._id || p.id) === participantId);
+        return index + 1;
     };
+
+    useEffect(() => {
+        setCurrentPosition(getLeaderboardPosition());
+    }, [allParticipants, participantId]);
 
     const submitAnswer = (answer: string) => {
         if (hasAnswered || !currentQuestion || !socket || !session) return;
         const correct = answer === currentQuestion.correctAnswer;
 
-        // Calculate time taken
         const startTime = session.questionStartedAt ? new Date(session.questionStartedAt).getTime() : Date.now();
         const timeTakenMs = Date.now() - startTime;
 
         setHasAnswered(true);
-        // Optimistic UI can stay, but the server will confirm with 'answer_result'
         setIsCorrect(correct);
 
         socket.emit('submit_answer', {
@@ -210,13 +236,73 @@ export function PlayGame() {
 
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.hidden && gameState === 'playing') setViolationCount(v => v + 1);
+            if (document.hidden && gameState === 'playing') {
+                const newCount = violationCount + 1;
+                setViolationCount(newCount);
+                socket?.emit('cheating_violation', {
+                    gameCode: sessionId,
+                    participantId,
+                    reason: 'Tab switching / Window minimized'
+                });
+            }
         };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [gameState]);
 
-    // ── Fullscreen: enter when game starts, exit when game ends ──
+        const handleResize = () => {
+            // Detect split screen: on most desktops, < 900px width is a sign of split screen or non-maximized window
+            const isActive = gameState === 'playing' || gameState === 'results';
+            if (isActive && window.innerWidth < 900) {
+                const newCount = violationCount + 1;
+                setViolationCount(newCount);
+                socket?.emit('cheating_violation', {
+                    gameCode: sessionId,
+                    participantId,
+                    reason: `Split screen/Narrow window detected (${window.innerWidth}px)`
+                });
+                alert('Anti-Cheat Warning: Please maximize your window to continue! Split screen is not allowed.');
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('resize', handleResize);
+
+        // Also check on initial mount/state change
+        handleResize();
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [gameState, socket, sessionId, participantId, violationCount]);
+
+    useEffect(() => {
+        let interval: any;
+        if (gameState === 'playing' && questionStatus === 'showing' && timeLeft !== null && timeLeft > 0) {
+            setTimerActive(true);
+            interval = setInterval(() => {
+                setTimeLeft(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
+            }, 1000);
+        } else {
+            setTimerActive(false);
+        }
+        return () => clearInterval(interval);
+    }, [gameState, questionStatus, timeLeft]);
+
+    useEffect(() => {
+        if (session?.status === 'playing' && questionStatus === 'showing') {
+            const quizTimerSeconds = currentQuestion?.timerSeconds || 30;
+            if (session.questionStartedAt) {
+                const startTime = new Date(session.questionStartedAt).getTime();
+                const now = Date.now();
+                const elapsed = Math.floor((now - startTime) / 1000);
+                const remaining = Math.max(0, quizTimerSeconds - elapsed);
+                setTimeLeft(remaining);
+                setShowTimer(true);
+            }
+        } else {
+            setShowTimer(false);
+        }
+    }, [session?.status, session?.questionStartedAt, questionStatus, currentQuestion?.timerSeconds]);
+
     useEffect(() => {
         if (gameState === 'playing' && !document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(() => { });
@@ -226,7 +312,6 @@ export function PlayGame() {
         }
     }, [gameState]);
 
-    // ── Block back button during live game ──
     useEffect(() => {
         if (gameState === 'lobby' || gameState === 'playing' || gameState === 'results') {
             window.history.pushState(null, '', window.location.href);
@@ -370,10 +455,16 @@ export function PlayGame() {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="card !p-20 text-center flex flex-col items-center">
-                                        <Clock size={48} className="text-zinc-200 mb-6 animate-pulse" />
-                                        <h2 className="text-4xl font-black uppercase italic mb-2 tracking-tighter text-zinc-900">Answer Locked</h2>
-                                        <p className="text-sm font-bold text-zinc-400 tracking-widest uppercase">Round in progress...</p>
+                                    <div className="flex flex-col items-center justify-center p-12 bg-white/50 backdrop-blur-sm rounded-[32px] border border-zinc-200">
+                                        <div className="relative">
+                                            <Clock size={48} className={`mb-6 ${timeLeft !== null && timeLeft <= 5 ? 'text-red-500 animate-bounce' : 'text-zinc-200 animate-pulse'}`} />
+                                            {showTimer && timeLeft !== null && (
+                                                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[150%] text-2xl font-black font-outfit ${timeLeft <= 5 ? 'text-red-600' : 'text-zinc-800'}`}>
+                                                    {timeLeft}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <h2 className="text-xl font-bold text-zinc-400">Waiting for Question...</h2>
                                     </div>
                                 )}
                             </motion.div>
