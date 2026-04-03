@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 
 
@@ -77,15 +78,7 @@ export function MyQuizzes() {
 
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-    useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const isMobile = windowWidth <= 768;
+    const { isMobile } = useBreakpoint();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [subjectFilter, setSubjectFilter] = useState('All');

@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 interface QuizWithCount {
     _id: string;
@@ -39,19 +40,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 export function TeacherDashboard() {
     const { user } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-    useEffect(() => {
-        document.title = 'Teacher Dashboard — Quizly';
-    }, []);
-
-    useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const isMobile = windowWidth <= 768;
+    const { isMobile, isDesktop } = useBreakpoint();
 
     const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError, error: quizzesError } = useQuery({
         queryKey: ['quizzes', user?._id],

@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRedirectPath } from '../utils/scoring';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 function friendlyError(code: string): string {
     if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
@@ -37,6 +38,7 @@ export function LoginPage() {
 
     const { signIn, signInWithGoogle, user, userProfile, loading } = useAuth();
     const navigate = useNavigate();
+    const { isMobile } = useBreakpoint();
 
     useEffect(() => {
         document.title = 'Login — Quizly';
@@ -93,10 +95,9 @@ export function LoginPage() {
                 <meta name="description" content="Sign in to your Quizly account to manage quizzes and view student results." />
             </Helmet>
 
-            {/* Full-viewport locked layout — no scroll */}
+            {/* Full-viewport layout — scrollable on mobile */}
             <div style={{
-                height: '100vh',
-                overflow: 'hidden',
+                minHeight: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#F3F4F6',
@@ -146,11 +147,10 @@ export function LoginPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 40,
-                    padding: '0 24px',
-                    overflow: 'hidden',
+                    padding: isMobile ? '24px 16px' : '0 24px',
                 }}>
-                    {/* Left — illustration + copy */}
-                    <div className="qm-left-panel" style={{
+                    {/* Left — illustration + copy (hidden on mobile) */}
+                    {!isMobile && <div style={{
                         flex: '0 1 380px',
                         display: 'flex',
                         flexDirection: 'column',
@@ -180,7 +180,7 @@ export function LoginPage() {
                                 Join over 10,000 students and teachers worldwide in the ultimate learning journey with Quizly.
                             </p>
                         </div>
-                    </div>
+                    </div>}
 
                     {/* Right — form card */}
                     <div style={{
@@ -428,13 +428,15 @@ export function LoginPage() {
                 {/* ── Footer ── */}
                 <footer style={{
                     flexShrink: 0,
-                    height: 44,
+                    minHeight: 44,
                     background: 'white',
                     borderTop: '1px solid #E5E7EB',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0 28px',
+                    justifyContent: isMobile ? 'center' : 'space-between',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    padding: isMobile ? '12px 16px' : '0 28px',
+                    gap: isMobile ? 8 : 0,
                     fontSize: '0.78rem',
                     color: '#9CA3AF',
                 }}>
@@ -448,9 +450,6 @@ export function LoginPage() {
 
             <style>{`
                 @keyframes qm-spin { to { transform: rotate(360deg); } }
-                @media (max-width: 700px) {
-                    .qm-left-panel { display: none !important; }
-                }
             `}</style>
         </>
     );

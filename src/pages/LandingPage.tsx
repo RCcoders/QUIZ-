@@ -1,11 +1,13 @@
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { LazyMotion, domAnimation, m } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Play, Zap, BarChart2, Trophy, CheckCircle2, Quote,
-  ArrowRight, Instagram, Twitter, Facebook, Github
+  ArrowRight, Instagram, Twitter, Facebook, Github,
+  Menu, X
 } from 'lucide-react';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -66,6 +68,8 @@ const jsonLdBreadcrumb = {
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useBreakpoint();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'Quizly — Free AI Quiz Maker for Teachers & Students';
@@ -73,6 +77,13 @@ export function LandingPage() {
       .querySelector('meta[name="description"]')
       ?.setAttribute('content', 'Create interactive quizzes in seconds with AI. Host live classroom games, track student scores. Free for teachers and students.');
   }, []);
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, []);
+
+  const isCompact = isMobile || isTablet;
 
   return (
     <LazyMotion features={domAnimation}>
@@ -117,61 +128,122 @@ export function LandingPage() {
               <span style={{ fontWeight: 700, fontSize: 20, color: '#111827' }}>Quizly</span>
             </Link>
 
-            {/* Nav links */}
-            <nav style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-              <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Features</a>
-              <a href="#how-it-works" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>How It Works</a>
-              <a href="#pricing" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Pricing</a>
-            </nav>
+            {/* Nav links — desktop only */}
+            {!isMobile && (
+              <nav style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+                <a href="#features" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Features</a>
+                <a href="#how-it-works" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>How It Works</a>
+                <a href="#pricing" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none' }}>Pricing</a>
+              </nav>
+            )}
 
-            {/* Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Actions — desktop */}
+            {!isMobile ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => navigate('/auth')}
+                  style={{
+                    background: 'transparent', border: '1.5px solid #E5E7EB',
+                    borderRadius: 8, padding: '8px 18px',
+                    fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
+                  }}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => navigate('/auth')}
+                  style={{
+                    background: '#FF5C1A', border: 'none',
+                    borderRadius: 8, padding: '8px 18px',
+                    fontSize: 14, fontWeight: 600, color: '#FFFFFF', cursor: 'pointer',
+                  }}
+                >
+                  Create Quiz
+                </button>
+              </div>
+            ) : (
+              /* Hamburger — mobile */
               <button
-                onClick={() => navigate('/auth')}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 style={{
-                  background: 'transparent', border: '1.5px solid #E5E7EB',
-                  borderRadius: 8, padding: '8px 18px',
-                  fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#374151', padding: 4,
                 }}
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               >
-                Login
+                {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
               </button>
-              <button
-                onClick={() => navigate('/auth')}
-                style={{
-                  background: '#FF5C1A', border: 'none',
-                  borderRadius: 8, padding: '8px 18px',
-                  fontSize: 14, fontWeight: 600, color: '#FFFFFF', cursor: 'pointer',
-                }}
-              >
-                Create Quiz
-              </button>
-            </div>
+            )}
           </div>
+
+          {/* Mobile dropdown menu */}
+          {isMobile && mobileMenuOpen && (
+            <div style={{
+              background: '#FFFFFF', borderTop: '1px solid #E5E7EB',
+              padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12,
+            }}>
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 0' }}>Features</a>
+              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 0' }}>How It Works</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 0' }}>Pricing</a>
+              <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 12, display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => { navigate('/auth'); setMobileMenuOpen(false); }}
+                  style={{
+                    flex: 1, background: 'transparent', border: '1.5px solid #E5E7EB',
+                    borderRadius: 8, padding: '10px 0',
+                    fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
+                  }}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => { navigate('/auth'); setMobileMenuOpen(false); }}
+                  style={{
+                    flex: 1, background: '#FF5C1A', border: 'none',
+                    borderRadius: 8, padding: '10px 0',
+                    fontSize: 14, fontWeight: 600, color: '#FFFFFF', cursor: 'pointer',
+                  }}
+                >
+                  Create Quiz
+                </button>
+              </div>
+            </div>
+          )}
         </header>
 
         <main>
           {/* ── Hero ── */}
-          <section style={{ background: '#FFFFFF', padding: '80px 24px' }}>
+          <section style={{ background: '#FFFFFF', padding: isMobile ? '48px 20px' : '80px 24px' }}>
             <div style={{
               maxWidth: 1200, margin: '0 auto',
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center',
+              display: 'grid',
+              gridTemplateColumns: isCompact ? '1fr' : '1fr 1fr',
+              gap: isCompact ? 40 : 64,
+              alignItems: 'center',
             }}>
               {/* Left */}
               <m.div
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
+                style={{ textAlign: isMobile ? 'center' : 'left' }}
               >
-                <h1 style={{ fontSize: 52, fontWeight: 800, color: '#111827', lineHeight: 1.1, marginBottom: 20 }}>
+                <h1 style={{
+                  fontSize: isMobile ? 36 : 52,
+                  fontWeight: 800, color: '#111827', lineHeight: 1.1, marginBottom: 20,
+                }}>
                   Create AI Quiz<br />
                   <span style={{ color: '#FF5C1A' }}>Instantly.</span>
                 </h1>
-                <p style={{ fontSize: 18, color: '#4B5563', lineHeight: 1.7, marginBottom: 36, maxWidth: 480 }}>
+                <p style={{
+                  fontSize: isMobile ? 16 : 18, color: '#4B5563', lineHeight: 1.7,
+                  marginBottom: 36, maxWidth: isMobile ? '100%' : 480,
+                  ...(isMobile ? { margin: '0 auto 36px' } : {}),
+                }}>
                   Transform any text, URL, or topic into an engaging quiz in seconds using advanced AI.
                   Save hours of prep time and engage your students like never before.
                 </p>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                   <button
                     onClick={() => navigate('/auth')}
                     style={{
@@ -206,25 +278,27 @@ export function LandingPage() {
                 style={{ display: 'flex', justifyContent: 'center' }}
               >
                 <div style={{
-                  width: 380, height: 380,
+                  width: '100%',
+                  maxWidth: 380,
+                  aspectRatio: '1 / 1',
                   background: '#FF5C1A',
                   borderRadius: 32,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 20px 60px rgba(255,92,26,0.25)',
                 }}>
                   <div style={{
-                    width: 220, height: 220,
+                    width: '58%', aspectRatio: '1 / 1',
                     background: '#FFFFFF',
                     borderRadius: 20,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <div style={{
-                      width: 96, height: 96,
+                      width: '44%', aspectRatio: '1 / 1',
                       background: '#FF5C1A',
                       borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <Zap size={48} color="white" fill="white" />
+                      <Zap size={isMobile ? 32 : 48} color="white" fill="white" />
                     </div>
                   </div>
                 </div>
@@ -233,10 +307,10 @@ export function LandingPage() {
           </section>
 
           {/* ── Features ── */}
-          <section id="features" style={{ padding: '80px 24px', background: '#F5F5F5' }}>
+          <section id="features" style={{ padding: isMobile ? '48px 20px' : '80px 24px', background: '#F5F5F5' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: 56 }}>
-                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: isMobile ? 36 : 56 }}>
+                <h2 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
                   Powerful Features for Modern Educators
                 </h2>
                 <p style={{ fontSize: 16, color: '#4B5563' }}>
@@ -244,7 +318,11 @@ export function LandingPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                gap: 24,
+              }}>
                 {[
                   {
                     icon: <Zap size={28} color="#FF5C1A" />,
@@ -274,7 +352,7 @@ export function LandingPage() {
                     style={{
                       background: '#FFFFFF',
                       borderRadius: 14,
-                      padding: 32,
+                      padding: isMobile ? 24 : 32,
                       boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                     }}
                   >
@@ -296,16 +374,20 @@ export function LandingPage() {
           </section>
 
           {/* ── How It Works ── */}
-          <section id="how-it-works" style={{ padding: '80px 24px', background: '#FFFFFF' }}>
+          <section id="how-it-works" style={{ padding: isMobile ? '48px 20px' : '80px 24px', background: '#FFFFFF' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: 56 }}>
-                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: isMobile ? 36 : 56 }}>
+                <h2 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
                   How It Works
                 </h2>
                 <p style={{ fontSize: 16, color: '#4B5563' }}>Create your first quiz in three simple steps</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                gap: 32,
+              }}>
                 {[
                   {
                     num: '1',
@@ -345,10 +427,10 @@ export function LandingPage() {
           </section>
 
           {/* ── Testimonials ── */}
-          <section style={{ padding: '80px 24px', background: '#F5F5F5' }}>
+          <section style={{ padding: isMobile ? '48px 20px' : '80px 24px', background: '#F5F5F5' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: 56 }}>
-                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: isMobile ? 36 : 56 }}>
+                <h2 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
                   Loved by Educators
                 </h2>
                 <p style={{ fontSize: 16, color: '#4B5563' }}>
@@ -356,7 +438,11 @@ export function LandingPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                gap: 24,
+              }}>
                 {[
                   {
                     quote: 'Quizly has completely transformed how I assess my students. The AI generation saves me hours every week and the live sessions keep everyone engaged.',
@@ -389,7 +475,7 @@ export function LandingPage() {
                     style={{
                       background: '#FFFFFF',
                       borderRadius: 14,
-                      padding: 32,
+                      padding: isMobile ? 24 : 32,
                       boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                       display: 'flex',
                       flexDirection: 'column',
@@ -422,10 +508,10 @@ export function LandingPage() {
           </section>
 
           {/* ── Pricing ── */}
-          <section id="pricing" style={{ padding: '80px 24px', background: '#FFFFFF' }}>
+          <section id="pricing" style={{ padding: isMobile ? '48px 20px' : '80px 24px', background: '#FFFFFF' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: 56 }}>
-                <h2 style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: isMobile ? 36 : 56 }}>
+                <h2 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
                   Simple, Transparent Pricing
                 </h2>
                 <p style={{ fontSize: 16, color: '#4B5563' }}>
@@ -433,7 +519,12 @@ export function LandingPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'start' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                gap: 24,
+                alignItems: 'start',
+              }}>
                 {[
                   {
                     name: 'Free',
@@ -489,7 +580,7 @@ export function LandingPage() {
                     style={{
                       background: '#FFFFFF',
                       borderRadius: 16,
-                      padding: 32,
+                      padding: isMobile ? 24 : 32,
                       boxShadow: plan.highlight
                         ? '0 8px 32px rgba(255,92,26,0.18)'
                         : '0 1px 4px rgba(0,0,0,0.08)',
@@ -512,7 +603,7 @@ export function LandingPage() {
                         {plan.name}
                       </h3>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                        <span style={{ fontSize: 40, fontWeight: 800, color: '#111827' }}>{plan.price}</span>
+                        <span style={{ fontSize: isMobile ? 32 : 40, fontWeight: 800, color: '#111827' }}>{plan.price}</span>
                         <span style={{ fontSize: 14, color: '#4B5563' }}>{plan.period}</span>
                       </div>
                     </div>
@@ -547,23 +638,23 @@ export function LandingPage() {
 
           {/* ── CTA ── */}
           <section style={{
-            padding: '80px 24px',
+            padding: isMobile ? '48px 20px' : '80px 24px',
             background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
             textAlign: 'center',
           }}>
             <div style={{ maxWidth: 640, margin: '0 auto' }}>
-              <h2 style={{ fontSize: 40, fontWeight: 800, color: '#FFFFFF', marginBottom: 16, lineHeight: 1.2 }}>
+              <h2 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, color: '#FFFFFF', marginBottom: 16, lineHeight: 1.2 }}>
                 Ready to Transform Your Classroom?
               </h2>
-              <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.75)', marginBottom: 36, lineHeight: 1.7 }}>
+              <p style={{ fontSize: isMobile ? 15 : 17, color: 'rgba(255,255,255,0.75)', marginBottom: 36, lineHeight: 1.7 }}>
                 Join over 50,000 educators who use Quizly to create engaging, data-driven learning experiences.
               </p>
               <button
                 onClick={() => navigate('/auth')}
                 style={{
                   background: '#FF5C1A', color: '#FFFFFF', border: 'none',
-                  borderRadius: 10, padding: '16px 36px',
-                  fontSize: 17, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 10, padding: isMobile ? '14px 28px' : '16px 36px',
+                  fontSize: isMobile ? 15 : 17, fontWeight: 700, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                 }}
               >
@@ -575,9 +666,14 @@ export function LandingPage() {
         </main>
 
         {/* ── Footer ── */}
-        <footer style={{ background: '#0F172A', padding: '64px 24px 32px' }}>
+        <footer style={{ background: '#0F172A', padding: isMobile ? '48px 20px 24px' : '64px 24px 32px' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 48, marginBottom: 48 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : '2fr 1fr 1fr 1fr',
+              gap: isMobile ? 32 : 48,
+              marginBottom: isMobile ? 32 : 48,
+            }}>
               {/* Brand column */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -665,8 +761,10 @@ export function LandingPage() {
             <div style={{
               borderTop: '1px solid #1E293B',
               paddingTop: 24,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexWrap: 'wrap', gap: 12,
+              display: 'flex', alignItems: 'center',
+              justifyContent: isMobile ? 'center' : 'space-between',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: 12,
             }}>
               <span style={{ fontSize: 13, color: '#64748B' }}>
                 © {new Date().getFullYear()} Quizly. All rights reserved.

@@ -9,6 +9,7 @@ import { BadgeList } from '../components/BadgeList';
 import ToastNotification from '../components/ToastNotification';
 import { evaluateBadges } from '../lib/badgeEngine';
 import { getContinueLearning, getInitials } from '../utils/scoring';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import type { BadgeRecord } from '../types/student';
 
 const RECOMMENDED_QUIZZES = [
@@ -29,6 +30,7 @@ export function StudentDashboard() {
     const { badges, loading: badgesLoading } = useBadges(user?._id);
     const [newBadges, setNewBadges] = useState<BadgeRecord[]>([]);
     const prevRecordsLengthRef = useRef<number | null>(null);
+    const { isMobile } = useBreakpoint();
 
     useEffect(() => {
         document.title = 'My Dashboard — Quizly';
@@ -79,10 +81,10 @@ export function StudentDashboard() {
                 />
             )}
 
-            <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
+            <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
 
                 {/* Welcome header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
                     {userProfile?.avatarUrl ? (
                         <img
                             src={userProfile.avatarUrl}
@@ -112,7 +114,7 @@ export function StudentDashboard() {
                 {loading ? (
                     <div
                         data-testid="stats-loading"
-                        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}
+                        style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}
                     >
                         {[0, 1, 2].map(i => (
                             <div key={i} style={{
@@ -158,7 +160,7 @@ export function StudentDashboard() {
                         {/* Stats row */}
                         <div
                             data-testid="stats-row"
-                            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}
+                            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}
                         >
                             <div style={{
                                 background: '#fff', borderRadius: 12, padding: '20px 24px',
@@ -302,8 +304,10 @@ export function StudentDashboard() {
                 {/* Join Live Game CTA */}
                 <div style={{
                     background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-                    borderRadius: 16, padding: '32px 40px',
+                    borderRadius: 16, padding: isMobile ? '24px 20px' : '32px 40px',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    textAlign: isMobile ? 'center' : 'left',
                     flexWrap: 'wrap', gap: 16,
                 }}>
                     <div>

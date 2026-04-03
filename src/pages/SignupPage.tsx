@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, Eye, EyeOff, Play, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRedirectPath } from '../utils/scoring';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 export function SignupPage() {
     const [displayName, setDisplayName] = useState('');
@@ -17,6 +18,7 @@ export function SignupPage() {
 
     const { signUp, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+    const { isMobile } = useBreakpoint();
 
     useEffect(() => {
         document.title = 'Sign Up Free — Quizly';
@@ -68,8 +70,8 @@ export function SignupPage() {
                 <meta name="description" content="Create a free Quizly account and start generating AI-powered quizzes in minutes." />
             </Helmet>
             <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
-                {/* Left panel */}
-                <div style={{
+                {/* Left panel (hidden on mobile) */}
+                {!isMobile && <div style={{
                     width: '50%',
                     position: 'relative',
                     background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #FF5C1A 100%)',
@@ -111,17 +113,18 @@ export function SignupPage() {
                             ))}
                         </div>
                     </div>
-                </div>
+                </div>}
 
                 {/* Right panel */}
                 <div style={{
-                    width: '50%',
+                    width: isMobile ? '100%' : '50%',
                     background: '#FFFFFF',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '48px 40px',
+                    padding: isMobile ? '32px 20px' : '48px 40px',
+                    minHeight: isMobile ? '100vh' : 'auto',
                 }}>
                     <div style={{ width: '100%', maxWidth: '400px' }}>
                         <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>
