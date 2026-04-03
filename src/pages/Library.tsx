@@ -8,7 +8,9 @@ import {
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../hooks/useNotes';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import type { Note } from '../types/student';
 
 export interface LibraryQuiz {
@@ -95,6 +97,7 @@ const EMPTY_NOTE_FORM: NoteFormState = { title: '', subject: '', content: '', li
 export function Library() {
     const { user } = useAuth();
     const { notes, refresh } = useNotes({ authorUid: user?._id });
+    const { isMobile } = useBreakpoint();
 
     const [quizzes] = useState<LibraryQuiz[]>(MOCK_QUIZZES);
     const [searchQuery, setSearchQuery] = useState('');
@@ -170,11 +173,16 @@ export function Library() {
 
     return (
         <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            {/* Main Content - Adjust margin-left for mobile when sidebar is hidden/collapsed if applicable */}
-            <main className="flex-1 lg:ml-[240px] p-0 pb-8 min-w-0 transition-all duration-300 mt-16 lg:mt-0">
+            {/* Main Content */}
+            <main className="flex-1 lg:ml-[240px] p-0 pb-8 min-w-0 transition-all duration-300">
+                <TeacherHeader
+                    title="Library"
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
 
                 {/* Header Section */}
                 <div className="bg-gradient-to-br from-[#FF5C1A] to-[#FF8C42] pt-12 pb-8 px-4 sm:px-6">
@@ -185,47 +193,19 @@ export function Library() {
                                     <LibraryIcon size={13} className="text-white/90" />
                                     <span className="text-[12px] font-semibold text-white/90 uppercase tracking-wider">Public Library</span>
                                 </div>
-                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">Discover Quizzes</h1>
-                                <p className="text-white/80 text-sm sm:text-base max-w-md">
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight m-0">Discover Quizzes</h1>
+                                <p className="text-white/80 text-sm sm:text-base max-w-md m-0">
                                     Browse {quizzes.length} community-made quizzes across all subjects
                                 </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-3">
-                                <div className="flex items-center gap-2 bg-white/20 rounded-xl px-4 py-2.5 backdrop-blur-sm">
-                                    <BookOpen size={16} className="text-white/90" />
-                                    <span className="text-sm font-bold text-white whitespace-nowrap">{quizzes.length} Quizzes</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-white/20 rounded-xl px-4 py-2.5 backdrop-blur-sm">
-                                    <Users size={16} className="text-white/90" />
-                                    <span className="text-sm font-bold text-white whitespace-nowrap">{(totalPlays / 1000).toFixed(1)}k Plays</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Search Bar Container */}
-                        <div className="bg-white rounded-t-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-sm">
-                            <div className="relative flex-1">
-                                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by title or subject..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-1.5 border-gray-100 rounded-xl text-sm focus:outline-none focus:border-[#FF5C1A] transition-colors"
-                                />
-                            </div>
-
-                            <div className="relative">
+                            <div className="flex flex-wrap gap-3 relative">
                                 <button
                                     onClick={() => setShowSortMenu(v => !v)}
-                                    className="flex items-center justify-between sm:justify-start gap-2 px-4 py-2.5 bg-white border-1.5 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto"
+                                    className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <Filter size={16} className="text-gray-400" />
-                                        <span>{activeSortLabel}</span>
-                                    </div>
-                                    <TrendingUp size={14} className={showSortMenu ? "rotate-180 transition-transform" : "transition-transform"} />
+                                    <TrendingUp size={16} className="text-gray-400" />
+                                    <span>{activeSortLabel}</span>
                                 </button>
 
                                 {showSortMenu && (

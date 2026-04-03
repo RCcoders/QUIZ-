@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Zap, Shield, Sparkles } from 'lucide-react';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
 import { loadRazorpayScript } from '../utils/razorpay';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -154,11 +155,15 @@ export function Billing() {
     };
 
     return (
-        <div className="flex min-h-screen bg-[#F9FAFB] overflow-x-hidden text-gray-900">
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <main className="flex-1 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-16 mt-16 lg:mt-0 min-w-0">
+            <main className="flex-1 lg:ml-[240px] p-4 sm:p-8 transition-all duration-300 min-w-0">
+                <TeacherHeader
+                    title="Billing & Subscription"
+                    showSearch={false}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
                 {/* Header Section */}
                 <div className="text-center pt-16 pb-12 px-6">
                     <div className="inline-flex items-center gap-2 bg-[#FFF3EE] px-4 py-1.5 rounded-full mb-6">

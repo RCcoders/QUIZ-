@@ -7,6 +7,11 @@ interface User {
     displayName: string;
     role: 'student' | 'teacher';
     token: string;
+    teacherId?: string;
+    department?: string;
+    subjects?: string[];
+    idCardImage?: string;
+    post?: string;
 }
 
 interface AuthContextType {
@@ -17,6 +22,7 @@ interface AuthContextType {
     signIn: (email: string, password: string, role?: string) => Promise<{ error: any }>;
     signInWithGoogle: () => Promise<{ error: any }>;
     signOut: () => Promise<void>;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -137,8 +143,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserProfile(null);
     };
 
+    const refreshUser = async () => {
+        if (!user) return;
+        try {
+            const response = await fetch(`${API_BASE}/user/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const updatedUser = { ...user, ...data };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                setUser(updatedUser);
+            }
+        } catch (error) {
+            console.error('Error refreshing user:', error);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signUp, signIn, signOut, signInWithGoogle: async () => ({ error: 'Not implemented' }) }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, signUp, signIn, signOut, refreshUser, signInWithGoogle: async () => ({ error: 'Not implemented' }) }}>
             {children}
         </AuthContext.Provider>
     );

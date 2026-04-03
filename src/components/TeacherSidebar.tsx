@@ -13,13 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
-export const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher' },
-  { icon: BookOpen, label: 'My Quizzes', path: '/teacher/my-quizzes' },
-  { icon: BarChart2, label: 'Reports', path: '/teacher/reports' },
-  { icon: Library, label: 'Library', path: '/teacher/library' },
-];
+import { navItems } from '../config/navigation';
 
 interface TeacherSidebarProps {
   isOpen?: boolean;
@@ -132,24 +126,5 @@ export function TeacherSidebar({ isOpen, onClose }: TeacherSidebarProps) {
         </div>
       </aside>
     </>
-  );
-}
-
-export function MobileHeader({ onOpen }: { onOpen: () => void }) {
-  return (
-    <div className="lg:hidden flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100 fixed top-0 left-0 right-0 z-[80]">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 bg-[#FF5C1A] rounded-lg flex items-center justify-center text-white shadow-md shadow-[#FF5C1A]/10">
-          <Play fill="currentColor" size={16} />
-        </div>
-        <span className="font-extrabold text-[17px] text-gray-900 tracking-tight">Quizly</span>
-      </div>
-      <button
-        onClick={onOpen}
-        className="p-2 text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-      >
-        <Menu size={24} />
-      </button>
-    </div>
   );
 }

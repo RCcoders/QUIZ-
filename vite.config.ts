@@ -16,13 +16,6 @@ export default defineConfig({
           // Icons — loaded everywhere but small enough to split
           'vendor-icons': ['lucide-react'],
 
-          // Firebase — heavy, only needed after auth/DB operations
-          'vendor-firebase': [
-            'firebase/app',
-            'firebase/auth',
-            'firebase/firestore',
-          ],
-
           // Charts — only used on Reports and StudentReports pages
           'vendor-charts': ['recharts'],
 

@@ -79,12 +79,6 @@
   .card {
     @apply bg-white p-[var(--space-xl)] rounded-4xl border border-black/[0.04] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)];
   }
-
-  @media (max-width: 768px) {
-    .mobile-header {
-      display: flex !important;
-    }
-  }
 }
 
 /* Animations */

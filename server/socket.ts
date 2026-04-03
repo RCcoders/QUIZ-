@@ -60,7 +60,7 @@ export const setupSocket = (server: HttpServer) => {
 
                 socket.join(gameCode);
                 socket.gameCode = gameCode;
-                socket.participantId = participantId as string;
+                socket.participantId = (participantId as string) || '';
 
                 console.log(`${name} (${participantId || 'Guest'}) joined room: ${gameCode}`);
 

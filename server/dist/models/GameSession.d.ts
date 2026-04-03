@@ -6,6 +6,7 @@ export interface IParticipant {
     score: number;
     lastAnswerTimeMs?: number;
     hasAnsweredCurrentQuestion?: boolean;
+    violationCount?: number;
     joinedAt: Date;
 }
 export interface IGameSession extends Document {
@@ -19,6 +20,8 @@ export interface IGameSession extends Document {
     currentQuestionAnswers: number[];
     questionStartedAt?: Date | null;
     endedAt?: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
 }
 declare const _default: mongoose.Model<IGameSession, {}, {}, {}, mongoose.Document<unknown, {}, IGameSession, {}, mongoose.DefaultSchemaOptions> & IGameSession & Required<{
     _id: mongoose.Types.ObjectId;

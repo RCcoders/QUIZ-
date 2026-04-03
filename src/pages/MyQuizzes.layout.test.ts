@@ -32,17 +32,23 @@ describe('MyQuizzes layout – uses TeacherSidebar (Requirement 2.1)', () => {
 });
 
 describe('MyQuizzes layout – main content offset (Property 4, Requirement 2.1)', () => {
-  it('main content area has marginLeft of 240px', () => {
-    expect(source).toContain("marginLeft: '240px'");
+  it('main content area has marginLeft of 240px (Tailwind or inline)', () => {
+    const hasInline = source.includes("marginLeft: '240px'");
+    const hasTailwind = source.includes('lg:ml-[240px]');
+    expect(hasInline || hasTailwind).toBe(true);
   });
 });
 
 describe('MyQuizzes layout – background and padding (Property 5, Requirements 4.1, 4.4)', () => {
-  it('outer wrapper has background #F5F5F5', () => {
-    expect(source).toContain("background: '#F5F5F5'");
+  it('outer wrapper has background #F5F5F5 (Tailwind or inline)', () => {
+    const hasInline = source.includes("background: '#F5F5F5'");
+    const hasTailwind = source.includes('bg-[#F5F5F5]');
+    expect(hasInline || hasTailwind).toBe(true);
   });
 
-  it('main content area has padding 0 2rem 2rem', () => {
-    expect(source).toContain("padding: '0 2rem 2rem'");
+  it('main content area has responsive padding (Tailwind or inline)', () => {
+    const hasInline = source.includes("padding: '0 2rem 2rem'");
+    const hasTailwind = source.includes('px-8 pb-8') || source.includes('px-4 pb-8');
+    expect(hasInline || hasTailwind).toBe(true);
   });
 });

@@ -22,6 +22,8 @@ export interface IGameSession extends Document {
     currentQuestionAnswers: number[];
     questionStartedAt?: Date | null;
     endedAt?: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const ParticipantSchema = new Schema({

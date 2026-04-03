@@ -9,35 +9,22 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-
-
-
-export interface QuizWithCount {
-    _id: string;
-    title: string;
-    isActive: boolean;
-    questionCount?: number;
-    subject?: string;
-    attempts?: number;
-    avgScore?: number;
-    date?: string;
-}
-
+import { QuizWithCount } from '../types/teacher';
+import { fetchMyQuizzes } from '../api/teacher';
 
 type StatusFilter = 'all' | 'active' | 'draft';
 
-// Pure filter functions (exported for testing)
-// eslint-disable-next-line react-refresh/only-export-components
-export function filterQuizzesBySearch(quizzes: QuizWithCount[], query: string): QuizWithCount[] {
+// Pure filter functions (private)
+function filterQuizzesBySearch(quizzes: QuizWithCount[], query: string): QuizWithCount[] {
     if (!query.trim()) return quizzes;
     const lower = query.toLowerCase();
     return quizzes.filter(q => q.title.toLowerCase().includes(lower));
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function filterQuizzesByStatus(quizzes: QuizWithCount[], status: StatusFilter): QuizWithCount[] {
+function filterQuizzesByStatus(quizzes: QuizWithCount[], status: StatusFilter): QuizWithCount[] {
     if (status === 'all') return quizzes;
     return quizzes.filter(q => (status === 'active' ? q.isActive : !q.isActive));
 }
@@ -60,16 +47,10 @@ const MOCK_TEMPLATES = [
 ];
 
 
-
-export async function fetchMyQuizzes(): Promise<QuizWithCount[]> {
-    return apiFetch('/api/quizzes/teacher/my-quizzes');
-}
-
-
 export function MyQuizzes() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const { data: quizzes = [], isLoading, isError, error } = useQuery({
+    const { data: quizzes = [], isLoading, isError, error } = useQuery<QuizWithCount[]>({
         queryKey: ['quizzes', 'my', user?._id],
         queryFn: fetchMyQuizzes,
         enabled: !!user,
@@ -132,45 +113,15 @@ export function MyQuizzes() {
 
     return (
         <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
             {/* ── Main ── */}
-            <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8 mt-16 lg:mt-0">
-
-                {/* Top navbar */}
-                {!isMobile && (
-                    <header className="flex items-center gap-4 px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
-                        <h1 className="text-[22px] font-extrabold text-[#FF5C1A] m-0 flex-1">My Quizzes</h1>
-
-                        {/* Search */}
-                        <div className="relative w-60">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search quizzes..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-[34px] pr-3 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-900 bg-gray-50 outline-none focus:ring-2 focus:ring-[#FF5C1A] transition-all"
-                            />
-                        </div>
-
-                        <button className="bg-none border-none cursor-pointer text-gray-500 p-1 hover:text-gray-700 transition-colors">
-                            <Bell size={18} />
-                        </button>
-                        <button className="bg-none border-none cursor-pointer text-gray-500 p-1 hover:text-gray-700 transition-colors">
-                            <HelpCircle size={18} />
-                        </button>
-
-                        <Link
-                            to="/teacher/quiz/new"
-                            className="inline-flex items-center gap-[7px] bg-[#FF5C1A] text-white px-[18px] py-[9px] rounded-lg font-bold text-[13px] no-underline whitespace-nowrap hover:bg-[#e65317] transition-colors shadow-sm"
-                        >
-                            <Plus size={15} />
-                            Create New Quiz
-                        </Link>
-                    </header>
-                )}
+            <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8">
+                <TeacherHeader
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
 
                 {/* Mobile Header Title */}
                 {isMobile && (
@@ -512,6 +463,6 @@ export function MyQuizzes() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

@@ -5,7 +5,8 @@ import {
     Save, Plus, Trash2, CheckCircle, Loader, Clock, Target, XCircle,
     BookOpen, Zap, Eye, Lightbulb, ChevronDown
 } from 'lucide-react';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -239,104 +240,52 @@ export function QuizEditor() {
     void handleSave;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--ds-bg-page, #F5F5F5)', fontFamily: "'Inter', sans-serif" }}>
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: isMobile ? 0 : '240px', marginTop: isMobile ? 56 : 0 }}>
-                {/* ── TOP BAR (task 6.1) ── */}
-                <div style={{
-                    background: '#fff',
-                    borderBottom: '1px solid #E5E7EB',
-                    padding: isMobile ? '8px 12px' : '0 24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: isMobile ? 'wrap' as const : 'nowrap' as const,
-                    gap: isMobile ? 8 : 0,
-                    minHeight: isMobile ? 'auto' : 64,
-                    position: 'sticky',
-                    top: isMobile ? 56 : 0,
-                    zIndex: 10,
-                }}>
-                    {/* Title + subtitle */}
-                    <div>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>
-                            {isEditing ? 'Edit Quiz' : 'Create New Quiz'}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#6B7280' }}>Manual Assessment Builder</div>
+            <main className="flex-1 lg:ml-[240px] flex flex-col min-w-0 transition-all duration-300">
+                <TeacherHeader
+                    title={isEditing ? 'Edit Quiz' : 'Create New Quiz'}
+                    showSearch={false}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
+
+                {/* Tab nav (Mobile only or consistent) */}
+                {isMobile && (
+                    <div className="px-4 py-2 bg-white border-b border-gray-100 flex gap-2 overflow-x-auto no-scrollbar">
+                        {(['drafts', 'templates', 'settings'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab ? 'bg-[#FF5C1A] text-white' : 'bg-gray-100 text-gray-500'
+                                    }`}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Sub-header actions */}
+                <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-4 sticky top-16 lg:top-20 z-10">
+                    <div className="hidden sm:block">
+                        <div className="text-sm font-black text-gray-900">Manual Assessment Builder</div>
+                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter">Draft Mode</div>
                     </div>
 
-                    {/* Tab nav */}
-                    {!isMobile && (
-                        <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-                            {(['drafts', 'templates', 'settings'] as const).map(tab => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    style={{
-                                        padding: '6px 16px',
-                                        borderRadius: 6,
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        background: activeTab === tab ? '#fff' : 'transparent',
-                                        color: activeTab === tab ? '#111827' : '#6B7280',
-                                        boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                        textTransform: 'capitalize',
-                                    }}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
+                    <div className="flex items-center gap-2 flex-1 sm:flex-none">
                         <button
                             onClick={saveDraft}
                             disabled={saving}
-                            style={{
-                                padding: '8px 14px',
-                                borderRadius: 8,
-                                border: '1.5px solid #E5E7EB',
-                                background: '#fff',
-                                color: '#374151',
-                                fontWeight: 600,
-                                fontSize: 13,
-                                cursor: saving ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                opacity: saving ? 0.7 : 1,
-                                flex: isMobile ? 1 : 'none',
-                                justifyContent: 'center',
-                            }}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
                         >
                             {saving ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}
-                            Save Draft
+                            <span className="hidden xs:inline">Save Draft</span>
                         </button>
                         <button
                             onClick={publishQuiz}
                             disabled={publishing}
-                            style={{
-                                padding: '8px 14px',
-                                borderRadius: 8,
-                                border: 'none',
-                                background: '#FF5C1A',
-                                color: '#fff',
-                                fontWeight: 600,
-                                fontSize: 13,
-                                cursor: publishing ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                opacity: publishing ? 0.7 : 1,
-                                flex: isMobile ? 1 : 'none',
-                                justifyContent: 'center',
-                            }}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#FF5C1A] text-white rounded-xl text-sm font-bold hover:bg-[#e44d15] transition-all shadow-lg shadow-[#FF5C1A]/20 disabled:opacity-50"
                         >
                             {publishing ? <Loader size={14} className="animate-spin" /> : <Zap size={14} />}
                             Publish
@@ -345,20 +294,22 @@ export function QuizEditor() {
                 </div>
 
                 {/* Error banner */}
-                {error && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{
-                            background: '#FEF2F2', borderBottom: '1px solid #FECACA',
-                            color: '#EF4444', padding: '10px 24px',
-                            display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
-                        }}
-                    >
-                        <XCircle size={16} />
-                        {error}
-                    </motion.div>
-                )}
+                {
+                    error && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{
+                                background: '#FEF2F2', borderBottom: '1px solid #FECACA',
+                                color: '#EF4444', padding: '10px 24px',
+                                display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
+                            }}
+                        >
+                            <XCircle size={16} />
+                            {error}
+                        </motion.div>
+                    )
+                }
 
                 {/* ── BODY: responsive layout ── */}
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: 1, overflow: isMobile ? 'auto' : 'hidden' }}>
@@ -793,7 +744,7 @@ export function QuizEditor() {
                     )}
 
                 </div>{/* end body */}
-            </div>{/* end main column */}
+            </main>
         </div>
     );
 }

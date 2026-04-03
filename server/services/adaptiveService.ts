@@ -44,7 +44,10 @@ export const generateAdaptiveQuiz = async (
 
         if (averages.length > 0 && averages[0]) {
             averages.sort((a, b) => a.avg - b.avg);
-            dominantWeakDifficulty = averages[0].diff;
+            const weakest = averages[0];
+            if (weakest) {
+                dominantWeakDifficulty = weakest.diff;
+            }
         }
     }
 

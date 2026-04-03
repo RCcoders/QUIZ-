@@ -2,20 +2,24 @@
 logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 node_modules
 /dist
+/server/dist
 dist-ssr
+
 # Environment Variables
 .env
 .env.local
 .env.*.local
 *.local
-tmp/
+
+# Temporary and build files
+# Removed overly broad *.txt and *.json rules to avoid accidental ignores
+build_errors.txt
+test_results.txt
+test_results.json
+server_build_errors.txt
 
 # Editor directories and files
 .vscode/*
@@ -27,13 +31,3 @@ tmp/
 *.njsproj
 *.sln
 *.sw?
-
-# Temporary and build files
-*.txt
-*.json
-!package.json
-!package-lock.json
-!tsconfig*.json
-!vercel.json
-!firestore.indexes.json
-!test_results.json

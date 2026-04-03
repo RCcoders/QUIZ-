@@ -8,34 +8,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-
-interface QuizWithCount {
-    _id: string;
-    title: string;
-    isActive: boolean;
-    questionCount?: number;
-    attempts?: number;
-    avgScore?: number;
-}
-
-export async function fetchQuizzesForTeacher(): Promise<QuizWithCount[]> {
-    return apiFetch('/api/quizzes/teacher/my-quizzes');
-}
-
-export interface DashboardStats {
-    totalQuizzes: number;
-    activeSessions: number;
-    totalStudents: number;
-    averageScore: number;
-    averageTimeTakenMs: number;
-    weeklyData: { day: string; pct: number }[];
-}
-
-export async function fetchDashboardStats(): Promise<DashboardStats> {
-    return apiFetch('/api/teacher/dashboard-stats');
-}
+import { QuizWithCount, DashboardStats } from '../types/teacher';
+import { fetchQuizzesForTeacher, fetchDashboardStats } from '../api/teacher';
 
 export function TeacherDashboard() {
     const { user } = useAuth();
@@ -131,46 +108,16 @@ export function TeacherDashboard() {
     return (
         /* ── Page shell: flex row, sidebar + main ── */
         <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] ${isMobile ? 'px-4 pb-8 mt-16' : 'px-8 pb-8'}`}>
+            <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8`}>
 
                 {/* ── Top bar ── */}
-                {!isMobile && (
-                    <div className="flex items-center gap-3 py-5 border-b border-gray-200 mb-7">
-                        {/* Search */}
-                        <div className="flex-1 relative">
-                            <Search
-                                size={16}
-                                className="absolute left-[14px] top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Search quizzes, students..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full py-[10px] pl-[40px] pr-[14px] border border-gray-200 rounded-[10px] bg-white text-sm text-gray-900 outline-none box-border focus:ring-2 focus:ring-[#FF5C1A] transition-all"
-                            />
-                        </div>
-
-                        {/* Bell */}
-                        <button className="w-10 h-10 border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
-                            <Bell size={18} className="text-gray-500" />
-                        </button>
-
-                        {/* Settings */}
-                        <button className="w-10 h-10 border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
-                            <Settings size={18} className="text-gray-500" />
-                        </button>
-
-                        {/* Avatar */}
-                        <div className="w-10 h-10 rounded-full bg-[#FF5C1A] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                            {teacherInitials}
-                        </div>
-                    </div>
-                )}
-                {isMobile && <div className="h-3" />}
+                <TeacherHeader
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
 
                 {/* ── Welcome row ── */}
                 <div className="flex items-center justify-between mb-6 flex-wrap gap-4">

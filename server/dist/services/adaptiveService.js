@@ -29,7 +29,10 @@ export const generateAdaptiveQuiz = async (userId, subject, topic, difficultyPre
         }));
         if (averages.length > 0 && averages[0]) {
             averages.sort((a, b) => a.avg - b.avg);
-            dominantWeakDifficulty = averages[0].diff;
+            const weakest = averages[0];
+            if (weakest) {
+                dominantWeakDifficulty = weakest.diff;
+            }
         }
     }
     const clampedNum = Math.min(20, Math.max(5, numQuestions));

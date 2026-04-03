@@ -1,28 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart2, Users, CheckCircle, TrendingUp, Calendar, DownloadCloud } from 'lucide-react';
-import { TeacherSidebar, MobileHeader } from '../components/TeacherSidebar';
+import { TeacherSidebar } from '../components/TeacherSidebar';
+import { TeacherHeader } from '../components/TeacherHeader';
 import { apiFetch } from '../utils/api';
-
-export interface QuizSession {
-    id: string;
-    quizTitle: string;
-    date: string; // ISO date string
-    participantCount: number;
-    averageScore: number; // 0–100
-    completed: boolean;
-}
-
-type DateRange = '7d' | '30d' | 'all';
-
-// Pure filter function (exported for testing)
-// eslint-disable-next-line react-refresh/only-export-components
-export function filterSessionsByDate(sessions: QuizSession[], range: DateRange): QuizSession[] {
-    if (range === 'all') return sessions;
-    const now = Date.now();
-    const ms = range === '7d' ? 7 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
-    return sessions.filter(s => now - new Date(s.date).getTime() <= ms);
-}
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { QuizSession, DateRange } from '../types/teacher';
+import { filterSessionsByDate } from '../utils/reportFilters';
 
 const DATE_RANGE_OPTIONS: { label: string; value: DateRange }[] = [
     { label: 'Last 7 days', value: '7d' },
@@ -42,12 +26,34 @@ function computeStats(sessions: QuizSession[]) {
     return { totalSessions, totalParticipants, avgScore, completionRate };
 }
 
+function computeDetailedInsights(sessions: QuizSession[]) {
+    if (sessions.length === 0) return null;
+
+    const sortedByScore = [...sessions].sort((a, b) => b.averageScore - a.averageScore);
+    const topQuiz = sortedByScore[0];
+    const bottomQuiz = sortedByScore[sessions.length - 1];
+
+    // Peak day calculation
+    const dayCounts: Record<number, number> = {};
+    sessions.forEach(s => {
+        const day = new Date(s.date).getDay();
+        dayCounts[day] = (dayCounts[day] || 0) + 1;
+    });
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const peakDayIndex = Object.entries(dayCounts).reduce((a, b) => b[1] > a[1] ? b : a)[0];
+    const peakDay = days[parseInt(peakDayIndex)];
+
+    return { topQuiz, bottomQuiz, peakDay };
+}
+
 export function Reports() {
     const [sessions, setSessions] = useState<QuizSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [dateFilter, setDateFilter] = useState<DateRange>('all');
+    const [visibleCount, setVisibleCount] = useState(5);
+    const { isMobile } = useBreakpoint();
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -58,36 +64,28 @@ export function Reports() {
                 console.error("Failed to fetch reports:", err);
                 setError(err.message || 'Failed to load reports');
             } finally {
-                setLoading(false);
+                // Simulate slightly longer loading for smooth transition to skeletons
+                setTimeout(() => setLoading(false), 600);
             }
         };
         fetchReports();
     }, []);
 
     const filtered = filterSessionsByDate(sessions, dateFilter);
+    const stats = computeStats(filtered);
+    const insights = computeDetailedInsights(filtered);
 
     const handleDownloadCSV = () => {
         if (filtered.length === 0) return;
-
-        // Define CSV headers
         const headers = ['Quiz Title', 'Date', 'Participants', 'Average Score', 'Status'];
-
-        // Map filtered sessions to CSV rows
         const rows = filtered.map(session => [
-            `"${session.quizTitle.replace(/"/g, '""')}"`, // Escape quotes
+            `"${session.quizTitle.replace(/"/g, '""')}"`,
             new Date(session.date).toLocaleDateString(),
             session.participantCount.toString(),
             `${session.averageScore}%`,
             session.completed ? 'Completed' : 'In Progress'
         ]);
-
-        // Combine headers and rows
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
-
-        // Create Blob and trigger download natively
+        const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -98,147 +96,240 @@ export function Reports() {
         document.body.removeChild(link);
     };
 
-    const stats = computeStats(filtered);
-
-    const statCards = [
-        { label: 'Total Sessions', value: stats.totalSessions, icon: BarChart2, iconBg: '#EEF2FF', iconColor: '#6366F1' },
-        { label: 'Total Participants', value: stats.totalParticipants, icon: Users, iconBg: '#FFF7ED', iconColor: '#F97316' },
-        { label: 'Average Score', value: `${stats.avgScore}%`, icon: TrendingUp, iconBg: '#ECFDF5', iconColor: '#10B981' },
-        { label: 'Completion Rate', value: `${stats.completionRate}%`, icon: CheckCircle, iconBg: '#FFF3EE', iconColor: '#FF5C1A' },
-    ];
-
     return (
-        <div className="flex min-h-screen bg-[#F5F5F5] overflow-x-hidden">
-            <MobileHeader onOpen={() => setIsSidebarOpen(true)} />
+        <div className="flex min-h-screen bg-[#F8FAFC] overflow-x-hidden">
             <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-            <main className="flex-1 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-8 mt-16 lg:mt-0 min-w-0">
-                {/* Top bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-5 border-b border-gray-200 mb-7 gap-4">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-2xl font-extrabold text-gray-900 m-0">Reports</h1>
+            <main className="flex-1 transition-all duration-300 lg:ml-[240px] px-4 sm:px-8 pb-12 min-w-0">
+                <TeacherHeader
+                    title="Reports Dashboard"
+                    showSearch={false}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                />
+
+                {/* Export / Filter Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-end mb-8 gap-4 bg-white/50 p-4 rounded-2xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                        {/* Date range filter */}
+                        <div className="flex p-1 bg-white border border-gray-200 rounded-xl shadow-sm">
+                            {DATE_RANGE_OPTIONS.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setDateFilter(opt.value)}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all
+                                        ${dateFilter === opt.value ? 'bg-[#FF5C1A] text-white shadow-lg shadow-[#FF5C1A]/20' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                         <button
                             onClick={handleDownloadCSV}
                             disabled={filtered.length === 0 || loading}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-[13px] font-bold text-gray-700 transition-all
-                                ${filtered.length === 0 || loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 active:scale-95 shadow-sm'}`}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-[13px] font-bold text-gray-700 transition-all shadow-sm
+                                ${filtered.length === 0 || loading ? 'opacity-50 cursor-not-allowed' : 'hover:border-[#FF5C1A] hover:text-[#FF5C1A] active:scale-95'}`}
                         >
                             <DownloadCloud size={16} />
-                            Download CSV
+                            Export CSV
                         </button>
-                    </div>
-
-                    {/* Date range filter */}
-                    <div className="flex p-1 bg-white border border-gray-200 rounded-xl max-w-fit shadow-sm">
-                        {DATE_RANGE_OPTIONS.map(opt => (
-                            <button
-                                key={opt.value}
-                                onClick={() => setDateFilter(opt.value)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all
-                                    ${dateFilter === opt.value ? 'bg-[#FF5C1A] text-white shadow-md shadow-[#FF5C1A]/20' : 'text-gray-500 hover:text-gray-900'}`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
                     </div>
                 </div>
 
-                {/* Stat cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-                    {statCards.map((card, i) => (
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+                    {[
+                        { label: 'Sessions', value: stats.totalSessions, icon: BarChart2, color: 'indigo' },
+                        { label: 'Participants', value: stats.totalParticipants, icon: Users, color: 'orange' },
+                        { label: 'Avg Score', value: `${stats.avgScore}%`, icon: TrendingUp, color: 'emerald' },
+                        { label: 'Completion', value: `${stats.completionRate}%`, icon: CheckCircle, color: 'blue' },
+                    ].map((stat, i) => (
                         <motion.div
-                            key={card.label}
-                            initial={{ opacity: 0, y: 16 }}
+                            key={stat.label}
+                            initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.07 }}
-                            className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+                            transition={{ delay: i * 0.1 }}
+                            className="bg-white rounded-2xl p-4 sm:p-6 shadow-[0_2px_12px_-3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group"
                         >
-                            <div className="flex items-center gap-3 mb-3">
-                                <div
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                                    style={{ background: card.iconBg }}
-                                >
-                                    <card.icon size={18} color={card.iconColor} />
+                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform duration-300`}>
+                                    <stat.icon size={isMobile ? 18 : 24} />
                                 </div>
                             </div>
-                            <div className="text-3xl font-black text-gray-900 leading-none">
-                                {card.value}
-                            </div>
-                            <div className="text-[13px] font-bold text-gray-500 mt-2 lowercase">{card.label}</div>
+                            {loading ? (
+                                <div className="h-7 sm:h-9 w-16 sm:w-24 bg-gray-100 rounded-lg animate-pulse" />
+                            ) : (
+                                <div className="text-xl sm:text-3xl font-black text-gray-900 tracking-tight">{stat.value}</div>
+                            )}
+                            <div className="text-[10px] sm:text-[13px] font-black text-gray-400 mt-1 sm:mt-2 tracking-wide uppercase">{stat.label}</div>
                         </motion.div>
                     ))}
                 </div>
 
-                {/* Session list */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    {/* Table header — desktop only */}
-                    <div className="hidden sm:grid grid-cols-[1fr,140px,120px,120px] px-6 py-3 border-b border-gray-50 bg-gray-50/50">
-                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Quiz Title</span>
-                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</span>
-                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Participants</span>
-                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Avg Score</span>
+                {/* Main Content Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                    {/* Left: Reports Table (8 columns) */}
+                    <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 sm:px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                            <h2 className="text-lg font-black text-gray-900 tracking-tight m-0">Recent Activity</h2>
+                            {!loading && (
+                                <span className="text-[10px] sm:text-[11px] font-black bg-gray-50 text-gray-400 px-3 py-1 rounded-full uppercase tracking-tighter">
+                                    {filtered.length} Reports
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            {loading ? (
+                                <div className="p-8 space-y-4">
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />
+                                    ))}
+                                </div>
+                            ) : error ? (
+                                <div className="p-16 text-center text-red-500 font-bold">{error}</div>
+                            ) : filtered.length === 0 ? (
+                                <div className="py-24 text-center px-8">
+                                    <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                        <Calendar size={40} className="text-gray-200" />
+                                    </div>
+                                    <h3 className="text-xl font-black text-gray-900 mb-2">No activity recorded</h3>
+                                    <p className="text-sm font-bold text-gray-400 max-w-xs mx-auto">Host a live quiz to start generating performance data and insights.</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-0">
+                                    <thead>
+                                        <tr className="bg-gray-50/50">
+                                            <th className="px-5 sm:px-8 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest">Quiz Details</th>
+                                            <th className="px-4 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">Score</th>
+                                            <th className="px-2 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center hidden sm:table-cell">Students</th>
+                                            <th className="px-5 sm:px-8 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filtered.slice(0, visibleCount).map((session, i) => (
+                                            <tr
+                                                key={session.id}
+                                                className={`group transition-colors hover:bg-gray-50/80 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/20'}`}
+                                            >
+                                                <td className="px-5 sm:px-8 py-5">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-black text-gray-900 truncate max-w-[200px] sm:max-w-md group-hover:text-[#FF5C1A] transition-colors">{session.quizTitle}</span>
+                                                        <span className="text-[11px] font-bold text-gray-400 mt-0.5">{new Date(session.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-5 text-center">
+                                                    <span className={`text-[13px] font-black px-3 py-1 rounded-lg ${session.averageScore >= 80 ? 'bg-emerald-50 text-emerald-600' :
+                                                        session.averageScore >= 50 ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
+                                                        }`}>
+                                                        {session.averageScore}%
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-5 text-center">
+                                                    <div className="flex items-center justify-center gap-1.5 text-gray-600">
+                                                        <Users size={14} className="text-gray-300" />
+                                                        <span className="text-[13px] font-bold">{session.participantCount}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded-md border ${session.completed ? 'bg-emerald-50/50 text-emerald-600 border-emerald-100' : 'bg-amber-50/50 text-amber-600 border-amber-100'
+                                                        }`}>
+                                                        {session.completed ? 'Completed' : 'In Progress'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        {filtered.length > visibleCount && (
+                            <div className="p-4 bg-gray-50/50 border-t border-gray-100 text-center">
+                                <button
+                                    onClick={() => setVisibleCount(prev => prev + 10)}
+                                    className="text-[12px] font-black text-[#FF5C1A] hover:underline uppercase tracking-tight"
+                                >
+                                    View More ({filtered.length - visibleCount} remaining)
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {loading ? (
-                        <div className="py-20 text-center">
-                            <div className="w-10 h-10 border-4 border-gray-100 border-t-[#FF5C1A] rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-sm font-bold text-gray-500">Loading your analytics...</p>
-                        </div>
-                    ) : error ? (
-                        <div className="p-12 text-center text-red-500 text-sm font-bold">{error}</div>
-                    ) : filtered.length === 0 ? (
-                        <div className="py-20 text-center px-6">
-                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <Calendar size={32} className="text-gray-300" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">No sessions yet</h3>
-                            <p className="text-sm font-bold text-gray-500 m-0">Host a quiz to start seeing your analytics here.</p>
-                        </div>
-                    ) : (
-                        filtered.map((session, i) => (
-                            <motion.div
-                                key={session.id}
-                                initial={{ opacity: 0, x: -12 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                            >
-                                {/* Desktop row */}
-                                <div className={`hidden sm:grid grid-cols-[1fr,140px,120px,120px] px-6 py-4 items-center hover:bg-gray-50 transition-colors
-                                    ${i < filtered.length - 1 ? 'border-b border-gray-50' : ''}`}
-                                >
-                                    <span className="text-sm font-bold text-gray-900 truncate pr-4">{session.quizTitle}</span>
-                                    <span className="text-[13px] font-bold text-gray-500">
-                                        {new Date(session.date).toLocaleDateString()}
-                                    </span>
-                                    <span className="text-[13px] font-bold text-gray-600">
-                                        {session.participantCount} students
-                                    </span>
-                                    <span className={`text-[13px] font-black
-                                        ${session.averageScore >= 70 ? 'text-emerald-500' : session.averageScore >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
-                                        {session.averageScore}%
-                                    </span>
+                    {/* Right: Insights Panel (4 columns) */}
+                    <aside className="lg:col-span-4 space-y-6">
+                        {/* Summary Widget */}
+                        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                            <h3 className="text-base font-black text-gray-900 mb-6 flex items-center gap-2">
+                                <TrendingUp size={20} className="text-[#FF5C1A]" />
+                                Smart Insights
+                            </h3>
+
+                            <div className="space-y-6">
+                                {/* Top Quiz */}
+                                <div className="group">
+                                    <div className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                        Top Performance
+                                        <TrendingUp size={12} className="text-emerald-500" />
+                                    </div>
+                                    {loading ? (
+                                        <div className="h-12 bg-gray-50 rounded-xl animate-pulse" />
+                                    ) : insights?.topQuiz ? (
+                                        <div className="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50 group-hover:border-emerald-100 transition-colors">
+                                            <div className="text-sm font-black text-gray-900 mb-1 truncate">{insights.topQuiz.quizTitle}</div>
+                                            <div className="text-[11px] font-bold text-emerald-600">Avg. Score: {insights.topQuiz.averageScore}%</div>
+                                        </div>
+                                    ) : <div className="text-xs font-bold text-gray-400 italic">No data yet</div>}
                                 </div>
 
-                                {/* Mobile card */}
-                                <div className={`sm:hidden p-4 hover:bg-gray-50 transition-colors
-                                    ${i < filtered.length - 1 ? 'border-b border-gray-100' : ''}`}
-                                >
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <span className="text-sm font-bold text-gray-900 line-clamp-2">{session.quizTitle}</span>
-                                        <span className={`text-sm font-black shrink-0
-                                            ${session.averageScore >= 70 ? 'text-emerald-500' : session.averageScore >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
-                                            {session.averageScore}%
-                                        </span>
+                                {/* Lowest Quiz */}
+                                <div className="group">
+                                    <div className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                        Growth Focus
+                                        <BarChart2 size={12} className="text-red-400" />
                                     </div>
-                                    <div className="flex items-center gap-4 text-[12px] font-bold text-gray-400">
-                                        <span>{new Date(session.date).toLocaleDateString()}</span>
-                                        <span>•</span>
-                                        <span>{session.participantCount} students</span>
+                                    {loading ? (
+                                        <div className="h-12 bg-gray-50 rounded-xl animate-pulse" />
+                                    ) : insights?.bottomQuiz ? (
+                                        <div className="p-4 bg-red-50/30 rounded-2xl border border-red-50 group-hover:border-red-100 transition-colors">
+                                            <div className="text-sm font-black text-gray-900 mb-1 truncate">{insights.bottomQuiz.quizTitle}</div>
+                                            <div className="text-[11px] font-bold text-red-500">Avg. Score: {insights.bottomQuiz.averageScore}%</div>
+                                        </div>
+                                    ) : <div className="text-xs font-bold text-gray-400 italic">No data yet</div>}
+                                </div>
+
+                                {/* Peak Day */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Peak Activity</div>
+                                            {loading ? (
+                                                <div className="h-6 w-20 bg-gray-50 rounded-lg animate-pulse" />
+                                            ) : (
+                                                <div className="text-lg font-black text-gray-900">{insights?.peakDay || '—'}</div>
+                                            )}
+                                        </div>
+                                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                            <Calendar size={22} />
+                                        </div>
                                     </div>
                                 </div>
-                            </motion.div>
-                        ))
-                    )}
+                            </div>
+                        </div>
+
+                        {/* Upgrade CTA */}
+                        <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-8 text-white relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <TrendingUp size={80} />
+                            </div>
+                            <h4 className="text-lg font-black mb-2 relative z-10">Advanced Analytics</h4>
+                            <p className="text-[13px] font-bold text-gray-400 mb-6 relative z-10 leading-relaxed">
+                                Unlock individual student progress tracking and AI-powered performance summaries.
+                            </p>
+                            <button className="w-full py-3 bg-white text-gray-900 rounded-xl text-[13px] font-black uppercase tracking-tight hover:bg-gray-100 transition-colors relative z-10 shadow-xl shadow-black/20">
+                                Try Pro Access
+                            </button>
+                        </div>
+                    </aside>
                 </div>
             </main>
         </div>

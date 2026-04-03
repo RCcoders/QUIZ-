@@ -4,16 +4,7 @@ import Quiz from '../models/Quiz.js';
 import GameSession from '../models/GameSession.js';
 import ScoreRecord from '../models/ScoreRecord.js';
 
-interface AuthenticatedRequest extends Request {
-    user?: {
-        _id: string;
-        role: string;
-        email?: string;
-        displayName?: string;
-    };
-}
-
-export const getDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
+export const getDashboardStats = async (req: Request, res: Response) => {
     try {
         const teacherId = req.user?._id;
 

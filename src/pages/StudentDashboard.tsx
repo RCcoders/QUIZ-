@@ -5,7 +5,6 @@ import { StudentNavbar } from '../components/StudentNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
 import { useBadges } from '../hooks/useBadges';
-import { BadgeList } from '../components/BadgeList';
 import ToastNotification from '../components/ToastNotification';
 import { evaluateBadges } from '../lib/badgeEngine';
 import { getContinueLearning, getInitials } from '../utils/scoring';
@@ -248,7 +247,32 @@ export function StudentDashboard() {
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>
                         My Badges
                     </h2>
-                    <BadgeList badges={badges} loading={badgesLoading} />
+                    {badgesLoading ? (
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            {[1, 2, 3].map(i => (
+                                <div key={i} style={{ width: 64, height: 84, background: '#fff', borderRadius: 8, opacity: 0.5 }} />
+                            ))}
+                        </div>
+                    ) : (badges?.length ?? 0) === 0 ? (
+                        <p style={{ fontSize: 14, color: '#6B7280' }}>No badges earned yet. Keep playing!</p>
+                    ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                            {badges?.map((badge: any) => (
+                                <div key={badge.id || badge.type} style={{
+                                    width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        width: 56, height: 56, borderRadius: '50%', background: '#EEF2FF',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+                                        fontSize: 24, border: '2px solid #6366F1'
+                                    }}>
+                                        {badge.icon || '🏆'}
+                                    </div>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>{badge.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </section>
 
                 {/* Recommended Quizzes */}

@@ -13,6 +13,7 @@ import adaptiveRoutes from './routes/adaptiveRoutes.js';
 import badgeRoutes from './routes/badgeRoutes.js';
 import teacherDashboardRoutes from './routes/teacherDashboard.js';
 import reportRoutes from './routes/reportRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 import { createServer } from 'http';
 import { setupSocket } from './socket.js';
@@ -47,6 +48,7 @@ app.use('/api/adaptive', adaptiveRoutes);
 app.use('/api/teacher', teacherDashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/badges', badgeRoutes);
+app.use('/api/user', userRoutes);
 
 // Catch-all route to serve index.html for SPA
 // In Express 5, the route parameters and matching have changed.

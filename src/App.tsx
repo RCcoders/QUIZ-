@@ -24,6 +24,7 @@ const MyQuizzes = lazy(() => import('./pages/MyQuizzes').then(m => ({ default: m
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Billing = lazy(() => import('./pages/Billing').then(m => ({ default: m.Billing })));
+const TeacherProfile = lazy(() => import('./pages/TeacherProfile').then(m => ({ default: m.TeacherProfile })));
 const StudentLibrary = lazy(() => import('./pages/StudentLibrary').then(m => ({ default: m.StudentLibrary })));
 const NoteDetail = lazy(() => import('./pages/NoteDetail').then(m => ({ default: m.NoteDetail })));
 const AdaptiveQuiz = lazy(() => import('./pages/AdaptiveQuiz').then(m => ({ default: m.AdaptiveQuiz })));
@@ -105,6 +106,7 @@ const MainContent = () => {
           <Route path="/teacher/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/teacher/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
           <Route path="/teacher/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+          <Route path="/teacher/profile" element={<ProtectedRoute><TeacherProfile /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
