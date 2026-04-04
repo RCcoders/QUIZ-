@@ -30,8 +30,17 @@ connectDB();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Note: When running from server/dist/index.js, we need to go up TWO levels to reach root
-const distPath = path.join(__dirname, '..', '..', 'dist');
+// Robust pathing for both dev and production (dist/index.js)
+const distPath = __dirname.endsWith('dist')
+    ? path.join(__dirname, '..', '..', 'dist') // From server/dist/
+    : path.join(__dirname, '..', 'dist');       // From server/
+
+import fs from 'fs';
+if (!fs.existsSync(distPath)) {
+    console.warn(`[SERVER] Warning: Frontend build directory not found at ${distPath}`);
+} else {
+    console.log(`[SERVER] Serving static files from ${distPath}`);
+}
 
 // Middleware
 const allowedOrigins = [
