@@ -32,7 +32,7 @@ connectDB();
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    // Add your production domain here once deployed, e.g., 'https://quizly.pages.dev'
+    'https://quiz-2o1.pages.dev'
 ];
 
 app.use(cors({
@@ -42,10 +42,14 @@ app.use(cors({
         if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
             return callback(null, true);
         }
-        return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
+        return callback(null, false);
     },
     credentials: true,
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // API Status Route
