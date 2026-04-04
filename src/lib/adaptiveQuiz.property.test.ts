@@ -13,6 +13,9 @@ import { generateAdaptiveQuestions, buildPerformanceProfile } from './adaptiveQu
 import type { PerformanceProfile } from './adaptiveQuiz';
 import type { GeneratedQuestion } from './gemini';
 import type { ScoreRecord } from '../types/student';
+import { performance } from 'perf_hooks';
+
+vi.stubEnv('VITE_GEMINI_API_KEY', 'test_key');
 
 // ---------------------------------------------------------------------------
 // Helpers

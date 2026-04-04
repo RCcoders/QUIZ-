@@ -1,7 +1,6 @@
 import { ScoreRecord } from '../types/student';
 import { GeneratedQuestion } from './gemini';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 export interface PerformanceProfile {
@@ -101,7 +100,8 @@ export async function generateAdaptiveQuestions(
   // Clamp numQuestions to 5–20
   const clampedNum = Math.min(20, Math.max(5, numQuestions));
 
-  if (!GEMINI_API_KEY) {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your .env file.');
   }
 
@@ -168,7 +168,7 @@ Respond with ONLY a valid JSON array. No explanations, no markdown, just raw JSO
 Generate ${clampedNum} questions now:`;
 
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

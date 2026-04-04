@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { BookOpen, ArrowLeft, Brain, ClipboardList } from 'lucide-react';
+import { BookOpen, ArrowLeft, Brain, ClipboardList, Sparkles, Loader, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { StudentNavbar } from '../components/StudentNavbar';
 import type { Note } from '../types/student';
@@ -11,6 +11,23 @@ export function NoteDetail() {
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // AI notes state (legacy plain-text)
+  const [aiNotes, setAiNotes] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiExpanded, setAiExpanded] = useState(false);
+
+  // Generate Notes (structured agent) state
+  interface AgentNotes {
+    summary: string;
+    keyConcepts: string[];
+    importantQuestions: string[];
+  }
+  const [agentNotes, setAgentNotes] = useState<AgentNotes | null>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState('');
+  const [agentExpanded, setAgentExpanded] = useState(false);
 
   useEffect(() => {
     if (!noteId) {
@@ -32,6 +49,65 @@ export function NoteDetail() {
 
     fetchNote();
   }, [noteId]);
+
+  const generateAiNotes = async () => {
+    if (!note) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const resData = await apiFetch('/api/ai/agent/run', {
+        method: 'POST',
+        body: { 
+          mode: 'STUDENT_AGENT',
+          data: {
+            topic: note.title || note.subject,
+            content: note.content 
+          }
+        },
+      });
+      // The API returns the text in data.data.summary (if using the StudentNotes interface) or notes directly
+      const payload = resData.data || resData;
+      setAiNotes(payload.notes || payload.summary || JSON.stringify(payload));
+      setAiExpanded(true);
+    } catch (err: any) {
+      if (err.status === 429) {
+        setAiError("You've reached the AI limit. Try again in a minute.");
+      } else {
+        setAiError(err.message || 'Failed to generate AI notes');
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const generateAgentNotes = async () => {
+    if (!note) return;
+    setAgentLoading(true);
+    setAgentError('');
+    try {
+      const resData = await apiFetch('/api/ai/agent/run', {
+        method: 'POST',
+        body: {
+          mode: 'STUDENT_AGENT',
+          data: {
+            topic: note.title || note.subject,
+            noteText: note.content,
+          }
+        },
+      });
+      const payload = resData.data || resData;
+      setAgentNotes(payload);
+      setAgentExpanded(true);
+    } catch (err: any) {
+      if (err.status === 429) {
+        setAgentError("You've reached the AI limit. Try again in a minute.");
+      } else {
+        setAgentError(err.message || 'Failed to generate notes');
+      }
+    } finally {
+      setAgentLoading(false);
+    }
+  };
 
   const formatDate = (iso: string) => {
     try {
@@ -222,7 +298,136 @@ export function NoteDetail() {
                   Adaptive Practice
                 </Link>
               )}
+
+              {/* AI Notes button */}
+              <button
+                onClick={generateAiNotes}
+                disabled={aiLoading}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: aiLoading ? '#E0E7FF' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                  color: aiLoading ? '#6366F1' : 'white',
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: aiLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: aiLoading ? 'none' : '0 2px 8px rgba(139,92,246,0.35)',
+                }}
+              >
+                {aiLoading ? <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Sparkles size={16} />}
+                {aiLoading ? 'Generating…' : 'AI Study Notes'}
+              </button>
+
+              {/* Generate Notes button (structured agent) */}
+              <button
+                onClick={generateAgentNotes}
+                disabled={agentLoading}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: agentLoading ? '#D1FAE5' : 'linear-gradient(135deg, #10B981, #34D399)',
+                  color: agentLoading ? '#059669' : 'white',
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: agentLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: agentLoading ? 'none' : '0 2px 8px rgba(16,185,129,0.35)',
+                }}
+              >
+                {agentLoading ? <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Sparkles size={16} />}
+                {agentLoading ? 'Generating…' : 'Generate Notes'}
+              </button>
             </div>
+
+            {/* AI Notes panel */}
+            {aiError && (
+              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>
+                {aiError}
+              </div>
+            )}
+            {aiNotes && (
+              <div style={{ marginTop: 20, borderRadius: 14, border: '1px solid #DDD6FE', overflow: 'hidden' }}>
+                <button
+                  onClick={() => setAiExpanded(v => !v)}
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#F5F3FF',
+                    border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: 8,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#7C3AED' }}>
+                    <Sparkles size={15} /> AI Study Notes
+                  </span>
+                  {aiExpanded ? <ChevronUp size={16} color="#7C3AED" /> : <ChevronDown size={16} color="#7C3AED" />}
+                </button>
+                {aiExpanded && (
+                  <div style={{ padding: '16px', background: '#FAFAFA', whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.75, color: '#374151' }}>
+                    {aiNotes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Generate Notes (agent) error */}
+            {agentError && (
+              <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>
+                {agentError}
+              </div>
+            )}
+
+            {/* Generate Notes (agent) structured panel */}
+            {agentNotes && (
+              <div style={{ marginTop: 20, borderRadius: 14, border: '1px solid #A7F3D0', overflow: 'hidden' }}>
+                <button
+                  onClick={() => setAgentExpanded(v => !v)}
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#ECFDF5',
+                    border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: 8,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#059669' }}>
+                    <Sparkles size={15} /> Generated Notes
+                  </span>
+                  {agentExpanded ? <ChevronUp size={16} color="#059669" /> : <ChevronDown size={16} color="#059669" />}
+                </button>
+                {agentExpanded && (
+                  <div style={{ padding: '16px', background: '#FAFAFA', fontSize: 14, lineHeight: 1.75, color: '#374151' }}>
+                    {/* Summary */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 6, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Summary</div>
+                      <p style={{ margin: 0 }}>{agentNotes.summary}</p>
+                    </div>
+                    {/* Key Concepts */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 6, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Key Concepts</div>
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        {agentNotes.keyConcepts.map((concept, i) => (
+                          <li key={i} style={{ marginBottom: 4 }}>{concept}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    {/* Important Questions */}
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 6, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Important Questions</div>
+                      <ol style={{ margin: 0, paddingLeft: 20 }}>
+                        {agentNotes.importantQuestions.map((q, i) => (
+                          <li key={i} style={{ marginBottom: 4 }}>{q}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
       </div>

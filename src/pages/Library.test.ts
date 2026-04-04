@@ -34,59 +34,55 @@ describe('Library – note form validation (Requirement 5.5)', () => {
         expect(source).toContain('noteFormErrors.content');
     });
 
-    it('blocks Firestore write when validation errors exist', () => {
-        // After setting errors, the function returns early before calling addDoc
+    it('blocks API write when validation errors exist', () => {
+        // After setting errors, the function returns early before calling addDoc/apiFetch
         const submitFnMatch = source.match(/async function handleNoteSubmit[\s\S]*?^    \}/m);
         const submitFn = submitFnMatch ? submitFnMatch[0] : source;
-        // The early return must appear before addDoc
+        // The early return must appear before apiFetch
         const returnIdx = submitFn.indexOf('if (Object.keys(errors).length > 0) return');
-        const addDocIdx = submitFn.indexOf('addDoc(');
+        const apiFetchIdx = submitFn.indexOf('apiFetch(');
         expect(returnIdx).toBeGreaterThan(-1);
-        expect(addDocIdx).toBeGreaterThan(-1);
-        expect(returnIdx).toBeLessThan(addDocIdx);
+        expect(apiFetchIdx).toBeGreaterThan(-1);
+        expect(returnIdx).toBeLessThan(apiFetchIdx);
     });
 });
 
 // ── Requirement 5.3: Valid submission writes note with published: false ────
 describe('Library – valid note submission (Requirement 5.3)', () => {
-    it('calls addDoc to write the note to Firestore', () => {
-        expect(source).toContain('addDoc(');
-        expect(source).toContain("collection(db, 'notes')");
+    it('calls apiFetch POST to write the note', () => {
+        expect(source).toContain("apiFetch('/api/notes'");
+        expect(source).toContain("method: 'POST'");
     });
 
-    it('writes note with published: false by default', () => {
-        expect(source).toContain('published: false');
+    it('requires title and content', () => {
+        expect(source).toContain('noteForm.title.trim()');
+        expect(source).toContain('noteForm.content.trim()');
     });
 
-    it('includes authorUid in the written document', () => {
-        expect(source).toContain('authorUid');
+    it('includes linkedQuizId if exists', () => {
+        expect(source).toContain('linkedQuizId');
     });
 
-    it('includes createdAt and updatedAt timestamps', () => {
-        expect(source).toContain('createdAt');
-        expect(source).toContain('updatedAt');
-    });
-
-    it('imports addDoc from firebase/firestore', () => {
-        expect(source).toContain('addDoc');
-        expect(source).toContain("from 'firebase/firestore'");
+    it('handles successful creation by clearing form and closing', () => {
+        expect(source).toContain('setNoteForm(EMPTY_NOTE_FORM)');
+        expect(source).toContain('setShowNoteForm(false)');
+        expect(source).toContain('refresh()');
     });
 });
 
-// ── Requirement 5.4: Publish toggle calls updateDoc ───────────────────────
+// ── Requirement 5.4: Publish toggle calls apiFetch PATCH ───────────────────────
 describe('Library – publish toggle (Requirement 5.4)', () => {
-    it('calls updateDoc to flip the published field', () => {
-        expect(source).toContain('updateDoc(');
+    it('calls apiFetch PATCH to flip the published field', () => {
+        expect(source).toContain("method: 'PATCH'");
         expect(source).toContain('published: !note.published');
     });
 
-    it('targets the correct Firestore document path', () => {
-        expect(source).toContain("doc(db, 'notes', note.id)");
+    it('targets the correct URL path', () => {
+        expect(source).toContain("`/api/notes/${");
     });
 
-    it('imports updateDoc from firebase/firestore', () => {
-        expect(source).toContain('updateDoc');
-        expect(source).toContain("from 'firebase/firestore'");
+    it('refreshes after patch', () => {
+        expect(source).toContain('refresh()');
     });
 
     it('handlePublishToggle function is defined', () => {

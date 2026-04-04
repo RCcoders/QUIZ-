@@ -14,6 +14,8 @@ import badgeRoutes from './routes/badgeRoutes.js';
 import teacherDashboardRoutes from './routes/teacherDashboard.js';
 import reportRoutes from './routes/reportRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import agentRoutes from './routes/agentRoutes.js';
 
 import { createServer } from 'http';
 import { setupSocket } from './socket.js';
@@ -49,6 +51,8 @@ app.use('/api/teacher', teacherDashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/ai/agent', agentRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Catch-all route to serve index.html for SPA
 // In Express 5, the route parameters and matching have changed.

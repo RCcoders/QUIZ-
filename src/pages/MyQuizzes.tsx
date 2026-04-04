@@ -17,14 +17,14 @@ import { fetchMyQuizzes } from '../api/teacher';
 
 type StatusFilter = 'all' | 'active' | 'draft';
 
-// Pure filter functions (private)
-function filterQuizzesBySearch(quizzes: QuizWithCount[], query: string): QuizWithCount[] {
+// Pure filter functions (private for UI, exported for tests)
+export function filterQuizzesBySearch(quizzes: QuizWithCount[], query: string): QuizWithCount[] {
     if (!query.trim()) return quizzes;
     const lower = query.toLowerCase();
     return quizzes.filter(q => q.title.toLowerCase().includes(lower));
 }
 
-function filterQuizzesByStatus(quizzes: QuizWithCount[], status: StatusFilter): QuizWithCount[] {
+export function filterQuizzesByStatus(quizzes: QuizWithCount[], status: StatusFilter): QuizWithCount[] {
     if (status === 'all') return quizzes;
     return quizzes.filter(q => (status === 'active' ? q.isActive : !q.isActive));
 }

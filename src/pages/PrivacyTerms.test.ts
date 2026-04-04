@@ -18,41 +18,42 @@ const privacySource = readFileSync(resolve(__dirname, 'PrivacyPage.tsx'), 'utf-8
 const termsSource = readFileSync(resolve(__dirname, 'TermsPage.tsx'), 'utf-8');
 
 describe('PrivacyPage', () => {
-  it('does not import AuthContext (renders without authentication)', () => {
-    expect(privacySource).not.toContain('AuthContext');
-    expect(privacySource).not.toContain('useAuth');
-    expect(privacySource).not.toContain('ProtectedRoute');
-  });
+    it('does not import AuthContext (renders without authentication)', () => {
+        expect(privacySource).not.toContain('AuthContext');
+        expect(privacySource).not.toContain('useAuth');
+        expect(privacySource).not.toContain('ProtectedRoute');
+    });
 
-  it('contains "Privacy Policy" heading text', () => {
-    expect(privacySource).toContain('Privacy Policy');
-  });
+    it('contains "Privacy Policy" heading text', () => {
+        expect(privacySource).toContain('Privacy Policy');
+    });
 
-  it('has a Helmet title of "Privacy Policy — Quizly"', () => {
-    expect(privacySource).toContain('Privacy Policy — Quizly');
-  });
+    it('has a Helmet title of "Privacy Policy — Quizly"', () => {
+        expect(privacySource).toContain('Privacy Policy — Quizly');
+    });
 
-  it('has a unique meta description', () => {
-    expect(privacySource).toContain('collects, uses, and protects');
-  });
+    it('explains data usage', () => {
+        expect(privacySource).toMatch(/We use your information/i);
+    });
 });
 
 describe('TermsPage', () => {
-  it('does not import AuthContext (renders without authentication)', () => {
-    expect(termsSource).not.toContain('AuthContext');
-    expect(termsSource).not.toContain('useAuth');
-    expect(termsSource).not.toContain('ProtectedRoute');
-  });
+    it('does not import AuthContext (renders without authentication)', () => {
+        expect(termsSource).not.toContain('AuthContext');
+        expect(termsSource).not.toContain('useAuth');
+        expect(termsSource).not.toContain('ProtectedRoute');
+    });
 
-  it('contains "Terms of Service" heading text', () => {
-    expect(termsSource).toContain('Terms of Service');
-  });
+    it('contains "Terms of Service" heading text', () => {
+        expect(termsSource).toContain('Terms of Service');
+    });
 
-  it('has a Helmet title of "Terms of Service — Quizly"', () => {
-    expect(termsSource).toContain('Terms of Service — Quizly');
-  });
+    it('has a Helmet title of "Terms of Service — Quizly"', () => {
+        expect(termsSource).toContain('Terms of Service — Quizly');
+    });
 
-  it('has a unique meta description', () => {
-    expect(termsSource).toContain('terms of service and acceptable use');
-  });
+    it('explains acceptable use', () => {
+        expect(termsSource).toMatch(/lawful/i);
+        expect(termsSource).toMatch(/educational purposes/i);
+    });
 });

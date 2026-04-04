@@ -67,9 +67,15 @@ export function QuizEditor() {
 
     const isMobile = windowWidth <= 768;
 
-    // AI Generator state
+    // AI Generator state — topic-based (Python AI) + text-based (Gemini)
     const [syllabusText, setSyllabusText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [aiTopic, setAiTopic] = useState('');
+    const [aiDifficulty, setAiDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+    const [aiCount, setAiCount] = useState(5);
+    const [aiMode, setAiMode] = useState<'topic' | 'text'>('topic');
+    const [isGeneratingNewAI, setIsGeneratingNewAI] = useState(false);
+    const [newAiError, setNewAiError] = useState('');
 
     // Fetch quiz data if editing
     useEffect(() => {
@@ -184,24 +190,59 @@ export function QuizEditor() {
     };
 
     const generateQuestions = async () => {
-        if (!syllabusText.trim()) { setError('Please enter content to generate questions'); return; }
+        if (aiMode === 'topic') {
+            if (!aiTopic.trim()) { setError('Please enter a topic to generate questions'); return; }
+        } else {
+            if (!syllabusText.trim()) { setError('Please enter content to generate questions'); return; }
+        }
         setIsGenerating(true);
         setError('');
         try {
-            const data = await apiFetch('/api/adaptive/generate-from-text', {
-                method: 'POST',
-                body: { text: syllabusText, count: 5 }
-            });
+            let rawQuestions: any[];
 
-            const newQuestions: QuestionForm[] = data.questions.map((q: any) => ({
-                questionText: q.question_text,
-                optionA: q.option_a,
-                optionB: q.option_b,
-                optionC: q.option_c,
-                optionD: q.option_d,
-                correctAnswer: q.correct_answer,
-                difficulty: q.difficulty,
-            }));
+            if (aiMode === 'topic') {
+                // Role-specific quiz generator (Unified AI Controller)
+                const resData = await apiFetch('/api/ai/agent/run', {
+                    method: 'POST',
+                    body: { 
+                        mode: 'TEACHER_AGENT',
+                        data: {
+                            topic: aiTopic, 
+                            count: aiCount, 
+                            difficulty: aiDifficulty,
+                            questionType: 'mcq'
+                        }
+                    }
+                });
+                const questionsData = resData.data?.questions || resData.questions || [];
+                // API returns: { questionText, options: [A,B,C,D], correctAnswer, explanation, difficulty }
+                rawQuestions = questionsData.map((q: any) => ({
+                    questionText: q.questionText || q.question,
+                    optionA: q.options ? q.options[0] : (q.optionA || q.option_a || ''),
+                    optionB: q.options ? q.options[1] : (q.optionB || q.option_b || ''),
+                    optionC: q.options ? q.options[2] : (q.optionC || q.option_c || ''),
+                    optionD: q.options ? q.options[3] : (q.optionD || q.option_d || ''),
+                    correctAnswer: q.correctAnswer || q.correct_answer || 'A',
+                    difficulty: q.difficulty,
+                }));
+            } else {
+                // Text-based generator (Gemini via existing route)
+                const data = await apiFetch('/api/adaptive/generate-from-text', {
+                    method: 'POST',
+                    body: { text: syllabusText, count: aiCount }
+                });
+                rawQuestions = data.questions.map((q: any) => ({
+                    questionText: q.question_text,
+                    optionA: q.option_a,
+                    optionB: q.option_b,
+                    optionC: q.option_c,
+                    optionD: q.option_d,
+                    correctAnswer: q.correct_answer,
+                    difficulty: q.difficulty,
+                }));
+            }
+
+            const newQuestions: QuestionForm[] = rawQuestions;
 
             if (questions.length === 1 && !questions[0].questionText.trim()) {
                 setQuestions(newQuestions);
@@ -209,10 +250,58 @@ export function QuizEditor() {
                 setQuestions([...questions, ...newQuestions]);
             }
             setSyllabusText('');
+            setAiTopic('');
         } catch (err: any) {
             setError(err.message || 'Failed to generate questions');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const generateQuizWithNewAI = async () => {
+        if (!aiTopic.trim()) { setNewAiError('Please enter a topic to generate questions'); return; }
+        
+        setIsGeneratingNewAI(true);
+        setNewAiError('');
+        try {
+            const resData = await apiFetch('/api/ai/agent/run', {
+                method: 'POST',
+                body: { 
+                    mode: 'TEACHER_AGENT',
+                    data: {
+                        topic: aiTopic, 
+                        count: aiCount, 
+                        difficulty: aiDifficulty, 
+                        questionType: 'mcq'
+                    }
+                }
+            });
+
+            const questionsData = resData.data?.questions || resData.questions || [];
+            const rawQuestions = questionsData.map((q: any) => ({
+                questionText: q.questionText || q.question,
+                optionA: q.options ? q.options[0] : (q.optionA || q.option_a || ''),
+                optionB: q.options ? q.options[1] : (q.optionB || q.option_b || ''),
+                optionC: q.options ? q.options[2] : (q.optionC || q.option_c || ''),
+                optionD: q.options ? q.options[3] : (q.optionD || q.option_d || ''),
+                correctAnswer: q.correctAnswer || q.correct_answer || 'A',
+                difficulty: q.difficulty,
+            }));
+
+            if (questions.length === 1 && !questions[0].questionText.trim()) {
+                setQuestions(rawQuestions);
+            } else {
+                setQuestions([...questions, ...rawQuestions]);
+            }
+            setAiTopic('');
+        } catch (err: any) {
+            if (err.status === 429) {
+                setNewAiError("You've reached the AI limit. Try again in a minute.");
+            } else {
+                setNewAiError(err.message || 'Failed to generate questions via AI');
+            }
+        } finally {
+            setIsGeneratingNewAI(false);
         }
     };
 
@@ -727,6 +816,106 @@ export function QuizEditor() {
                                 <Eye size={14} /> Full Preview
                             </button>
 
+                            {/* AI Quiz Generator (teacher role-specific) */}
+                            <div style={{
+                                background: '#F0F4FF', borderRadius: 10, padding: '14px',
+                                border: '1px solid #C7D2FE',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                    <Zap size={14} style={{ color: '#6366F1' }} />
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#6366F1' }}>AI Quiz Generator</span>
+                                </div>
+
+                                {/* Mode toggle */}
+                                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                                    {(['topic', 'text'] as const).map(m => (
+                                        <button key={m} onClick={() => setAiMode(m)} style={{
+                                            flex: 1, padding: '4px 0', borderRadius: 6, border: 'none',
+                                            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                            background: aiMode === m ? '#6366F1' : '#E0E7FF',
+                                            color: aiMode === m ? '#fff' : '#6366F1',
+                                        }}>
+                                            {m === 'topic' ? 'By Topic' : 'From Text'}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {aiMode === 'topic' ? (
+                                    <>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Photosynthesis, World War II…"
+                                            value={aiTopic}
+                                            onChange={e => setAiTopic(e.target.value)}
+                                            style={{
+                                                width: '100%', padding: '7px 10px', borderRadius: 7,
+                                                border: '1.5px solid #C7D2FE', fontSize: 12, fontWeight: 500,
+                                                color: '#111827', outline: 'none', background: '#fff',
+                                                boxSizing: 'border-box', marginBottom: 8,
+                                            }}
+                                        />
+                                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                                            <select value={aiDifficulty} onChange={e => setAiDifficulty(e.target.value as any)}
+                                                style={{ flex: 1, padding: '6px 8px', borderRadius: 7, border: '1.5px solid #C7D2FE', fontSize: 11, fontWeight: 600, color: '#374151', background: '#fff', outline: 'none' }}>
+                                                <option value="easy">Easy</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="hard">Hard</option>
+                                            </select>
+                                            <input type="number" min={1} max={20} value={aiCount} onChange={e => setAiCount(Number(e.target.value))}
+                                                style={{ width: 52, padding: '6px 8px', borderRadius: 7, border: '1.5px solid #C7D2FE', fontSize: 11, fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', textAlign: 'center' }} />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <textarea
+                                        placeholder="Paste syllabus or notes content here…"
+                                        value={syllabusText}
+                                        onChange={e => setSyllabusText(e.target.value)}
+                                        rows={4}
+                                        style={{
+                                            width: '100%', padding: '7px 10px', borderRadius: 7,
+                                            border: '1.5px solid #C7D2FE', fontSize: 12, fontWeight: 500,
+                                            color: '#111827', outline: 'none', background: '#fff',
+                                            resize: 'vertical', fontFamily: 'inherit',
+                                            boxSizing: 'border-box', marginBottom: 8,
+                                        }}
+                                    />
+                                )}
+
+                                <button
+                                    onClick={generateQuestions}
+                                    disabled={isGenerating}
+                                    style={{
+                                        width: '100%', padding: '8px', borderRadius: 7, border: 'none',
+                                        background: isGenerating ? '#A5B4FC' : '#6366F1',
+                                        color: '#fff', fontSize: 12, fontWeight: 700, cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    }}
+                                >
+                                    {isGenerating ? <Loader size={13} className="animate-spin" /> : <Zap size={13} />}
+                                    {isGenerating ? 'Generating…' : 'Generate Questions'}
+                                </button>
+
+                                {newAiError && (
+                                    <div style={{ color: '#EF4444', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+                                        {newAiError}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={generateQuizWithNewAI}
+                                    disabled={isGeneratingNewAI}
+                                    style={{
+                                        width: '100%', padding: '8px', borderRadius: 7, border: 'none',
+                                        background: isGeneratingNewAI ? '#FDE68A' : '#F59E0B',
+                                        color: '#fff', fontSize: 12, fontWeight: 700, cursor: isGeneratingNewAI ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                        marginTop: '8px'
+                                    }}
+                                >
+                                    {isGeneratingNewAI ? <Loader size={13} className="animate-spin" /> : <Zap size={13} />}
+                                    {isGeneratingNewAI ? 'Generating…' : 'Generate Quiz (AI)'}
+                                </button>
+                            </div>
+
                             {/* Quick Tip card */}
                             <div style={{
                                 background: '#FFF3EE', borderRadius: 10, padding: '14px',
@@ -739,8 +928,7 @@ export function QuizEditor() {
                                 <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5, margin: 0 }}>
                                     Add at least 4 questions with all options filled in to maximize your Quiz Strength score and keep students engaged.
                                 </p>
-                            </div>
-                        </div>
+                            </div>                        </div>
                     )}
 
                 </div>{/* end body */}
