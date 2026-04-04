@@ -64,9 +64,8 @@ describe('AdaptiveQuiz – error state (Requirement 6.5)', () => {
     expect(source).toContain("setPageState('error')");
   });
 
-  it('applies a 15-second timeout to question generation', () => {
-    expect(source).toContain('15000');
-    expect(source).toContain('timed out');
+  it('applies a timeout to question generation fetch (signal)', () => {
+    expect(source).toContain('AbortSignal.timeout');
   });
 });
 
@@ -100,12 +99,8 @@ describe('AdaptiveQuiz – quiz state renders questions (Requirement 7.1)', () =
     expect(source).toContain("setPageState('quiz')");
   });
 
-  it('calls generateAdaptiveQuestions to produce questions', () => {
-    expect(source).toContain('generateAdaptiveQuestions');
-  });
-
-  it('calls buildPerformanceProfile before generating questions', () => {
-    expect(source).toContain('buildPerformanceProfile');
+  it('calls the backend adaptive agent API to produce questions', () => {
+    expect(source).toContain('/api/ai/agent/adaptive/quiz');
   });
 });
 

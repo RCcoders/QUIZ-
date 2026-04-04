@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen, Trophy, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { doc, getDoc } from 'firebase/firestore';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
@@ -11,10 +12,11 @@ import { StudentNavbar } from '../components/StudentNavbar';
 import { apiFetch } from '../utils/api';
 import { saveScoreRecord } from '../utils/scoring';
 import { evaluateBadges } from '../lib/badgeEngine';
+import { db } from '../lib/firebase';
 import type { GeneratedQuestion } from '../lib/gemini';
 import type { Note } from '../types/student';
 
-type PageState = 'loading' | 'error' | 'quiz' | 'results';
+type PageState = 'idle' | 'loading' | 'error' | 'quiz' | 'results';
 
 interface QuizAnswer {
   questionIndex: number;
@@ -31,8 +33,10 @@ export function AdaptiveQuiz() {
   const { records, streak } = useStudentStats(user?._id);
   const { notes } = useNotes();
 
-  const [pageState, setPageState] = useState<PageState>('loading');
+  const [pageState, setPageState] = useState<PageState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [smartQuizLoading, setSmartQuizLoading] = useState(false);
+  const [smartQuizError, setSmartQuizError] = useState('');
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([]);
   const [subject, setSubject] = useState('');
   const [noteContent, setNoteContent] = useState('');
@@ -46,30 +50,51 @@ export function AdaptiveQuiz() {
   const generateQuiz = useCallback(async (resolvedSubject: string, resolvedContent: string) => {
     setPageState('loading');
     setErrorMessage('');
+    setSmartQuizError('');
+    setSmartQuizLoading(true);
     setCurrentIndex(0);
     setAnswers([]);
     setSelectedAnswer(null);
     setShowResult(false);
 
     try {
-      const data = await apiFetch('/api/adaptive/generate', {
+      const data = await apiFetch('/api/ai/agent/adaptive/quiz', {
         method: 'POST',
         body: {
           subject: resolvedSubject,
-          topic: resolvedContent.slice(0, 100), // example topic extraction
           count: 10
-        }
+        },
+        signal: AbortSignal.timeout(30000),
       });
 
-      setQuestions(data.questions);
+      const mappedQuestions = data.questions.map((q: any) => ({
+        question_text: q.questionText || q.question_text,
+        option_a: q.options ? q.options[0] : q.option_a,
+        option_b: q.options ? q.options[1] : q.option_b,
+        option_c: q.options ? q.options[2] : q.option_c,
+        option_d: q.options ? q.options[3] : q.option_d,
+        correct_answer: q.correctAnswer || q.correct_answer,
+        difficulty: q.difficulty,
+        explanation: q.explanation,
+      }));
+
+      setQuestions(mappedQuestions);
       setPageState('quiz');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to generate questions. Please try again.');
+      if (err.status === 429) {
+        setSmartQuizError("You've reached the AI limit. Try again in a minute.");
+        setErrorMessage("You've reached the AI limit. Try again in a minute.");
+      } else {
+        setSmartQuizError(err.message || 'Failed to generate questions. Please try again.');
+        setErrorMessage(err.message || 'Failed to generate questions. Please try again.');
+      }
       setPageState('error');
+    } finally {
+      setSmartQuizLoading(false);
     }
   }, []);
 
-  // Initial load: resolve noteId → subject + content, then generate
+  // Initial load: resolve noteId → subject + content, then set idle state
   useEffect(() => {
     const init = async () => {
       let resolvedSubject = subjectParam ?? '';
@@ -77,9 +102,13 @@ export function AdaptiveQuiz() {
 
       if (noteId) {
         try {
-          const noteData = await apiFetch(`/api/notes/${noteId}`);
-          resolvedSubject = noteData.subject;
-          resolvedContent = noteData.content;
+          const noteRef = doc(db, 'notes', noteId);
+          const noteSnap = await getDoc(noteRef);
+          if (noteSnap.exists()) {
+            const noteData = noteSnap.data();
+            resolvedSubject = noteData.subject || resolvedSubject;
+            resolvedContent = noteData.content || '';
+          }
         } catch {
           // fall through with empty content
         }
@@ -91,7 +120,7 @@ export function AdaptiveQuiz() {
 
       setSubject(resolvedSubject);
       setNoteContent(resolvedContent);
-      await generateQuiz(resolvedSubject, resolvedContent);
+      setPageState('idle');
     };
 
     init();
@@ -202,6 +231,61 @@ export function AdaptiveQuiz() {
           Back to Library
         </Link>
 
+        {/* ── Idle — Practice Smart Quiz button ── */}
+        {pageState === 'idle' && (
+          <div style={{ ...cardStyle, textAlign: 'center', padding: '60px 32px' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'rgba(99, 102, 241, 0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}>
+              <Brain size={28} color="#6366F1" />
+            </div>
+            <p style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+              Ready to practice?
+            </p>
+            <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 28px' }}>
+              Get a personalised quiz based on your performance history{subject ? ` for ${subject}` : ''}.
+            </p>
+            <button
+              onClick={() => generateQuiz(subject, noteContent)}
+              disabled={smartQuizLoading}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '12px 28px', borderRadius: 12,
+                background: smartQuizLoading ? '#E2E8F0' : 'linear-gradient(135deg, #6366F1, #818CF8)',
+                color: smartQuizLoading ? '#94A3B8' : 'white',
+                border: 'none', fontSize: 15, fontWeight: 700,
+                cursor: smartQuizLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {smartQuizLoading ? (
+                <>
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    border: '2px solid #CBD5E1', borderTopColor: '#6366F1',
+                    animation: 'spin 0.8s linear infinite',
+                  }} />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Brain size={16} />
+                  Practice Smart Quiz
+                </>
+              )}
+            </button>
+            {smartQuizError && (
+              <p style={{ fontSize: 13, color: '#EF4444', margin: '16px 0 0', fontWeight: 500 }}>
+                {smartQuizError}
+              </p>
+            )}
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
+
         {/* ── Loading ── */}
         {pageState === 'loading' && (
           <div style={{ ...cardStyle, textAlign: 'center', padding: '60px 32px' }}>
@@ -233,16 +317,31 @@ export function AdaptiveQuiz() {
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={handleRetry}
+                disabled={smartQuizLoading}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '10px 20px', borderRadius: 10,
-                  background: 'linear-gradient(135deg, #FF5C1A, #FF8C42)',
-                  color: 'white', border: 'none', fontSize: 14,
-                  fontWeight: 700, cursor: 'pointer',
+                  background: smartQuizLoading ? '#E2E8F0' : 'linear-gradient(135deg, #FF5C1A, #FF8C42)',
+                  color: smartQuizLoading ? '#94A3B8' : 'white',
+                  border: 'none', fontSize: 14,
+                  fontWeight: 700, cursor: smartQuizLoading ? 'not-allowed' : 'pointer',
                 }}
               >
-                <RefreshCw size={15} />
-                Try Again
+                {smartQuizLoading ? (
+                  <>
+                    <div style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: '2px solid #CBD5E1', borderTopColor: '#FF5C1A',
+                      animation: 'spin 0.8s linear infinite',
+                    }} />
+                    Generating…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={15} />
+                    Try Again
+                  </>
+                )}
               </button>
               <Link
                 to="/student"
@@ -256,6 +355,11 @@ export function AdaptiveQuiz() {
                 Browse Standard Quizzes
               </Link>
             </div>
+            {smartQuizError && (
+              <p style={{ fontSize: 13, color: '#EF4444', margin: '16px 0 0', fontWeight: 500 }}>
+                {smartQuizError}
+              </p>
+            )}
           </div>
         )}
 
