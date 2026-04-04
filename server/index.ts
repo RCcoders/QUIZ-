@@ -47,11 +47,6 @@ app.use(cors({
     credentials: true,
 }));
 
-// Handle preflight requests
-app.options('/*', cors());
-
-app.use(express.json());
-
 // API Status Route
 app.get('/', (req, res) => {
     res.send('Quizly API is running');
@@ -70,6 +65,11 @@ app.use('/api/badges', badgeRoutes);
 app.use('/api/user', userRoutes);
 // app.use('/api/ai/agent', agentRoutes);
 // app.use('/api/ai', aiRoutes);
+
+// 404 Handler (Express v5 safe)
+app.use((req, res) => {
+    res.status(404).json({ message: "Route not found" });
+});
 
 
 const PORT = process.env.PORT || 5000;
