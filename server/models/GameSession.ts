@@ -7,7 +7,7 @@ export interface IParticipant {
     score: number;
     lastAnswerTimeMs?: number;
     hasAnsweredCurrentQuestion?: boolean;
-    violationCount?: number;
+    violationCount: number;
     joinedAt: Date;
 }
 

@@ -249,11 +249,11 @@ export const setupSocket = (server: HttpServer) => {
                         pointsEarned,
                         newTotalScore: participant ? participant.score : 0
                     });
-
-                } catch (error) {
-                    console.error('Submit answer error:', error);
                 }
-            });
+            } catch (error) {
+                console.error('Submit answer error:', error);
+            }
+        });
 
         // Teacher kicks a player
         socket.on('kick_player', async ({ gameCode, participantId }: { gameCode: string; participantId: string }) => {
@@ -307,12 +307,13 @@ export const setupSocket = (server: HttpServer) => {
                         io.to(gameCode).emit('violation_report', {
                             participantId,
                             name: participant.name,
-                            violationCount: participant.violationCount,
+                            violationCount: participant.violationCount || 0,
                             reason
                         });
 
                         // Auto-kick if violations >= 5 (Increased from 3 for more stability in 150+ student tests)
-                        if (participant.violationCount >= 5) {
+                        // Auto-kick if violations >= 5
+                        if ((participant.violationCount ?? 0) >= 5) {
                             await GameSession.updateOne(
                                 { gameCode, "participants._id": participantId },
                                 { $set: { "participants.$.status": 'kicked' } }
