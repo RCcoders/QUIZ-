@@ -8,12 +8,6 @@ node_modules
 /server/dist
 dist-ssr
 
-# Environment Variables
-.env
-.env.local
-.env.*.local
-*.local
-
 # Temporary and build files
 # Removed overly broad *.txt and *.json rules to avoid accidental ignores
 build_errors.txt
