@@ -28,20 +28,6 @@ const httpServer = createServer(app);
 // Connect to Database
 connectDB();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// Robust pathing for both dev and production (dist/index.js)
-const distPath = __dirname.endsWith('dist')
-    ? path.join(__dirname, '..', '..', 'dist') // From server/dist/
-    : path.join(__dirname, '..', 'dist');       // From server/
-
-import fs from 'fs';
-if (!fs.existsSync(distPath)) {
-    console.warn(`[SERVER] Warning: Frontend build directory not found at ${distPath}`);
-} else {
-    console.log(`[SERVER] Serving static files from ${distPath}`);
-}
-
 // Middleware
 const allowedOrigins = [
     'http://localhost:5173',
@@ -62,8 +48,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve static files from the frontend dist folder
-app.use(express.static(distPath));
+// API Status Route
+app.get('/', (req, res) => {
+    res.send('Quizly API is running');
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -79,12 +67,6 @@ app.use('/api/user', userRoutes);
 // app.use('/api/ai/agent', agentRoutes);
 // app.use('/api/ai', aiRoutes);
 
-// Catch-all route to serve index.html for SPA
-// In Express 5, the route parameters and matching have changed.
-// We use a regex to match everything except /api
-app.get(/^(?!\/api).+/, (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-});
 
 const PORT = process.env.PORT || 5000;
 
