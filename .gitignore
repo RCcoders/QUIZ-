@@ -9,6 +9,7 @@ node_modules
 dist-ssr
 
 # Temporary and build files
+
 # Removed overly broad *.txt and *.json rules to avoid accidental ignores
 build_errors.txt
 test_results.txt
@@ -25,3 +26,11 @@ server_build_errors.txt
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.example
+.env.local
+.local
+server/.env
+server/.env.example

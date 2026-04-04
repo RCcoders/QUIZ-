@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 const accessMap = new Map<string, number[]>();
 
@@ -9,7 +9,7 @@ export const aiRateLimiter = (req: Request, res: Response, next: NextFunction): 
   const limit = 5;
 
   const timestamps = accessMap.get(userId) || [];
-  
+
   // Clean up old timestamps
   const validTimestamps = timestamps.filter(ts => now - ts < windowMs);
 
@@ -20,7 +20,7 @@ export const aiRateLimiter = (req: Request, res: Response, next: NextFunction): 
 
   validTimestamps.push(now);
   accessMap.set(userId, validTimestamps);
-  
+
   next();
 };
 

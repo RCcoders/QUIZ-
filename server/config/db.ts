@@ -16,7 +16,9 @@ const connectDB = async () => {
         const maskedUri = uri.replace(/\/\/(.*):(.*)@/, '//****:****@');
         console.log(`Attempting to connect to MongoDB: ${maskedUri}`);
 
-        const conn = await mongoose.connect(uri);
+        const conn = await mongoose.connect(uri, {
+            maxPoolSize: 200,
+        });
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
         console.error(`MongoDB Connection Error: ${(error as Error).message}`);

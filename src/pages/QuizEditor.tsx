@@ -204,11 +204,11 @@ export function QuizEditor() {
                 // Role-specific quiz generator (Unified AI Controller)
                 const resData = await apiFetch('/api/ai/agent/run', {
                     method: 'POST',
-                    body: { 
+                    body: {
                         mode: 'TEACHER_AGENT',
                         data: {
-                            topic: aiTopic, 
-                            count: aiCount, 
+                            topic: aiTopic,
+                            count: aiCount,
                             difficulty: aiDifficulty,
                             questionType: 'mcq'
                         }
@@ -260,18 +260,18 @@ export function QuizEditor() {
 
     const generateQuizWithNewAI = async () => {
         if (!aiTopic.trim()) { setNewAiError('Please enter a topic to generate questions'); return; }
-        
+
         setIsGeneratingNewAI(true);
         setNewAiError('');
         try {
             const resData = await apiFetch('/api/ai/agent/run', {
                 method: 'POST',
-                body: { 
+                body: {
                     mode: 'TEACHER_AGENT',
                     data: {
-                        topic: aiTopic, 
-                        count: aiCount, 
-                        difficulty: aiDifficulty, 
+                        topic: aiTopic,
+                        count: aiCount,
+                        difficulty: aiDifficulty,
                         questionType: 'mcq'
                     }
                 }
@@ -823,7 +823,7 @@ export function QuizEditor() {
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                                     <Zap size={14} style={{ color: '#6366F1' }} />
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#6366F1' }}>AI Quiz Generator</span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#6366F1' }}>AI Quiz Generator (Coming Soon)</span>
                                 </div>
 
                                 {/* Mode toggle */}
@@ -882,17 +882,17 @@ export function QuizEditor() {
                                 )}
 
                                 <button
-                                    onClick={generateQuestions}
-                                    disabled={isGenerating}
+                                    onClick={() => { }}
+                                    disabled={true}
                                     style={{
                                         width: '100%', padding: '8px', borderRadius: 7, border: 'none',
-                                        background: isGenerating ? '#A5B4FC' : '#6366F1',
-                                        color: '#fff', fontSize: 12, fontWeight: 700, cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                        background: '#E0E7FF',
+                                        color: '#6366F1', fontSize: 12, fontWeight: 700, cursor: 'not-allowed',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                     }}
                                 >
-                                    {isGenerating ? <Loader size={13} className="animate-spin" /> : <Zap size={13} />}
-                                    {isGenerating ? 'Generating…' : 'Generate Questions'}
+                                    <Zap size={13} />
+                                    Generate Questions (Coming Soon)
                                 </button>
 
                                 {newAiError && (
@@ -901,18 +901,18 @@ export function QuizEditor() {
                                     </div>
                                 )}
                                 <button
-                                    onClick={generateQuizWithNewAI}
-                                    disabled={isGeneratingNewAI}
+                                    onClick={() => { }}
+                                    disabled={true}
                                     style={{
                                         width: '100%', padding: '8px', borderRadius: 7, border: 'none',
-                                        background: isGeneratingNewAI ? '#FDE68A' : '#F59E0B',
-                                        color: '#fff', fontSize: 12, fontWeight: 700, cursor: isGeneratingNewAI ? 'not-allowed' : 'pointer',
+                                        background: '#FEF3C7',
+                                        color: '#D97706', fontSize: 12, fontWeight: 700, cursor: 'not-allowed',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                         marginTop: '8px'
                                     }}
                                 >
-                                    {isGeneratingNewAI ? <Loader size={13} className="animate-spin" /> : <Zap size={13} />}
-                                    {isGeneratingNewAI ? 'Generating…' : 'Generate Quiz (AI)'}
+                                    <Zap size={13} />
+                                    Generate Quiz (Coming Soon)
                                 </button>
                             </div>
 

@@ -51,62 +51,13 @@ export function NoteDetail() {
   }, [noteId]);
 
   const generateAiNotes = async () => {
-    if (!note) return;
-    setAiLoading(true);
-    setAiError('');
-    try {
-      const resData = await apiFetch('/api/ai/agent/run', {
-        method: 'POST',
-        body: { 
-          mode: 'STUDENT_AGENT',
-          data: {
-            topic: note.title || note.subject,
-            content: note.content 
-          }
-        },
-      });
-      // The API returns the text in data.data.summary (if using the StudentNotes interface) or notes directly
-      const payload = resData.data || resData;
-      setAiNotes(payload.notes || payload.summary || JSON.stringify(payload));
-      setAiExpanded(true);
-    } catch (err: any) {
-      if (err.status === 429) {
-        setAiError("You've reached the AI limit. Try again in a minute.");
-      } else {
-        setAiError(err.message || 'Failed to generate AI notes');
-      }
-    } finally {
-      setAiLoading(false);
-    }
+    // Disabled (Coming Soon)
+    return;
   };
 
   const generateAgentNotes = async () => {
-    if (!note) return;
-    setAgentLoading(true);
-    setAgentError('');
-    try {
-      const resData = await apiFetch('/api/ai/agent/run', {
-        method: 'POST',
-        body: {
-          mode: 'STUDENT_AGENT',
-          data: {
-            topic: note.title || note.subject,
-            noteText: note.content,
-          }
-        },
-      });
-      const payload = resData.data || resData;
-      setAgentNotes(payload);
-      setAgentExpanded(true);
-    } catch (err: any) {
-      if (err.status === 429) {
-        setAgentError("You've reached the AI limit. Try again in a minute.");
-      } else {
-        setAgentError(err.message || 'Failed to generate notes');
-      }
-    } finally {
-      setAgentLoading(false);
-    }
+    // Disabled (Coming Soon)
+    return;
   };
 
   const formatDate = (iso: string) => {
@@ -301,48 +252,48 @@ export function NoteDetail() {
 
               {/* AI Notes button */}
               <button
-                onClick={generateAiNotes}
-                disabled={aiLoading}
+                onClick={() => { }}
+                disabled={true}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '10px 20px',
                   borderRadius: 10,
-                  background: aiLoading ? '#E0E7FF' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-                  color: aiLoading ? '#6366F1' : 'white',
+                  background: '#F1F5F9',
+                  color: '#94A3B8',
                   border: 'none',
                   fontSize: 14,
                   fontWeight: 700,
-                  cursor: aiLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: aiLoading ? 'none' : '0 2px 8px rgba(139,92,246,0.35)',
+                  cursor: 'not-allowed',
+                  boxShadow: 'none',
                 }}
               >
-                {aiLoading ? <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Sparkles size={16} />}
-                {aiLoading ? 'Generating…' : 'AI Study Notes'}
+                <Sparkles size={16} />
+                AI Study Notes (Coming Soon)
               </button>
 
               {/* Generate Notes button (structured agent) */}
               <button
-                onClick={generateAgentNotes}
-                disabled={agentLoading}
+                onClick={() => { }}
+                disabled={true}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '10px 20px',
                   borderRadius: 10,
-                  background: agentLoading ? '#D1FAE5' : 'linear-gradient(135deg, #10B981, #34D399)',
-                  color: agentLoading ? '#059669' : 'white',
+                  background: '#F1F5F9',
+                  color: '#94A3B8',
                   border: 'none',
                   fontSize: 14,
                   fontWeight: 700,
-                  cursor: agentLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: agentLoading ? 'none' : '0 2px 8px rgba(16,185,129,0.35)',
+                  cursor: 'not-allowed',
+                  boxShadow: 'none',
                 }}
               >
-                {agentLoading ? <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Sparkles size={16} />}
-                {agentLoading ? 'Generating…' : 'Generate Notes'}
+                <Sparkles size={16} />
+                Generate Notes (Coming Soon)
               </button>
             </div>
 

@@ -1,8 +1,9 @@
 import express from 'express';
 import { z } from 'zod';
-import multer from 'multer';
-// @ts-ignore
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import { aiRateLimiter } from '../middleware/aiRateLimiter.js';
 import { validateBody } from '../middleware/validateBody.js';
@@ -149,7 +150,7 @@ router.post('/teacher/quiz-from-pdf', protect, authorize('teacher'), aiRateLimit
   upload.single('pdf')(req, res, (err) => {
     if (err) {
       if (err.message === 'Only PDF files are accepted' || err.message === 'File too large') {
-         return res.status(400).json(fail(err.message === 'File too large' ? 'File size exceeds 10 MB limit' : err.message));
+        return res.status(400).json(fail(err.message === 'File too large' ? 'File size exceeds 10 MB limit' : err.message));
       }
       return res.status(400).json(fail(err.message));
     }

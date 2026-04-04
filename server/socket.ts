@@ -184,64 +184,76 @@ export const setupSocket = (server: HttpServer) => {
 
                 if (participant) {
                     // ── Task 2: Multiple Submission Guard ──
-                    if (participant.hasAnsweredCurrentQuestion) {
-                        return socket.emit('answer_result', {
-                            isCorrect: false,
-                            pointsEarned: 0,
-                            reason: 'Already answered'
+                    if (participant) {
+                        // Update the session document atomically
+                        const updatedSession = await GameSession.findOneAndUpdate(
+                            {
+                                _id: session._id,
+                                "participants._id": participantId,
+                                "participants.hasAnsweredCurrentQuestion": false // Guard against double submission
+                            },
+                            {
+                                $set: {
+                                    "participants.$.hasAnsweredCurrentQuestion": true,
+                                    "participants.$.lastAnswerTimeMs": Math.round(seconds * 1000)
+                                },
+                                $inc: {
+                                    "participants.$.score": pointsEarned
+                                },
+                                $push: {
+                                    currentQuestionAnswers: Math.round(seconds * 1000)
+                                }
+                            },
+                            { new: true, runValidators: true }
+                        );
+
+                        if (!updatedSession) {
+                            // If findOneAndUpdate returns null, it means either the document wasn't found
+                            // or the guard 'hasAnsweredCurrentQuestion: false' failed.
+                            return socket.emit('answer_result', {
+                                isCorrect: false,
+                                pointsEarned: 0,
+                                reason: 'Already answered or session mismatch'
+                            });
+                        }
+
+                        // Calculate class average from the updated session
+                        const totalTimes = updatedSession.currentQuestionAnswers.reduce((sum, t) => sum + (t || 0), 0);
+                        const avgTimeMs = updatedSession.currentQuestionAnswers.length > 0
+                            ? Math.round(totalTimes / updatedSession.currentQuestionAnswers.length)
+                            : 0;
+
+                        // Notify room
+                        io.to(gameCode).emit('answer_received', {
+                            participantId,
+                            answer,
+                            isCorrect,
+                            pointsEarned,
+                            timeTakenMs: Math.round(seconds * 1000),
+                            newTotalScore: (participant.score || 0) + pointsEarned,
+                            averageTimeMs: avgTimeMs
                         });
+
+                        // Check if all active participants have answered
+                        const activeParticipants = updatedSession.participants.filter((p: any) => p.status !== 'kicked');
+                        const answeredCount = activeParticipants.filter((p: any) => p.hasAnsweredCurrentQuestion).length;
+
+                        if (answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
+                            io.to(gameCode).emit('all_answered', { session: updatedSession });
+                        }
                     }
 
-                    participant.score = (participant.score || 0) + pointsEarned;
-                    participant.lastAnswerTimeMs = Math.round(seconds * 1000);
-                    participant.hasAnsweredCurrentQuestion = true;
-
-                    // ── Task 5: Dynamic Average Time Logic ──
-                    if (!session.currentQuestionAnswers) session.currentQuestionAnswers = [];
-                    session.currentQuestionAnswers.push(Math.round(seconds * 1000));
-
-                    // Calculate class average for THIS question
-                    const totalTimes = session.currentQuestionAnswers.reduce((sum, t) => sum + (t || 0), 0);
-                    const avgTimeMs = session.currentQuestionAnswers.length > 0
-                        ? Math.round(totalTimes / session.currentQuestionAnswers.length)
-                        : 0;
-
-                    // Notify room (teacher and students)
-                    io.to(gameCode).emit('answer_received', {
-                        participantId,
-                        answer,
+                    // Specifically notify the student of their result
+                    socket.emit('answer_result', {
                         isCorrect,
                         pointsEarned,
-                        timeTakenMs: Math.round(seconds * 1000),
-                        newTotalScore: participant.score,
-                        averageTimeMs: avgTimeMs // Dynamic update
+                        newTotalScore: participant ? participant.score : 0
                     });
 
-                    // Check if all active participants have answered
-                    const activeParticipants = session.participants.filter((p: any) => (p as any).status !== 'kicked');
-                    const answeredCount = activeParticipants.filter((p: any) => p.hasAnsweredCurrentQuestion).length;
-
-                    if (answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
-                        io.to(gameCode).emit('all_answered', { session });
-                    }
-
-                    // Ensure Mongoose detects the subdocument change
-                    session.markModified('participants');
-                    session.markModified('currentQuestionAnswers');
-                    await session.save();
+                } catch (error) {
+                    console.error('Submit answer error:', error);
                 }
-
-                // Specifically notify the student of their result
-                socket.emit('answer_result', {
-                    isCorrect,
-                    pointsEarned,
-                    newTotalScore: participant ? participant.score : 0
-                });
-
-            } catch (error) {
-                console.error('Submit answer error:', error);
-            }
-        });
+            });
 
         // Teacher kicks a player
         socket.on('kick_player', async ({ gameCode, participantId }: { gameCode: string; participantId: string }) => {
@@ -274,32 +286,39 @@ export const setupSocket = (server: HttpServer) => {
         // Student reports a cheating violation
         socket.on('cheating_violation', async ({ gameCode, participantId, reason }: { gameCode: string; participantId: string; reason: string }) => {
             try {
-                const session = await GameSession.findOne({ gameCode });
-                if (!session) return;
-
-                const participant = session.participants.find((p: any) =>
-                    p._id.toString() === participantId || p.id === participantId
+                const updatedSession = await GameSession.findOneAndUpdate(
+                    {
+                        gameCode,
+                        "participants._id": participantId
+                    },
+                    {
+                        $inc: { "participants.$.violationCount": 1 }
+                    },
+                    { new: true }
                 );
 
-                if (participant) {
-                    participant.violationCount = (participant.violationCount || 0) + 1;
-                    session.markModified('participants');
-                    await session.save();
+                if (updatedSession) {
+                    const participant = updatedSession.participants.find((p: any) =>
+                        p._id.toString() === participantId
+                    );
 
-                    // Notify teacher
-                    io.to(gameCode).emit('violation_report', {
-                        participantId,
-                        name: participant.name,
-                        violationCount: participant.violationCount,
-                        reason
-                    });
+                    if (participant) {
+                        // Notify teacher
+                        io.to(gameCode).emit('violation_report', {
+                            participantId,
+                            name: participant.name,
+                            violationCount: participant.violationCount,
+                            reason
+                        });
 
-                    // Auto-kick if violations >= 3
-                    if (participant.violationCount >= 3) {
-                        (participant as any).status = 'kicked';
-                        session.markModified('participants');
-                        await session.save();
-                        io.to(gameCode).emit('player_kicked', { participantId, reason: 'Too many cheating violations' });
+                        // Auto-kick if violations >= 5 (Increased from 3 for more stability in 150+ student tests)
+                        if (participant.violationCount >= 5) {
+                            await GameSession.updateOne(
+                                { gameCode, "participants._id": participantId },
+                                { $set: { "participants.$.status": 'kicked' } }
+                            );
+                            io.to(gameCode).emit('player_kicked', { participantId, reason: 'Too many cheating violations' });
+                        }
                     }
                 }
             } catch (error) {

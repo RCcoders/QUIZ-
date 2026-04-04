@@ -14,8 +14,8 @@ import badgeRoutes from './routes/badgeRoutes.js';
 import teacherDashboardRoutes from './routes/teacherDashboard.js';
 import reportRoutes from './routes/reportRoutes.js';
 import userRoutes from './routes/userRoutes.js';
-import aiRoutes from './routes/aiRoutes.js';
-import agentRoutes from './routes/agentRoutes.js';
+// import aiRoutes from './routes/aiRoutes.js';
+// import agentRoutes from './routes/agentRoutes.js';
 
 import { createServer } from 'http';
 import { setupSocket } from './socket.js';
@@ -34,7 +34,23 @@ const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, '..', '..', 'dist');
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    // Add your production domain here once deployed, e.g., 'https://quizly.pages.dev'
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
+    },
+    credentials: true,
+}));
 app.use(express.json());
 
 // Serve static files from the frontend dist folder
@@ -51,8 +67,8 @@ app.use('/api/teacher', teacherDashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/ai/agent', agentRoutes);
-app.use('/api/ai', aiRoutes);
+// app.use('/api/ai/agent', agentRoutes);
+// app.use('/api/ai', aiRoutes);
 
 // Catch-all route to serve index.html for SPA
 // In Express 5, the route parameters and matching have changed.

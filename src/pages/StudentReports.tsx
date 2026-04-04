@@ -45,7 +45,7 @@ function LoadingSkeleton() {
 
 export function StudentReports() {
   const { user } = useAuth();
-  const { records, loading } = useStudentStats(user?.uid);
+  const { records, loading } = useStudentStats(user?._id);
 
   const trendData = computeTrendData(records);
   const subjectBreakdown = computeSubjectBreakdown(records);

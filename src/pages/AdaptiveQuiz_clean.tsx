@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen, Trophy, ArrowRight, Sparkles } from 'lucide-react';
+import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen, Trophy, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
@@ -216,24 +216,6 @@ export function AdaptiveQuiz() {
       <StudentNavbar />
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px' }}>
-        {/* Coming Soon Banner */}
-        <div style={{
-          background: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
-          borderRadius: 16,
-          padding: '16px 20px',
-          marginBottom: 32,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          color: '#4F46E5',
-          fontWeight: 600,
-          fontSize: 14,
-        }}>
-          <Sparkles size={18} />
-          <span>AI Features are currently undergoing maintenance. Coming Soon!</span>
-        </div>
-
         {/* Breadcrumb */}
         <Link
           to="/student/library"
@@ -265,20 +247,33 @@ export function AdaptiveQuiz() {
               Get a personalised quiz based on your performance history{subject ? ` for ${subject}` : ''}.
             </p>
             <button
-              onClick={() => { }}
-              disabled={true}
+              onClick={() => generateQuiz(subject, noteContent)}
+              disabled={smartQuizLoading}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '12px 28px', borderRadius: 12,
-                background: '#F1F5F9',
-                color: '#94A3B8',
+                background: smartQuizLoading ? '#E2E8F0' : 'linear-gradient(135deg, #6366F1, #818CF8)',
+                color: smartQuizLoading ? '#94A3B8' : 'white',
                 border: 'none', fontSize: 15, fontWeight: 700,
-                cursor: 'not-allowed',
+                cursor: smartQuizLoading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
               }}
             >
-              <Brain size={16} />
-              Practice Smart Quiz (Coming Soon)
+              {smartQuizLoading ? (
+                <>
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    border: '2px solid #CBD5E1', borderTopColor: '#6366F1',
+                    animation: 'spin 0.8s linear infinite',
+                  }} />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Brain size={16} />
+                  Practice Smart Quiz
+                </>
+              )}
             </button>
             {smartQuizError && (
               <p style={{ fontSize: 13, color: '#EF4444', margin: '16px 0 0', fontWeight: 500 }}>
@@ -358,6 +353,11 @@ export function AdaptiveQuiz() {
                 Browse Standard Quizzes
               </Link>
             </div>
+            {smartQuizError && (
+              <p style={{ fontSize: 13, color: '#EF4444', margin: '16px 0 0', fontWeight: 500 }}>
+                {smartQuizError}
+              </p>
+            )}
           </div>
         )}
 
@@ -397,7 +397,7 @@ export function AdaptiveQuiz() {
                 animate={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
                 style={{
                   height: '100%', borderRadius: 10,
-                  background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+                  background: 'var(--gradient-primary)',
                   transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
               />
@@ -437,7 +437,8 @@ export function AdaptiveQuiz() {
                     whileTap={!showResult ? { scale: 0.98 } : {}}
                     onClick={() => selectAnswer(letter)}
                     disabled={showResult}
-                    className={`answer-btn answer-${letter.toLowerCase()} ${isSelected ? 'selected' : ''} ${showCorrectness && isCorrect ? 'correct' : ''} ${showCorrectness && isSelected && !isCorrect ? 'incorrect' : ''}`}
+                    className={`answer-btn answer-${letter.toLowerCase()} ${isSelected ? 'selected' : ''} ${showCorrectness && isCorrect ? 'correct' : ''
+                      } ${showCorrectness && isSelected && !isCorrect ? 'incorrect' : ''}`}
                     style={{
                       opacity: showCorrectness && !isCorrect && !isSelected ? 0.4 : 1,
                       pointerEvents: showResult ? 'none' : 'auto',
@@ -475,7 +476,7 @@ export function AdaptiveQuiz() {
                   className="btn btn-primary btn-lg"
                   style={{
                     minWidth: '220px',
-                    background: selectedAnswer ? 'linear-gradient(135deg, #6366F1, #818CF8)' : '#E2E8F0',
+                    background: selectedAnswer ? 'var(--gradient-primary)' : '#E2E8F0',
                     boxShadow: selectedAnswer ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : 'none'
                   }}
                 >
@@ -502,6 +503,7 @@ export function AdaptiveQuiz() {
           </div>
         )}
 
+
         {/* ── Results ── */}
         {pageState === 'results' && (
           <ResultsSummary
@@ -520,6 +522,8 @@ export function AdaptiveQuiz() {
     </div>
   );
 }
+
+// ── ResultsSummary sub-component ─────────────────────────────────────────────
 
 interface ResultsSummaryProps {
   questions: GeneratedQuestion[];
@@ -613,7 +617,7 @@ function ResultsSummary({
         </div>
       )}
 
-      {/* Topics to review */}
+      {/* Study topics */}
       {top2Topics.length > 0 && (
         <div style={cardStyle}>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '0 0 14px' }}>
@@ -666,7 +670,7 @@ function ResultsSummary({
         </div>
       )}
 
-      {/* Question breakdown */}
+      {/* Per-question breakdown */}
       <div style={cardStyle}>
         <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '0 0 16px' }}>
           Question breakdown

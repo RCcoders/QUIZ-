@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -9,7 +9,6 @@ import {
     AlertTriangle, MessageSquare, Send, Medal, BarChart2,
     Hash, UserCheck, Target, Zap
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import type { Quiz, Question, GameSession, GameParticipant, GameAnswer } from '../types/game';
 import { getSocket, connectSocket, disconnectSocket } from '../utils/socket';
@@ -26,7 +25,14 @@ export function GameHost() {
     const [participants, setParticipants] = useState<GameParticipant[]>([]);
     const [answers, setAnswers] = useState<GameAnswer[]>([]);
     const [loading, setLoading] = useState(true);
-    const [, setCopied] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const sortedParticipants = useMemo(() => {
+        return [...participants].sort((a, b) => {
+            if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+            return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+        });
+    }, [participants]);
 
     const [timeLeft, setTimeLeft] = useState(0);
 
@@ -115,11 +121,22 @@ export function GameHost() {
         };
 
         const onPlayerLeft = (data: { socketId: string, participantId: string }) => {
-            console.log('Player left:', data);
-            setParticipants(prev => prev.filter(p =>
-                (data.participantId ? p.id !== data.participantId : true) &&
-                p.socketId !== data.socketId
-            ));
+            console.log('Player left event:', data);
+
+            setParticipants(prev => {
+                // IMPORTANT: If the session has already reached 'results' or 'ended' status,
+                // do NOT filter out the participant. This ensures the leaderboard remains intact
+                // even if students close their devices after finishing a battle.
+                if (session?.status === 'ended' || session?.status === 'results') {
+                    console.log('Keeping participant in list (game ended/results stage)');
+                    return prev;
+                }
+
+                return prev.filter(p =>
+                    (data.participantId ? p.id !== data.participantId : true) &&
+                    p.socketId !== data.socketId
+                );
+            });
         };
 
         const onViolationReport = (data: { participantId: string, violationCount: number, reason: string }) => {
@@ -275,23 +292,31 @@ export function GameHost() {
         return distribution;
     };
 
-    const handleDownloadResults = () => {
+    const handleDownloadResults = async () => {
         if (!quiz || !session) return;
 
-        const excelData = participants.map((p, index) => ({
-            'Rank': index + 1,
-            'Student Name': p.name,
-            'Email': p.email,
-            'Total Score': p.score,
-        }));
+        try {
+            // Dynamic import to reduce initial bundle size
+            const XLSX = await import('xlsx');
 
-        const ws = XLSX.utils.json_to_sheet(excelData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Results");
-        XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Results.xlsx`);
+            const excelData = participants.map((p, index) => ({
+                'Rank': index + 1,
+                'Student Name': p.name,
+                'Email': p.email || 'N/A',
+                'Total Score': p.score,
+            }));
 
-        if (confirm('Results downloaded. Return to dashboard?')) {
-            navigate('/teacher');
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Results");
+            XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Results.xlsx`);
+
+            if (confirm('Results downloaded. Return to dashboard?')) {
+                navigate('/teacher');
+            }
+        } catch (error) {
+            console.error('Failed to export results:', error);
+            alert('Failed to export results. Please try again.');
         }
     };
 
