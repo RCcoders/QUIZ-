@@ -3,12 +3,12 @@ import * as fc from 'fast-check';
 import {
     filterQuizzesBySearch,
     filterQuizzesByStatus,
-    type QuizWithCount,
 } from './MyQuizzes';
+import type { QuizWithCount } from '../types/teacher';
 
 // Arbitraries
 const quizArb = fc.record<QuizWithCount>({
-    id: fc.uuid(),
+    _id: fc.uuid(),
     title: fc.string({ minLength: 1, maxLength: 80 }),
     isActive: fc.boolean(),
     questionCount: fc.option(fc.nat({ max: 100 }), { nil: undefined }),
@@ -82,7 +82,7 @@ describe('delete confirmation cancel', () => {
                 (quizzes) => {
                     // Simulate the cancel path: showDeleteConfirm is set then reset to null.
                     // The list itself must not be mutated.
-                    let showDeleteConfirm: string | null = quizzes[0].id;
+                    let showDeleteConfirm: string | null = quizzes[0]._id;
                     const listBefore = [...quizzes];
 
                     // Cancel: reset confirmation state without touching the list
@@ -92,7 +92,7 @@ describe('delete confirmation cancel', () => {
                     return (
                         showDeleteConfirm === null &&
                         quizzes.length === listBefore.length &&
-                        quizzes.every((q, i) => q.id === listBefore[i].id)
+                        quizzes.every((q, i) => q._id === listBefore[i]._id)
                     );
                 }
             ),
@@ -104,7 +104,8 @@ describe('delete confirmation cancel', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Feature: quiz-app-overhaul, Property 4: Reports date filter reduces or preserves session count
 // ─────────────────────────────────────────────────────────────────────────────
-import { filterSessionsByDate, type QuizSession } from './Reports';
+import { filterSessionsByDate } from '../utils/reportFilters';
+import type { QuizSession } from '../types/teacher';
 
 const sessionArb = fc.record<QuizSession>({
     id: fc.uuid(),

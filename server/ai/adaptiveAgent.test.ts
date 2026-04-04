@@ -134,7 +134,8 @@ describe('adaptiveAgent Property Tests', () => {
           } as any);
 
           const quiz = await generateAdaptiveQuiz('user123', { count: 1, difficulty });
-          expect(quiz[0].difficulty).toBe(difficulty);
+          expect(quiz.length).toBeGreaterThan(0);
+          expect(quiz[0]!.difficulty).toBe(difficulty);
         }
       )
     );

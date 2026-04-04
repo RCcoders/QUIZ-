@@ -45,10 +45,18 @@ router.get('/:userId', protect, async (req: any, res) => {
         if (req.user.role !== 'admin' && req.user._id.toString() !== req.params.userId) {
             return res.status(403).json({ message: 'Not authorized to view these records' });
         }
-        const records = await ScoreRecord.find({ userId: req.params.userId })
-            .sort({ completedAt: -1 })
-            .lean() as any[];
-        res.json(records);
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 50;
+        const skip = (page - 1) * limit;
+        const [records, total] = await Promise.all([
+            ScoreRecord.find({ userId: req.params.userId })
+                .sort({ completedAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean() as Promise<any[]>,
+            ScoreRecord.countDocuments({ userId: req.params.userId }),
+        ]);
+        res.json({ records, page, pages: Math.ceil(total / limit), total });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }

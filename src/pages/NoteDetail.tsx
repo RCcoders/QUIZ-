@@ -55,15 +55,19 @@ export function NoteDetail() {
     setAiLoading(true);
     setAiError('');
     try {
-      const data = await apiFetch('/api/ai/agent/student/notes', {
+      const resData = await apiFetch('/api/ai/agent/run', {
         method: 'POST',
         body: { 
-          topic: note.title || note.subject,
-          content: note.content 
+          mode: 'STUDENT_AGENT',
+          data: {
+            topic: note.title || note.subject,
+            content: note.content 
+          }
         },
       });
-      // The API returns the text in data.notes
-      setAiNotes(data.notes);
+      // The API returns the text in data.data.summary (if using the StudentNotes interface) or notes directly
+      const payload = resData.data || resData;
+      setAiNotes(payload.notes || payload.summary || JSON.stringify(payload));
       setAiExpanded(true);
     } catch (err: any) {
       if (err.status === 429) {
@@ -81,14 +85,18 @@ export function NoteDetail() {
     setAgentLoading(true);
     setAgentError('');
     try {
-      const data = await apiFetch('/api/ai/agent/student/notes', {
+      const resData = await apiFetch('/api/ai/agent/run', {
         method: 'POST',
         body: {
-          topic: note.title || note.subject,
-          noteText: note.content,
+          mode: 'STUDENT_AGENT',
+          data: {
+            topic: note.title || note.subject,
+            noteText: note.content,
+          }
         },
       });
-      setAgentNotes(data);
+      const payload = resData.data || resData;
+      setAgentNotes(payload);
       setAgentExpanded(true);
     } catch (err: any) {
       if (err.status === 429) {

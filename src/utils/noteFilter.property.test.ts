@@ -60,10 +60,11 @@ describe('noteFilter property tests — Property 3', () => {
           fc.option(fc.string(), { nil: 'all' }),
           (notes, query, subject) => {
             const result = filterNotes(notes, query, subject ?? 'all');
+            const q = query.trim().toLowerCase();
             return result.every(n =>
-              (subject === 'all' || n.subject === subject) &&
-              (query === '' || n.title.toLowerCase().includes(query.toLowerCase()) ||
-                n.subject.toLowerCase().includes(query.toLowerCase()))
+              ((subject ?? 'all') === 'all' || n.subject === (subject ?? 'all')) &&
+              (q === '' || n.title.toLowerCase().includes(q) ||
+                n.subject.toLowerCase().includes(q))
             );
           }
         ),

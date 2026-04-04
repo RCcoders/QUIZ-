@@ -12,6 +12,7 @@ vi.mock('./openaiClient.js', () => {
         },
       },
     },
+    AI_MODEL: 'test-model',
   };
 });
 
@@ -37,7 +38,7 @@ describe('studentAgent Property Tests', () => {
 
           const result = await generateStudentNotes({
             topic: params.topic,
-            noteText: params.noteText !== null ? params.noteText : undefined
+            ...(params.noteText !== null ? { noteText: params.noteText } : {})
           });
 
           expect(result).toHaveProperty('summary');

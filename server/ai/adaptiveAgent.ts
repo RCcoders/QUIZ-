@@ -1,7 +1,7 @@
 import { openai, AI_MODEL } from './openaiClient.js';
-import { buildAdaptiveQuizPrompt, AdaptiveQuizParams } from './promptTemplates.js';
+import { buildAdaptiveQuizPrompt, type AdaptiveQuizParams } from './promptTemplates.js';
 import ScoreRecord from '../models/ScoreRecord.js';
-import { MCQQuestion } from './teacherAgent.js';
+import type { MCQQuestion } from './teacherAgent.js';
 
 export interface WeakTopicResult {
   subject: string;
@@ -42,9 +42,9 @@ export async function generateAdaptiveQuiz(
 
   const promptParams: AdaptiveQuizParams = {
     weakTopics: weakTopicNames,
-    difficulty: params.difficulty,
     count: params.count,
-    fallbackTopic: params.fallbackTopic
+    ...(params.difficulty !== undefined && { difficulty: params.difficulty }),
+    ...(params.fallbackTopic !== undefined && { fallbackTopic: params.fallbackTopic }),
   };
 
   const prompt = buildAdaptiveQuizPrompt(promptParams);

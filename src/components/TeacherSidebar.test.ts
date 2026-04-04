@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { navItems } from './TeacherSidebar';
+import { navItems } from '../config/navigation';
 
 const EXPECTED_ITEMS = [
   { label: 'Dashboard', path: '/teacher' },

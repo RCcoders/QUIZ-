@@ -28,6 +28,7 @@ const ScoreRecordSchema: Schema = new Schema({
 
 // Performance Indexes
 ScoreRecordSchema.index({ userId: 1 });
+ScoreRecordSchema.index({ quizId: 1 });
 ScoreRecordSchema.index({ subject: 1 });
 ScoreRecordSchema.index({ completedAt: -1 });
 

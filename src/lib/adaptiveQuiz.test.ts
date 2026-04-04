@@ -100,6 +100,11 @@ describe('buildPerformanceProfile', () => {
   });
 });
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubEnv('VITE_GEMINI_API_KEY', 'test_key');
+});
+
 // ---------------------------------------------------------------------------
 // generateAdaptiveQuestions — mocked fetch tests
 // Validates: Requirements 6.1, 6.2

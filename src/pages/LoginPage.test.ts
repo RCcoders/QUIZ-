@@ -74,7 +74,7 @@ describe('LoginPage – source structure (Requirements 2.2, 2.3, 2.4)', () => {
     });
 
     it('calls signIn on form submit', () => {
-        expect(source).toContain('signIn(email, password)');
+        expect(source).toContain('signIn(email, password, role)');
     });
 
     it('disables submit button while loading', () => {

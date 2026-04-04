@@ -3,8 +3,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Brain, RefreshCw, ArrowLeft, CheckCircle, XCircle, BookOpen, Trophy, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc } from 'firebase/firestore';
-
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentStats } from '../hooks/useStudentStats';
 import { useNotes } from '../hooks/useNotes';
@@ -12,7 +10,6 @@ import { StudentNavbar } from '../components/StudentNavbar';
 import { apiFetch } from '../utils/api';
 import { saveScoreRecord } from '../utils/scoring';
 import { evaluateBadges } from '../lib/badgeEngine';
-import { db } from '../lib/firebase';
 import type { GeneratedQuestion } from '../lib/gemini';
 import type { Note } from '../types/student';
 
@@ -58,16 +55,21 @@ export function AdaptiveQuiz() {
     setShowResult(false);
 
     try {
-      const data = await apiFetch('/api/ai/agent/adaptive/quiz', {
+      const resData = await apiFetch('/api/ai/agent/run', {
         method: 'POST',
         body: {
-          subject: resolvedSubject,
-          count: 10
+          mode: 'ADAPTIVE_AGENT',
+          data: {
+            subject: resolvedSubject,
+            count: 10
+          }
         },
         signal: AbortSignal.timeout(30000),
       });
 
-      const mappedQuestions = data.questions.map((q: any) => ({
+      const questionsData = resData.data?.questions || resData.questions || [];
+
+      const mappedQuestions = questionsData.map((q: any) => ({
         question_text: q.questionText || q.question_text,
         option_a: q.options ? q.options[0] : q.option_a,
         option_b: q.options ? q.options[1] : q.option_b,
@@ -102,13 +104,9 @@ export function AdaptiveQuiz() {
 
       if (noteId) {
         try {
-          const noteRef = doc(db, 'notes', noteId);
-          const noteSnap = await getDoc(noteRef);
-          if (noteSnap.exists()) {
-            const noteData = noteSnap.data();
-            resolvedSubject = noteData.subject || resolvedSubject;
-            resolvedContent = noteData.content || '';
-          }
+          const note = await apiFetch(`/api/notes/${noteId}`);
+          resolvedSubject = note.subject || resolvedSubject;
+          resolvedContent = note.content || '';
         } catch {
           // fall through with empty content
         }

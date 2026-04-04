@@ -175,9 +175,9 @@ describe('AdaptiveQuiz – general structure', () => {
     expect(source).toContain('subjectParam');
   });
 
-  it('fetches note content from Firestore when noteId is provided', () => {
-    expect(source).toContain('getDoc');
-    expect(source).toContain("'notes'");
+  it('fetches note content via REST API when noteId is provided', () => {
+    expect(source).toContain('apiFetch');
+    expect(source).toContain('/api/notes/${noteId}');
   });
 
   it('renders StudentNavbar', () => {

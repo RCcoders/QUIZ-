@@ -174,9 +174,9 @@ describe('SignupPage – Google OAuth (Requirement 1.9)', () => {
         expect(source).toContain('data-testid="google-signin-button"');
     });
 
-    it('calls signInWithGoogle on click', () => {
-        expect(source).toContain('signInWithGoogle');
+    it('shows error that Google sign in is unavailable', () => {
         expect(source).toContain('handleGoogleSignIn');
+        expect(source).toContain('Google sign-up is currently unavailable');
     });
 });
 

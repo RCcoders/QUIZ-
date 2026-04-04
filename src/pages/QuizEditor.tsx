@@ -201,21 +201,28 @@ export function QuizEditor() {
             let rawQuestions: any[];
 
             if (aiMode === 'topic') {
-                // Role-specific quiz generator (Python AI — QUIZ_GENERATOR mode)
-                const data = await apiFetch('/api/ai/quiz', {
+                // Role-specific quiz generator (Unified AI Controller)
+                const resData = await apiFetch('/api/ai/agent/run', {
                     method: 'POST',
-                    body: { topic: aiTopic, num_questions: aiCount, difficulty: aiDifficulty }
+                    body: { 
+                        mode: 'TEACHER_AGENT',
+                        data: {
+                            topic: aiTopic, 
+                            count: aiCount, 
+                            difficulty: aiDifficulty,
+                            questionType: 'mcq'
+                        }
+                    }
                 });
-                // Python returns: { question, options: [A,B,C,D], correctAnswer, explanation, difficulty }
-                rawQuestions = data.questions.map((q: any) => ({
-                    questionText: q.question,
-                    optionA: q.options[0] ?? '',
-                    optionB: q.options[1] ?? '',
-                    optionC: q.options[2] ?? '',
-                    optionD: q.options[3] ?? '',
-                    correctAnswer: (['A', 'B', 'C', 'D'] as const).find(
-                        (l, i) => q.options[i] === q.correctAnswer
-                    ) ?? 'A',
+                const questionsData = resData.data?.questions || resData.questions || [];
+                // API returns: { questionText, options: [A,B,C,D], correctAnswer, explanation, difficulty }
+                rawQuestions = questionsData.map((q: any) => ({
+                    questionText: q.questionText || q.question,
+                    optionA: q.options ? q.options[0] : (q.optionA || q.option_a || ''),
+                    optionB: q.options ? q.options[1] : (q.optionB || q.option_b || ''),
+                    optionC: q.options ? q.options[2] : (q.optionC || q.option_c || ''),
+                    optionD: q.options ? q.options[3] : (q.optionD || q.option_d || ''),
+                    correctAnswer: q.correctAnswer || q.correct_answer || 'A',
                     difficulty: q.difficulty,
                 }));
             } else {
@@ -257,18 +264,27 @@ export function QuizEditor() {
         setIsGeneratingNewAI(true);
         setNewAiError('');
         try {
-            const data = await apiFetch('/api/ai/agent/teacher/quiz', {
+            const resData = await apiFetch('/api/ai/agent/run', {
                 method: 'POST',
-                body: { topic: aiTopic, count: aiCount, difficulty: aiDifficulty, questionType: 'mcq' }
+                body: { 
+                    mode: 'TEACHER_AGENT',
+                    data: {
+                        topic: aiTopic, 
+                        count: aiCount, 
+                        difficulty: aiDifficulty, 
+                        questionType: 'mcq'
+                    }
+                }
             });
 
-            const rawQuestions = data.map((q: any) => ({
-                questionText: q.questionText,
-                optionA: q.options[0] ?? '',
-                optionB: q.options[1] ?? '',
-                optionC: q.options[2] ?? '',
-                optionD: q.options[3] ?? '',
-                correctAnswer: q.correctAnswer ?? 'A',
+            const questionsData = resData.data?.questions || resData.questions || [];
+            const rawQuestions = questionsData.map((q: any) => ({
+                questionText: q.questionText || q.question,
+                optionA: q.options ? q.options[0] : (q.optionA || q.option_a || ''),
+                optionB: q.options ? q.options[1] : (q.optionB || q.option_b || ''),
+                optionC: q.options ? q.options[2] : (q.optionC || q.option_c || ''),
+                optionD: q.options ? q.options[3] : (q.optionD || q.option_d || ''),
+                correctAnswer: q.correctAnswer || q.correct_answer || 'A',
                 difficulty: q.difficulty,
             }));
 

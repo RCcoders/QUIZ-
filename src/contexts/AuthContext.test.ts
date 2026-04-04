@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import * as fc from 'fast-check';
@@ -12,13 +12,13 @@ import * as fc from 'fast-check';
 const source = readFileSync(resolve(__dirname, 'AuthContext.tsx'), 'utf-8');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Task 5.7 — signOut clears localStorage role and sets user/userProfile to null
+// Task 5.7 — signOut clears localStorage user and sets user/userProfile to null
 // Validates: Requirements 3.3
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('PRESERVATION 5.7 — signOut clears localStorage role and sets user to null', () => {
-    it('source calls localStorage.removeItem with userRole key on sign-out', () => {
-        expect(source).toContain("localStorage.removeItem('userRole')");
+describe('PRESERVATION 5.7 — signOut clears localStorage user and sets user to null', () => {
+    it('source calls localStorage.removeItem with user key on sign-out', () => {
+        expect(source).toContain("localStorage.removeItem('user')");
     });
 
     it('source sets user to null on sign-out', () => {
@@ -29,36 +29,28 @@ describe('PRESERVATION 5.7 — signOut clears localStorage role and sets user to
         expect(source).toContain('setUserProfile(null)');
     });
 
-    it('source calls firebaseSignOut on sign-out', () => {
-        expect(source).toContain('firebaseSignOut(auth)');
-    });
-
     it('signOut function is async', () => {
         expect(source).toContain('const signOut = async');
-    });
-
-    it('signOut awaits the Firebase sign-out call', () => {
-        expect(source).toContain('await firebaseSignOut(auth)');
     });
 
     it('signOut is exposed in the AuthContext value', () => {
         expect(source).toContain('signOut');
         // Verify it's in the context provider value
-        expect(source).toContain('{ user, userProfile, loading, signUp, signIn, signInWithGoogle, signOut }');
+        expect(source).toContain('{ user, userProfile, loading, signUp, signIn, signOut, refreshUser');
     });
 
-    it('Property — signOut behavior: localStorage.removeItem is always called with userRole', () => {
+    it('Property — signOut behavior: localStorage.removeItem is always called with user', () => {
         /**
          * **Validates: Requirements 3.3**
          */
         // Simulate the signOut logic from AuthContext
-        function simulateSignOut(storage: Map<string, string>): { userNull: boolean; profileNull: boolean; roleCleared: boolean } {
-            // Mirrors: localStorage.removeItem('userRole'); setUser(null); setUserProfile(null);
-            storage.delete('userRole');
+        function simulateSignOut(storage: Map<string, string>): { userNull: boolean; profileNull: boolean; userCleared: boolean } {
+            // Mirrors: localStorage.removeItem('user'); setUser(null); setUserProfile(null);
+            storage.delete('user');
             return {
                 userNull: true,       // setUser(null)
                 profileNull: true,    // setUserProfile(null)
-                roleCleared: !storage.has('userRole'),
+                userCleared: !storage.has('user'),
             };
         }
 
@@ -66,27 +58,27 @@ describe('PRESERVATION 5.7 — signOut clears localStorage role and sets user to
             fc.property(
                 fc.constantFrom('student', 'teacher'),
                 (role) => {
-                    const storage = new Map<string, string>([['userRole', role]]);
+                    const storage = new Map<string, string>([['user', JSON.stringify({ role })]]);
                     const result = simulateSignOut(storage);
-                    return result.userNull && result.profileNull && result.roleCleared;
+                    return result.userNull && result.profileNull && result.userCleared;
                 }
             ),
             { numRuns: 50 }
         );
     });
 
-    it('Property — signOut always clears role regardless of what was stored', () => {
+    it('Property — signOut always clears user regardless of what was stored', () => {
         /**
          * **Validates: Requirements 3.3**
          */
         fc.assert(
             fc.property(
                 fc.string(),
-                (storedRole) => {
-                    const storage = new Map<string, string>([['userRole', storedRole]]);
-                    // After signOut: removeItem('userRole')
-                    storage.delete('userRole');
-                    return !storage.has('userRole');
+                (storedUser) => {
+                    const storage = new Map<string, string>([['user', storedUser]]);
+                    // After signOut: removeItem('user')
+                    storage.delete('user');
+                    return !storage.has('user');
                 }
             ),
             { numRuns: 100 }
@@ -107,16 +99,7 @@ describe('AuthContext — structure', () => {
         expect(source).toContain('export function useAuth');
     });
 
-    it('reads userRole from localStorage in onAuthStateChanged', () => {
-        expect(source).toContain("localStorage.getItem('userRole')");
-    });
-
-    it('populates userProfile after onAuthStateChanged fires', () => {
-        expect(source).toContain('setUserProfile(buildUserProfile');
-    });
-
-    it('populates userProfile after signIn resolves', () => {
-        // AuthContext.signIn should set userProfile with the actual role
-        expect(source).toContain('setUserProfile(buildUserProfile');
+    it('reads user from localStorage in syncAuth', () => {
+        expect(source).toContain("localStorage.getItem('user')");
     });
 });

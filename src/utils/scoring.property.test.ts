@@ -17,31 +17,30 @@ import * as fc from 'fast-check';
 const store: Record<string, unknown> = {};
 
 // ---------------------------------------------------------------------------
-// Mock firebase/firestore before importing scoring utilities
+// Mock apiFetch before importing scoring utilities
 // ---------------------------------------------------------------------------
 
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn((_db: unknown, ...segments: string[]) => ({ _path: segments.join('/') })),
-  addDoc: vi.fn(async (ref: { _path: string }, data: unknown) => {
-    const id = `doc_${Math.random().toString(36).slice(2, 10)}`;
-    store[`${ref._path}/${id}`] = data;
-    return { id };
-  }),
-  getDocs: vi.fn(async (q: { _ref: { _path: string } }) => {
-    const prefix = q._ref._path + '/';
-    const entries = Object.entries(store).filter(([k]) => k.startsWith(prefix));
-    return {
-      docs: entries.map(([key, data]) => ({
-        id: key.split('/').pop() as string,
-        data: () => data,
-      })),
-    };
-  }),
-  query: vi.fn((ref: unknown) => ({ _ref: ref })),
-  orderBy: vi.fn(),
-}));
+export let currentUserUid = 'default_uid';
 
-vi.mock('../lib/firebase', () => ({ db: {} }));
+vi.mock('../utils/api', () => ({
+  apiFetch: vi.fn(async (url: string, options?: any) => {
+    if (url === '/api/scores' && options?.method === 'POST') {
+      const data = JSON.parse(options.body);
+      const _id = `doc_${Math.random().toString(36).slice(2, 10)}`;
+      const uid = (global as any).__mockUid || 'unknown_uid';
+      store[`${uid}/${_id}`] = { ...data, _id, id: _id };
+      return { _id };
+    }
+    if (url.startsWith('/api/scores/')) {
+      const uid = url.slice('/api/scores/'.length);
+      // Return arrays of records matching the uid
+      return Object.entries(store)
+        .filter(([k]) => k.startsWith(uid + '/'))
+        .map(([_, v]) => v);
+    }
+    return {};
+  })
+}));
 
 // ---------------------------------------------------------------------------
 // Import after mocks are set up
@@ -94,7 +93,9 @@ describe('scoring property tests — Property 7', () => {
             delete store[key];
           }
 
-          await saveScoreRecord(uid, record);
+          (global as any).__mockUid = uid;
+
+          await saveScoreRecord(record);
           const readBack = await getScoreRecords(uid);
 
           expect(readBack).toHaveLength(1);

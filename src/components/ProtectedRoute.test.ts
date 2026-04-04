@@ -64,8 +64,11 @@ describe('PRESERVATION 5.2 — ProtectedRoute: student redirects to /student/das
         expect(source).toContain('to="/student/dashboard"');
     });
 
-    it("source checks userProfile role for 'student'", () => {
-        expect(source).toContain("role === 'student'");
+    it('enforces role-based isolation (teachers only)', () => {
+        // Tests that the file contains the protection logic:
+        // if ((userProfile?.role as any) !== 'teacher' && (userProfile?.role as any) !== 'admin')
+        expect(source).toContain("!== 'teacher'");
+        expect(source).toContain('<Navigate to="/student/dashboard" replace />');
     });
 
     it('getRedirectPath maps student role to /student/dashboard', () => {

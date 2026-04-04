@@ -1,5 +1,5 @@
 import { openai, AI_MODEL } from './openaiClient.js';
-import { buildTeacherQuizPrompt, TeacherQuizParams } from './promptTemplates.js';
+import { buildTeacherQuizPrompt, type TeacherQuizParams } from './promptTemplates.js';
 
 export interface MCQQuestion {
   questionText: string;

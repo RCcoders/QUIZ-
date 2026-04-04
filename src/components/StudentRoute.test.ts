@@ -113,12 +113,11 @@ describe('PRESERVATION 5.4 — StudentRoute: unauthenticated user redirects to /
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('PRESERVATION 5.5 — StudentRoute: teacher redirects to /teacher', () => {
-    it('source contains Navigate redirect to /teacher', () => {
-        expect(source).toContain('to="/teacher"');
-    });
-
-    it("source checks userProfile role for 'teacher'", () => {
-        expect(source).toContain("role === 'teacher'");
+    it('enforces role-based isolation (students only)', () => {
+        // Requirements 1.2: Validates role check logic
+        // if ((userProfile?.role as any) !== 'student' && (userProfile?.role as any) !== 'admin')
+        expect(source).toContain("!== 'student'");
+        expect(source).toContain('<Navigate to="/teacher" replace />');
     });
 
     it('getRedirectPath maps teacher role to /teacher', () => {

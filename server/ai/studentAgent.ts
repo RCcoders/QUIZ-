@@ -1,5 +1,5 @@
 import { openai, AI_MODEL } from './openaiClient.js';
-import { buildStudentNotesPrompt, StudentNotesParams } from './promptTemplates.js';
+import { buildStudentNotesPrompt, type StudentNotesParams } from './promptTemplates.js';
 
 export interface StudentNotes {
   summary: string;

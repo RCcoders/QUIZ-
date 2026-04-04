@@ -1,0 +1,106 @@
+﻿
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/shiva/OneDrive/Documents/GitHub/QUIZ-[39m
+
+ [31mΓ¥»[39m src/utils/scoring.property.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 36[2mms[22m[39m
+[31m     [31m├ù[31m Property 7: score record round-trip ΓÇö saved ScoreRecord fields match what is read back from Firestore[39m[32m 34[2mms[22m[39m
+node.exe : 
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" "C:
+\Users\shiva\AppData\Roami
+ng\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (:  
+  String) [], RemoteExc   
+ eption
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+[39m[1m[41m Failed 
+Tests 1 [49m[22m[31mΓÄ»
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[39m
+
+[41m[1m FAIL [22m[49m 
+src/utils/scoring.property
+.test.ts[2m > 
+[22mscoring property 
+tests ΓÇö Property 7[2m 
+> [22mProperty 7: score 
+record round-trip ΓÇö 
+saved ScoreRecord fields 
+match what is read back 
+from Firestore
+[31m[1mError[22m: 
+Property failed after 33 
+tests
+{ seed: -506215889, path: 
+"32:1:0:0:5:5:5:5:5:5:5:5:
+5:5:5:5:5:5:5:5:5", 
+endOnFailure: true }
+Counterexample: ["/    
+",{"quizId":"    
+","quizTitle":" ","score":
+0,"total":1,"percentage":0
+,"completedAt":"2020-01-01
+T00:00:00.000Z"}]
+Shrunk 20 time(s)
+
+Hint: Enable verbose mode 
+in order to have the list 
+of all failing values 
+encountered during the 
+run[39m
+[90m [2mΓ¥»[22m 
+buildError node_modules/fa
+st-check/lib/fast-check.js
+:[2m2434:16[22m[39m
+[90m [2mΓ¥»[22m 
+asyncThrowIfFailed node_mo
+dules/fast-check/lib/fast-
+check.js:[2m2446:8[22m[
+39m
+
+[31m[1mCaused by: 
+AssertionError[22m: 
+expected [] to have a 
+length of 1 but got 
++0[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 1[39m
+[31m+ 0[39m
+
+[36m [2mΓ¥»[22m src/uti
+ls/scoring.property.test.t
+s:[2m107:28[22m[39m
+[90m [2mΓ¥»[22m 
+AsyncProperty.run node_mod
+ules/fast-check/lib/fast-c
+heck.js:[2m1193:19[22m[
+39m
+[90m [2mΓ¥»[22m 
+asyncRunIt node_modules/fa
+st-check/lib/fast-check.js
+:[2m2488:15[22m[39m
+[90m [2mΓ¥»[22m src/uti
+ls/scoring.property.test.t
+s:[2m95:7[22m[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ
+»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»Γ
+Ä»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+ΓÄ»[1/1]ΓÄ»[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 14:25:06
+[2m   Duration [22m 364ms[2m (transform 53ms, setup 0ms, import 95ms, tests 36ms, environment 0ms)[22m
+

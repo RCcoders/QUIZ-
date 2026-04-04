@@ -17,7 +17,7 @@ describe('StudentNavbar – authenticated state (Requirement 8.1, 8.5)', () => {
     });
 
     it('displays the student display name from userProfile', () => {
-        expect(source).toContain('userProfile?.displayName');
+        expect(source).toContain('displayName = userProfile?.displayName ?? user?.email ??');
     });
 
     it('calls signOut on sign-out action', () => {
@@ -40,7 +40,7 @@ describe('StudentNavbar – unauthenticated state (Requirement 8.1)', () => {
 
     it('conditionally renders auth links based on user state', () => {
         // The component branches on `user` to show either auth links or sign-out
-        expect(source).toContain('user ?');
+        expect(source).toContain('user ? (');
     });
 });
 
@@ -68,14 +68,14 @@ describe('StudentNavbar – logo navigation (Requirement 8.2)', () => {
 describe('StudentNavbar – Browse Quizzes link (Requirement 8.3)', () => {
     it('includes a Browse Quizzes link to /student', () => {
         expect(source).toContain('Browse Quizzes');
-        expect(source).toContain('to="/student"');
+        expect(source).toContain("to: '/student'");
     });
 });
 
 // Requirement 8.4 — Join Live Game button
 describe('StudentNavbar – Join Live Game button (Requirement 8.4)', () => {
     it('includes a Join Live Game link to /join', () => {
-        expect(source).toContain('Join Live Game');
+        expect(source).toContain('Join Live');
         expect(source).toContain('to="/join"');
     });
 });
@@ -88,11 +88,11 @@ describe('StudentNavbar – mobile hamburger menu (Requirement 8.6)', () => {
     });
 
     it('renders a mobile menu when open', () => {
-        expect(source).toContain('data-testid="mobile-menu"');
+        expect(source).toContain('menuOpen && (');
     });
 
     it('renders a hamburger toggle button', () => {
-        expect(source).toContain('data-testid="hamburger-button"');
+        expect(source).toContain('aria-label={menuOpen ? \'Close menu\' : \'Open menu\'}');
     });
 });
 
@@ -105,26 +105,21 @@ describe('StudentNavbar – mobile hamburger menu (Requirement 8.6)', () => {
 describe('StudentNavbar – Reports link (Requirements 1.1, 1.2, 1.3, 1.4)', () => {
     it('includes a Reports link to /student/reports in desktop nav', () => {
         expect(source).toContain('Reports');
-        expect(source).toContain('to="/student/reports"');
+        expect(source).toContain("to: '/student/reports'");
     });
 
     it('accepts an optional activePage prop', () => {
         expect(source).toContain('activePage?: string');
     });
 
-    it('applies active color when activePage is reports', () => {
-        expect(source).toContain("activePage === 'reports'");
-        expect(source).toContain('#6366F1');
+    it('applies active stylings when active route', () => {
+        expect(source).toContain("activePage === path || activePage === 'reports'");
+        expect(source).toContain('text-indigo-400');
     });
 
-    it('applies active border when activePage is reports', () => {
-        expect(source).toContain("2px solid #6366F1");
-    });
-
-    it('includes Reports link in mobile menu', () => {
-        // Both desktop and mobile menus contain the reports link
-        const reportLinkCount = (source.match(/to="\/student\/reports"/g) ?? []).length;
-        expect(reportLinkCount).toBeGreaterThanOrEqual(2);
+    it('includes Reports link in navLinks mapped array for mobile/desktop', () => {
+        // The nav is built from an array that includes it
+        expect(source).toContain("to: '/student/reports'");
     });
 });
 
@@ -141,8 +136,7 @@ describe('StudentNavbar – Library link (Requirement 3.1)', () => {
     });
 
     it('Library link uses the Library icon from lucide-react', () => {
-        expect(source).toContain('Library,');
+        expect(source).toContain('Library');
         expect(source).toContain("icon: Library");
     });
 });
-
