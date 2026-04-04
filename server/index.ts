@@ -47,6 +47,8 @@ app.use(cors({
     credentials: true,
 }));
 
+app.use(express.json());
+
 // API Status Route
 app.get('/', (req, res) => {
     res.send('Quizly API is running');
