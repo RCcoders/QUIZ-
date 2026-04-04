@@ -33,7 +33,6 @@ const studentNotesSchema = z.object({
 });
 
 const adaptiveQuizSchema = z.object({
-  subject: z.string().max(200).optional(),
   count: z.number().int().min(1).max(20).default(10),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
   fallbackTopic: z.string().max(500).optional(),
@@ -43,7 +42,7 @@ const adaptiveQuizSchema = z.object({
 // POST /api/ai/agent/run
 const runSchema = z.object({
   mode: z.enum(['TEACHER_AGENT', 'STUDENT_AGENT', 'ADAPTIVE_AGENT']),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req: any, res: any) => {
@@ -53,9 +52,9 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
     if (mode === 'TEACHER_AGENT') {
       const parseResult = teacherQuizSchema.safeParse(data);
       if (!parseResult.success) {
-        return res.status(422).json(fail(parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')));
+        return res.status(422).json(fail(parseResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')));
       }
-      const params = parseResult.data;
+      const params = parseResult.data as any;
       const cacheKey = buildCacheKey({ type: 'teacherQuiz', ...params });
       const cached = await AiCache.findOne({ cacheKey, agentType: 'teacher' });
       if (cached) {
@@ -69,9 +68,9 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
     if (mode === 'STUDENT_AGENT') {
       const parseResult = studentNotesSchema.safeParse(data);
       if (!parseResult.success) {
-        return res.status(422).json(fail(parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')));
+        return res.status(422).json(fail(parseResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')));
       }
-      const params = parseResult.data;
+      const params = parseResult.data as any;
       const cacheKey = buildCacheKey({ type: 'studentNotes', ...params });
       const cached = await AiCache.findOne({ cacheKey, agentType: 'student' });
       if (cached) {
@@ -85,9 +84,9 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
     if (mode === 'ADAPTIVE_AGENT') {
       const parseResult = adaptiveQuizSchema.safeParse(data);
       if (!parseResult.success) {
-        return res.status(422).json(fail(parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')));
+        return res.status(422).json(fail(parseResult.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')));
       }
-      const params = parseResult.data;
+      const params = parseResult.data as any;
       const userId = req.user._id;
       const cacheKey = buildCacheKey({ type: 'adaptiveQuiz', userId, ...params });
       const cached = await AiCache.findOne({ cacheKey, agentType: 'adaptive' });
@@ -102,7 +101,7 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
     return res.status(400).json(fail('Invalid mode'));
   } catch (err: any) {
     if (err && err.name === 'ZodError') {
-      const message = err.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const message = err.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
       return res.status(422).json(fail(message));
     }
     if (err && err.name === 'ValidationError') {
@@ -118,7 +117,7 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: any, file: any, cb: any) => {
     if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
@@ -140,14 +139,14 @@ router.post('/teacher/quiz', protect, authorize('teacher'), aiRateLimiter, valid
     return res.json(ok({ questions: result }));
   } catch (err: any) {
     if (err && err.name === 'ZodError') {
-      return res.status(422).json(fail(err.errors.map((e: any) => e.message).join(', ')));
+      return res.status(422).json(fail(err.issues.map((e: any) => e.message).join(', ')));
     }
     return res.status(err.status || 500).json(fail(err.message || 'Server error'));
   }
 });
 
-router.post('/teacher/quiz-from-pdf', protect, authorize('teacher'), aiRateLimiter, (req, res, next) => {
-  upload.single('pdf')(req, res, (err) => {
+router.post('/teacher/quiz-from-pdf', protect, authorize('teacher'), aiRateLimiter, (req: any, res: any, next: any) => {
+  upload.single('pdf')(req, res, (err: any) => {
     if (err) {
       if (err.message === 'Only PDF files are accepted' || err.message === 'File too large') {
         return res.status(400).json(fail(err.message === 'File too large' ? 'File size exceeds 10 MB limit' : err.message));
