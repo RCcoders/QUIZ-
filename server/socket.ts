@@ -221,7 +221,11 @@ export const setupSocket = (server: HttpServer) => {
                 const currentQ = quiz.questions[targetIndex ?? 0];
                 if (!currentQ) return;
 
-                const isCorrect = answer === currentQ.correctAnswer;
+                const cleanAnswer = (answer || '').toString().trim().toUpperCase();
+                const cleanCorrect = (currentQ.correctAnswer || '').toString().trim().toUpperCase();
+                const isCorrect = cleanAnswer === cleanCorrect;
+
+                console.log(`[submit_answer] Game: ${gameCode}, Player: ${participantId}, Q: ${targetIndex}, Provided: "${cleanAnswer}", Expected: "${cleanCorrect}", Match: ${isCorrect}`);
 
                 let bonus = 0;
                 if (isCorrect && seconds <= 10) {
@@ -292,7 +296,7 @@ export const setupSocket = (server: HttpServer) => {
 
                 const activeParticipants = updatedSession.participants.filter((p: any) => p.status !== 'kicked');
                 const answeredCount = activeParticipants.filter((p: any) =>
-                    p.playerAnswers.some((pa: any) => pa.questionIndex === session.currentQuestionIndex)
+                    p.playerAnswers.some((pa: any) => Number(pa.questionIndex) === Number(session.currentQuestionIndex))
                 ).length;
 
                 if (answeredCount >= activeParticipants.length && activeParticipants.length > 0 && session.status === 'question') {
