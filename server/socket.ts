@@ -187,6 +187,27 @@ export const setupSocket = (server: HttpServer) => {
             }
         };
 
+        // ── Consolidate Auto-Progression Logic ──
+        const handleAllAnswered = async (gameCode: string, questionIndex: number) => {
+            const session = await GameSession.findOneAndUpdate(
+                { gameCode, status: 'question', currentQuestionIndex: questionIndex },
+                { status: 'results' },
+                { new: true }
+            );
+            if (!session) return;
+
+            io.to(gameCode).emit('all_answered', { session });
+
+            // Auto-advance after 3 seconds
+            setTimeout(async () => {
+                // Important: Verify the session is still in 'results' for THIS question before advancing
+                const currentSession = await GameSession.findOne({ gameCode });
+                if (currentSession && currentSession.status === 'results' && currentSession.currentQuestionIndex === questionIndex) {
+                    await advanceGame(gameCode, questionIndex + 1);
+                }
+            }, 3000);
+        };
+
         // ── Student submits an answer ──
         socket.on('submit_answer', async ({ gameCode, participantId, answer, questionIndex }: {
             gameCode: string; participantId: string; answer: string; questionIndex?: number;
@@ -195,14 +216,11 @@ export const setupSocket = (server: HttpServer) => {
                 const session = await GameSession.findOne({ gameCode })
                     .select('_id quizId status currentQuestionIndex questionStartedAt participants currentQuestionAnswers');
 
-                // Allow submissions for current question, or previous question if within 2s grace
                 const targetIndex = questionIndex !== undefined ? questionIndex : session?.currentQuestionIndex;
                 if (!session || (session.status !== 'question' && session.status !== 'results')) return;
 
-                // If student is answering an old question and we've already moved on, only allow if it's the immediate previous one
                 if (targetIndex !== session.currentQuestionIndex) {
                     if (targetIndex !== session.currentQuestionIndex - 1) return;
-                    // Grace period check: only allow if current question started < 2s ago
                     const transitionTime = session.questionStartedAt ? new Date(session.questionStartedAt).getTime() : 0;
                     if (Date.now() - transitionTime > 2000) return;
                 }
@@ -211,9 +229,7 @@ export const setupSocket = (server: HttpServer) => {
                 const startedAt = session.questionStartedAt || now;
                 const seconds = Math.max(0, (now.getTime() - new Date(startedAt).getTime()) / 1000);
 
-                if (seconds > 60) { // Increased to 60s for safety
-                    return socket.emit('answer_result', { isCorrect: false, pointsEarned: 0, reason: 'Time exceeded' });
-                }
+                if (seconds > 60) return;
 
                 const quiz = await Quiz.findById(session.quizId).select('questions');
                 if (!quiz) return;
@@ -224,8 +240,6 @@ export const setupSocket = (server: HttpServer) => {
                 const cleanAnswer = (answer || '').toString().trim().toUpperCase();
                 const cleanCorrect = (currentQ.correctAnswer || '').toString().trim().toUpperCase();
                 const isCorrect = cleanAnswer === cleanCorrect;
-
-                console.log(`[submit_answer] Game: ${gameCode}, Player: ${participantId}, Q: ${targetIndex}, Provided: "${cleanAnswer}", Expected: "${cleanCorrect}", Match: ${isCorrect}`);
 
                 let bonus = 0;
                 if (isCorrect && seconds <= 10) {
@@ -297,18 +311,14 @@ export const setupSocket = (server: HttpServer) => {
                     newTotalScore: participant ? participant.score : 0,
                 });
 
+                // Check for all answered
                 const activeParticipants = updatedSession.participants.filter((p: any) => p.status !== 'kicked');
                 const answeredCount = activeParticipants.filter((p: any) =>
                     p.playerAnswers.some((pa: any) => Number(pa.questionIndex) === Number(session.currentQuestionIndex))
                 ).length;
 
-                if (answeredCount >= activeParticipants.length && activeParticipants.length > 0 && session.status === 'question') {
-                    io.to(gameCode).emit('all_answered', { session: updatedSession });
-
-                    // ── AUTO-PROGRESSION ──
-                    setTimeout(async () => {
-                        await advanceGame(gameCode, session.currentQuestionIndex + 1);
-                    }, 3000);
+                if (session.status === 'question' && answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
+                    await handleAllAnswered(gameCode, session.currentQuestionIndex);
                 }
             } catch (error) {
                 console.error('[submit_answer]', error);
@@ -319,7 +329,7 @@ export const setupSocket = (server: HttpServer) => {
         socket.on('kick_player', async ({ gameCode, participantId }: { gameCode: string; participantId: string }) => {
             try {
                 if (!socket.user || socket.user.role !== 'teacher') return;
-                const session = await GameSession.findOne({ gameCode }).select('_id teacherId participants');
+                const session = await GameSession.findOne({ gameCode }).select('_id teacherId participants status currentQuestionIndex');
                 if (!session || String(session.teacherId) !== String(socket.user._id)) return;
 
                 const participantIndex = session.participants.findIndex((p: any) =>
@@ -329,6 +339,15 @@ export const setupSocket = (server: HttpServer) => {
                     (session.participants[participantIndex] as any).status = 'kicked';
                     session.markModified('participants');
                     await session.save();
+
+                    const activeParticipants = session.participants.filter((p: any) => p.status !== 'kicked');
+                    const answeredCount = activeParticipants.filter((p: any) =>
+                        p.playerAnswers.some((pa: any) => Number(pa.questionIndex) === Number(session.currentQuestionIndex))
+                    ).length;
+
+                    if (session.status === 'question' && answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
+                        await handleAllAnswered(gameCode, session.currentQuestionIndex);
+                    }
                     io.to(gameCode).emit('player_kicked', { participantId });
                 }
             } catch (error) {
@@ -404,7 +423,6 @@ export const setupSocket = (server: HttpServer) => {
         });
 
         const handleEndGame = async (gameCode: string) => {
-            // Mark disqualified BEFORE updating status so the flag is persisted
             await GameSession.updateMany(
                 { gameCode, 'participants.violationCount': { $gt: 3 } },
                 { $set: { 'participants.$[p].disqualified': true } },
@@ -463,7 +481,7 @@ export const setupSocket = (server: HttpServer) => {
             }
         };
 
-        // ── Disconnect: clean up room membership & timers ──
+        // ── Disconnect ──
         socket.on('disconnect', () => {
             if (socket.gameCode) {
                 socket.leave(socket.gameCode);
