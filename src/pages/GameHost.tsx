@@ -201,7 +201,6 @@ export function GameHost() {
 
         const onNextQuestion = (data: { question: any; session: any }) => {
             setSession(data.session);
-            if (data.question) setCurrentQuestion(data.question);
             setNextPending(false);
 
             // Sync participants for the new question
