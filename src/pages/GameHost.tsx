@@ -107,13 +107,14 @@ export function GameHost() {
             participantId: string;
             isCorrect: boolean;
             pointsEarned: number;
+            newTotalScore?: number;
             timeTakenMs?: number;
             answer?: string;
             questionIndex?: number;
         }) => {
             setAnswers(prev => [...prev, {
                 participantId: data.participantId,
-                questionIndex: data.questionIndex !== undefined ? data.questionIndex : session.currentQuestionIndex,
+                questionIndex: data.questionIndex,
                 answer: (data.answer as any) || 'A',
                 isCorrect: data.isCorrect,
                 pointsEarned: data.pointsEarned,
@@ -123,7 +124,11 @@ export function GameHost() {
 
             setParticipants(prev => prev.map(p =>
                 (p.id === data.participantId)
-                    ? { ...p, score: p.score + data.pointsEarned, answersCount: p.answersCount + 1 }
+                    ? {
+                        ...p,
+                        score: data.newTotalScore !== undefined ? data.newTotalScore : (p.score + data.pointsEarned),
+                        answersCount: p.answersCount + 1
+                    }
                     : p
             ));
         };
@@ -217,10 +222,6 @@ export function GameHost() {
             }
         };
 
-        if (socket.connected) {
-            onConnect();
-        }
-
         socket.on('connect', onConnect);
         socket.on('player_joined', onPlayerJoined);
         socket.on('answer_received', onAnswerReceived);
@@ -244,7 +245,7 @@ export function GameHost() {
             socket.off('next_question', onNextQuestion);
             socket.off('game_ended', onGameEnded);
         };
-    }, [session?.gameCode, user?.token, session?.currentQuestionIndex]);
+    }, [session?.gameCode, user?.token]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -300,16 +301,12 @@ export function GameHost() {
         if (!session) return;
         const socket = getSocket();
         socket.emit('start_game', { gameCode: session.gameCode });
-
-        // Optimistic update - transition directly to first question
-        setSession({ ...session, status: 'question', currentQuestionIndex: 0 });
     };
 
     const revealAnswer = () => {
         if (!session) return;
         const socket = getSocket();
         socket.emit('reveal_results', { gameCode: session.gameCode });
-        setSession({ ...session, status: 'results' });
     };
 
     const nextQuestion = () => {
@@ -319,14 +316,12 @@ export function GameHost() {
 
         if (nextIndex >= questions.length) {
             socket.emit('end_game', { gameCode: session.gameCode });
-            setSession({ ...session, status: 'ended', endedAt: new Date().toISOString() });
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
             setNextPending(true);
             // Fallback: re-enable after 3 seconds if no ack
             setTimeout(() => setNextPending(false), 3000);
             socket.emit('next_question', { gameCode: session.gameCode, nextIndex });
-            setSession({ ...session, status: 'question', currentQuestionIndex: nextIndex });
         }
     };
 
