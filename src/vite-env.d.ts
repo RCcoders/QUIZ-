@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  // Firebase has been removed — no VITE_FIREBASE_* vars required
+  readonly VITE_API_URL?: string;
+  readonly VITE_RAZORPAY_KEY_ID?: string;
 }
 
 interface ImportMeta {

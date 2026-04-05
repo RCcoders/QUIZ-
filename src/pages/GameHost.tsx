@@ -24,6 +24,7 @@ export function GameHost() {
     const [session, setSession] = useState<GameSession | null>(null);
     const [participants, setParticipants] = useState<GameParticipant[]>([]);
     const [answers, setAnswers] = useState<GameAnswer[]>([]);
+    const [finalAnswers, setFinalAnswers] = useState<GameAnswer[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
 
@@ -35,6 +36,7 @@ export function GameHost() {
     }, [participants]);
 
     const [timeLeft, setTimeLeft] = useState(0);
+    const [nextPending, setNextPending] = useState(false);
 
     const currentQuestion = session ? questions[session.currentQuestionIndex] : null;
 
@@ -78,7 +80,6 @@ export function GameHost() {
         const socket = connectSocket(user.token);
 
         const onConnect = () => {
-            console.log('Socket connected, joining room:', session.gameCode);
             socket.emit('join_room', { gameCode: session.gameCode });
         };
 
@@ -121,14 +122,11 @@ export function GameHost() {
         };
 
         const onPlayerLeft = (data: { socketId: string, participantId: string }) => {
-            console.log('Player left event:', data);
-
             setParticipants(prev => {
                 // IMPORTANT: If the session has already reached 'results' or 'ended' status,
                 // do NOT filter out the participant. This ensures the leaderboard remains intact
                 // even if students close their devices after finishing a battle.
-                if (session?.status === 'ended' || session?.status === 'results') {
-                    console.log('Keeping participant in list (game ended/results stage)');
+                if (session && (session.status === 'results' || session.status === 'ended')) {
                     return prev;
                 }
 
@@ -155,14 +153,31 @@ export function GameHost() {
             ));
         };
 
-        const onAllAnswered = () => {
-            console.log("All participants answered! Auto-advancing...");
-            revealAnswer();
+        const onGameEnded = (data: { finalParticipants: any[]; finalAnswers?: any[]; session: any }) => {
+            setSession(prev => prev ? { ...prev, status: 'ended', endedAt: data.session?.endedAt } : prev);
+            setParticipants(data.finalParticipants.map((p: any) => ({
+                id: p._id || p.id,
+                name: p.name,
+                email: p.email,
+                score: p.score || 0,
+                answersCount: (p.playerAnswers || []).length,
+                lastAnswerTimeMs: p.lastAnswerTimeMs || 0,
+                violationCount: p.violationCount || 0,
+                disqualified: p.disqualified || false,
+                status: p.status || 'active',
+            })));
+            // DB-persisted answers — always correct, even if teacher reloaded
+            if (data.finalAnswers && data.finalAnswers.length > 0) {
+                setFinalAnswers(data.finalAnswers as GameAnswer[]);
+            }
+        };
 
-            // Wait 4 seconds for students to see the results, then go to next question
-            setTimeout(() => {
-                nextQuestion();
-            }, 4000);
+        const onAllAnswered = (data: { session: any }) => {
+            setSession(data.session);
+        };
+
+        const onAckNextQuestion = () => {
+            setNextPending(false);
         };
 
         if (socket.connected) {
@@ -176,6 +191,8 @@ export function GameHost() {
         socket.on('violation_report', onViolationReport);
         socket.on('player_kicked', onPlayerKicked);
         socket.on('all_answered', onAllAnswered);
+        socket.on('ack_next_question', onAckNextQuestion);
+        socket.on('game_ended', onGameEnded);
 
         return () => {
             socket.off('connect', onConnect);
@@ -185,6 +202,8 @@ export function GameHost() {
             socket.off('violation_report', onViolationReport);
             socket.off('player_kicked', onPlayerKicked);
             socket.off('all_answered', onAllAnswered);
+            socket.off('ack_next_question', onAckNextQuestion);
+            socket.off('game_ended', onGameEnded);
         };
     }, [session?.gameCode, user?.token, session?.currentQuestionIndex]);
 
@@ -255,7 +274,7 @@ export function GameHost() {
     };
 
     const nextQuestion = () => {
-        if (!session) return;
+        if (!session || nextPending) return;
         const nextIndex = session.currentQuestionIndex + 1;
         const socket = getSocket();
 
@@ -264,6 +283,9 @@ export function GameHost() {
             setSession({ ...session, status: 'ended', endedAt: new Date().toISOString() });
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
+            setNextPending(true);
+            // Fallback: re-enable after 3 seconds if no ack
+            setTimeout(() => setNextPending(false), 3000);
             socket.emit('next_question', { gameCode: session.gameCode, nextIndex });
             setSession({ ...session, status: 'question', currentQuestionIndex: nextIndex });
         }
@@ -299,12 +321,21 @@ export function GameHost() {
             // Dynamic import to reduce initial bundle size
             const XLSX = await import('xlsx');
 
-            const excelData = participants.map((p, index) => ({
-                'Rank': index + 1,
-                'Student Name': p.name,
-                'Email': p.email || 'N/A',
-                'Total Score': p.score,
-            }));
+            const rankedParticipants = participants
+                .filter(p => !p.disqualified)
+                .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            const excelData = participants.map((p) => {
+                const rank = p.disqualified ? 'N/A' : (rankedParticipants.findIndex(rp => rp.id === p.id) + 1);
+                return {
+                    'Rank': rank,
+                    'Student Name': p.name,
+                    'Email': p.email || 'N/A',
+                    'Total Score': p.score,
+                    'Violations': p.violationCount || 0,
+                    'Status': p.disqualified ? 'Disqualified' : 'Qualified'
+                };
+            });
 
             const ws = XLSX.utils.json_to_sheet(excelData);
             const wb = XLSX.utils.book_new();
@@ -821,13 +852,16 @@ export function GameHost() {
                                             )}
                                             <button
                                                 onClick={session.status === 'question' ? revealAnswer : nextQuestion}
-                                                className="flex items-center gap-2 bg-[#FF5C1A] text-white rounded-lg px-5 py-2 font-black text-sm ml-auto hover:bg-[#e45217] transition-colors shadow-sm"
+                                                disabled={session.status === 'results' && nextPending}
+                                                className={`flex items-center gap-2 bg-[#FF5C1A] text-white rounded-lg px-5 py-2 font-black text-sm ml-auto transition-colors shadow-sm ${session.status === 'results' && nextPending ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[#e45217]'}`}
                                             >
                                                 {session.status === 'question'
                                                     ? <><Eye size={15} /> Skip & Reveal</>
                                                     : session.currentQuestionIndex + 1 >= questions.length
                                                         ? <><Trophy size={15} /> Finish Game</>
-                                                        : <><ArrowRight size={15} /> Next Question →</>
+                                                        : nextPending
+                                                            ? <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Advancing...</>
+                                                            : <><ArrowRight size={15} /> Next Question →</>
                                                 }
                                             </button>
                                         </div>
@@ -1149,6 +1183,7 @@ export function GameHost() {
                                                 <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rank</th>
                                                 <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Student</th>
                                                 <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Score</th>
+                                                <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>Violations</th>
                                                 {questions.map((_, i) => (
                                                     <th key={i} style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>Q{i + 1}</th>
                                                 ))}
@@ -1156,6 +1191,7 @@ export function GameHost() {
                                         </thead>
                                         <tbody>
                                             {[...participants]
+                                                .filter(p => !p.disqualified)
                                                 .sort((a, b) => {
                                                     if ((b.score || 0) !== (a.score || 0)) {
                                                         return (b.score || 0) - (a.score || 0);
@@ -1170,8 +1206,21 @@ export function GameHost() {
                                                             <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
                                                         </td>
                                                         <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{(p.score).toFixed(1)}</td>
+                                                        <td style={{ padding: '16px 0', textAlign: 'center' }}>
+                                                            {p.violationCount > 0 ? (
+                                                                <span style={{
+                                                                    display: 'inline-flex', padding: '2px 8px', borderRadius: 12,
+                                                                    fontSize: 10, fontWeight: 800, background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA'
+                                                                }}>
+                                                                    {p.violationCount} {p.violationCount === 1 ? 'Alert' : 'Alerts'}
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ color: '#E2E8F0' }}>—</span>
+                                                            )}
+                                                        </td>
                                                         {questions.map((q, qIndex) => {
-                                                            const answer = answers.find(a => a.participantId === p.id && a.questionIndex === qIndex);
+                                                            const answerSource = finalAnswers.length > 0 ? finalAnswers : answers;
+                                                            const answer = answerSource.find(a => a.participantId === p.id && a.questionIndex === qIndex);
                                                             const isCorrect = answer?.isCorrect;
                                                             return (
                                                                 <td key={qIndex} style={{ padding: '16px 4px', textAlign: 'center' }}>
@@ -1186,7 +1235,7 @@ export function GameHost() {
                                                                             {answer.answer}
                                                                         </div>
                                                                     ) : (
-                                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#CBD5E1', fontWeight: 700, fontSize: 11 }}>�</div>
+                                                                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#CBD5E1', fontWeight: 700, fontSize: 11 }}>—</div>
                                                                     )}
                                                                 </td>
                                                             );
@@ -1196,6 +1245,48 @@ export function GameHost() {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Disqualified Section */}
+                                {participants.some(p => p.disqualified) && (
+                                    <div style={{ marginTop: 40, borderTop: '2px dashed #F1F5F9', paddingTop: 24 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                            <AlertTriangle size={18} className="text-red-500" />
+                                            <h4 style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Disqualified Warriors</h4>
+                                        </div>
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                                        <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>Student</th>
+                                                        <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', textAlign: 'center' }}>Violations</th>
+                                                        <th style={{ paddingBottom: 12, fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>Reason</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {participants.filter(p => p.disqualified).map(p => (
+                                                        <tr key={p.id} style={{ borderBottom: '1px solid #FFF1F2' }}>
+                                                            <td style={{ padding: '12px 8px' }}>
+                                                                <div style={{ fontWeight: 700, color: '#334155' }}>{p.name}</div>
+                                                                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{p.email}</div>
+                                                            </td>
+                                                            <td style={{ padding: '12px 0', textAlign: 'center' }}>
+                                                                <span style={{
+                                                                    display: 'inline-flex', padding: '4px 12px', borderRadius: 12,
+                                                                    fontSize: 11, fontWeight: 800, background: '#EF4444', color: '#fff'
+                                                                }}>
+                                                                    {p.violationCount} Violations
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '12px 0', fontSize: 12, fontWeight: 600, color: '#B91C1C' }}>
+                                                                Exceeded threshold (Max: 3)
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     )}

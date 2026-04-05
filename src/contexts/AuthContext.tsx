@@ -86,7 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             const data = await response.json().catch(() => ({ message: 'Invalid server response' }));
-            if (!response.ok) throw new Error(data.message || 'Signup failed');
+            if (!response.ok) {
+                const error: any = new Error(data.message || 'Signup failed');
+                error.status = response.status;
+                throw error;
+            }
 
             localStorage.setItem('user', JSON.stringify(data));
             setUser(data);
@@ -116,7 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             const data = await response.json().catch(() => ({ message: 'Invalid server response' }));
-            if (!response.ok) throw new Error(data.message || 'Login failed');
+            if (!response.ok) {
+                const error: any = new Error(data.message || 'Login failed');
+                error.status = response.status;
+                throw error;
+            }
 
             localStorage.setItem('user', JSON.stringify(data));
             setUser(data);

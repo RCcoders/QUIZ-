@@ -23,7 +23,7 @@ export const getSocket = (token?: string) => {
         });
     } else if (token && socket.auth) {
         // Update token if it changed
-        (socket.auth as any).token = token;
+        (socket.auth as Record<string, unknown>).token = token;
     }
     return socket;
 };

@@ -8,6 +8,8 @@ export interface IParticipant {
     lastAnswerTimeMs?: number;
     hasAnsweredCurrentQuestion?: boolean;
     violationCount: number;
+    disqualified: boolean; // true if violationCount > 3 at game end
+    playerAnswers: { questionIndex: number; answer: string; isCorrect: boolean; pointsEarned: number }[];
     joinedAt: Date;
 }
 
@@ -26,6 +28,13 @@ export interface IGameSession extends Document {
     updatedAt: Date;
 }
 
+const PlayerAnswerSchema = new Schema({
+    questionIndex: { type: Number, required: true },
+    answer: { type: String, required: true },
+    isCorrect: { type: Boolean, required: true },
+    pointsEarned: { type: Number, default: 0 },
+}, { _id: false });
+
 const ParticipantSchema = new Schema({
     userId: { type: String },
     name: { type: String, required: true },
@@ -34,6 +43,8 @@ const ParticipantSchema = new Schema({
     lastAnswerTimeMs: { type: Number, default: 0 },
     hasAnsweredCurrentQuestion: { type: Boolean, default: false },
     violationCount: { type: Number, default: 0 },
+    disqualified: { type: Boolean, default: false },
+    playerAnswers: { type: [PlayerAnswerSchema], default: [] },
     joinedAt: { type: Date, default: Date.now },
 });
 
@@ -54,7 +65,7 @@ const GameSessionSchema: Schema = new Schema({
     endedAt: { type: Date, default: null },
 }, { timestamps: true });
 
-// Performance Indexes
+// Performance Indexes (gameCode index is implicit via unique:true on the field)
 GameSessionSchema.index({ teacherId: 1 });
 GameSessionSchema.index({ status: 1 });
 

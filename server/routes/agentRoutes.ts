@@ -61,7 +61,11 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
         return res.json(ok({ questions: cached.response, fromCache: true }));
       }
       const result = await generateTeacherQuiz(params);
-      await AiCache.create({ cacheKey, agentType: 'teacher', response: result, version: 1 });
+      try {
+        await AiCache.create({ cacheKey, agentType: 'teacher', response: result, version: 1 });
+      } catch (cacheErr) {
+        // Silently skip duplicate key errors during cache write (race condition)
+      }
       return res.json(ok({ questions: result }));
     }
 
@@ -77,7 +81,11 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
         return res.json(ok({ ...cached.response, fromCache: true }));
       }
       const result = await generateStudentNotes(params);
-      await AiCache.create({ cacheKey, agentType: 'student', response: result, version: 1 });
+      try {
+        await AiCache.create({ cacheKey, agentType: 'student', response: result, version: 1 });
+      } catch (cacheErr) {
+        // Silently skip
+      }
       return res.json(ok(result));
     }
 
@@ -94,7 +102,11 @@ router.post('/run', protect, aiRateLimiter, validateBody(runSchema), async (req:
         return res.json(ok({ questions: cached.response, fromCache: true }));
       }
       const result = await generateAdaptiveQuiz(userId, params);
-      await AiCache.create({ cacheKey, agentType: 'adaptive', response: result, version: 1 });
+      try {
+        await AiCache.create({ cacheKey, agentType: 'adaptive', response: result, version: 1 });
+      } catch (cacheErr) {
+        // Silently skip
+      }
       return res.json(ok({ questions: result }));
     }
 
@@ -135,7 +147,11 @@ router.post('/teacher/quiz', protect, authorize('teacher'), aiRateLimiter, valid
       return res.json(ok({ questions: cached.response, fromCache: true }));
     }
     const result = await generateTeacherQuiz(params);
-    await AiCache.create({ cacheKey, agentType: 'teacher', response: result, version: 1 });
+    try {
+      await AiCache.create({ cacheKey, agentType: 'teacher', response: result, version: 1 });
+    } catch (cacheErr) {
+      // Silently skip
+    }
     return res.json(ok({ questions: result }));
   } catch (err: any) {
     if (err && err.name === 'ZodError') {
@@ -184,7 +200,11 @@ router.post('/student/notes', protect, authorize('student'), aiRateLimiter, vali
       return res.json(ok({ ...cached.response, fromCache: true }));
     }
     const result = await generateStudentNotes(params);
-    await AiCache.create({ cacheKey, agentType: 'student', response: result, version: 1 });
+    try {
+      await AiCache.create({ cacheKey, agentType: 'student', response: result, version: 1 });
+    } catch (cacheErr) {
+      // Silently skip
+    }
     return res.json(ok(result));
   } catch (err: any) {
     if (err instanceof ValidationError) {
@@ -204,7 +224,11 @@ router.post('/adaptive/quiz', protect, authorize('student'), aiRateLimiter, vali
       return res.json(ok({ questions: cached.response, fromCache: true }));
     }
     const result = await generateAdaptiveQuiz(userId, params);
-    await AiCache.create({ cacheKey, agentType: 'adaptive', response: result, version: 1 });
+    try {
+      await AiCache.create({ cacheKey, agentType: 'adaptive', response: result, version: 1 });
+    } catch (cacheErr) {
+      // Silently skip
+    }
     return res.json(ok({ questions: result }));
   } catch (err: any) {
     return res.status(err.status || 500).json(fail(err.message || 'Server error'));

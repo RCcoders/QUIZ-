@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
     Play, User, Mail, Zap, Trophy, HelpCircle,
-    CheckCircle, XCircle, Clock, AlertCircle,
+    CheckCircle, XCircle, Clock, AlertCircle, AlertTriangle,
     Globe, Square, Circle, Triangle
 } from 'lucide-react';
 import { Socket } from 'socket.io-client';
@@ -19,6 +19,7 @@ interface Participant {
     lastAnswerCorrect?: boolean;
     lastAnswerTimeMs?: number;
     violationCount?: number;
+    disqualified?: boolean;
 }
 
 interface Question {
@@ -70,17 +71,24 @@ export function PlayGame() {
     const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
     const [violationCount, setViolationCount] = useState(0);
     const [gameCode, setGameCode] = useState<string>('');
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // Detect desktop vs mobile once on mount
+    const isDesktopDevice = useRef<boolean>(
+        typeof window !== 'undefined' &&
+        window.screen.width >= 1024 &&
+        navigator.maxTouchPoints === 0
+    );
 
     const questionsRef = useRef<Question[]>([]);
     const sessionRef = useRef<Session | null>(null);
+    const socketRef = useRef<Socket | null>(null);
+    const gameCodeRef = useRef<string>('');
 
-    useEffect(() => {
-        questionsRef.current = questions;
-    }, [questions]);
-
-    useEffect(() => {
-        sessionRef.current = session;
-    }, [session]);
+    useEffect(() => { questionsRef.current = questions; }, [questions]);
+    useEffect(() => { sessionRef.current = session; }, [session]);
+    useEffect(() => { socketRef.current = socket; }, [socket]);
+    useEffect(() => { gameCodeRef.current = gameCode; }, [gameCode]);
 
     const { state } = useLocation();
     const playerName = localStorage.getItem('quizly_player_name') || state?.name;
@@ -99,6 +107,31 @@ export function PlayGame() {
         setSocket(newSocket);
         newSocket.emit('join_game', { gameCode: sessionId, name: playerName, participantId });
 
+        // ── Server-authoritative current state (for reconnects) ──
+        newSocket.on('current_state', ({ currentQuestionIndex, questionData, startedAt }: {
+            currentQuestionIndex: number; questionData: any; startedAt: string | null;
+        }) => {
+            if (!questionData) return;
+            const currentIdx = sessionRef.current?.currentQuestionIndex ?? 0;
+            if (currentQuestionIndex > currentIdx) {
+                // Student is behind — show syncing overlay then jump
+                setIsSyncing(true);
+                setTimeout(() => {
+                    setCurrentQuestion(questionData);
+                    setSession(prev => prev ? { ...prev, currentQuestionIndex, questionStartedAt: startedAt ?? undefined } : prev);
+                    setHasAnswered(false);
+                    setIsCorrect(null);
+                    setPointsEarned(0);
+                    setGameState('playing');
+                    setIsSyncing(false);
+                }, 500);
+            } else {
+                // Same question or initial sync — just set directly
+                setCurrentQuestion(questionData);
+                setSession(prev => prev ? { ...prev, currentQuestionIndex, questionStartedAt: startedAt ?? undefined } : prev);
+            }
+        });
+
         newSocket.on('session_state', ({ session, questions }) => {
             if (!session) return;
             setSession(session);
@@ -111,9 +144,7 @@ export function PlayGame() {
 
             if (session.status === 'question' || session.status === 'playing') {
                 setGameState('playing');
-                if (questions && questions[session.currentQuestionIndex]) {
-                    setCurrentQuestion(questions[session.currentQuestionIndex]);
-                }
+                // Server will send current_state immediately after join_game if live
                 setHasAnswered(false);
             } else if (session.status === 'results') {
                 setGameState('results');
@@ -129,23 +160,22 @@ export function PlayGame() {
             setAllParticipants(prev => [...prev.filter(item => (item._id || item.id) !== (p._id || p.id)), p]);
         });
 
-        newSocket.on('player_left', ({ participantId }) => {
-            setAllParticipants(prev => prev.filter(p => (p._id || p.id) !== participantId));
+        newSocket.on('player_left', ({ participantId: leftId }) => {
+            setAllParticipants(prev => prev.filter(p => (p._id || p.id) !== leftId));
         });
 
         newSocket.on('game_started', () => {
             setGameState('playing');
-            if (questionsRef.current && questionsRef.current.length > 0) {
-                const currentS = sessionRef.current;
-                const idx = currentS ? currentS.currentQuestionIndex || 0 : 0;
-                setCurrentQuestion(questionsRef.current[idx]);
-            }
             setHasAnswered(false);
+            // current_state broadcast from server sets the actual question
         });
 
-        newSocket.on('next_question', ({ question }) => {
+        newSocket.on('next_question', ({ question, session: updatedSession }) => {
+            // current_state event sets the question authoritatively;
+            // this event carries session metadata update
+            if (updatedSession) setSession(updatedSession);
+            if (question) setCurrentQuestion(question);
             setGameState('playing');
-            setCurrentQuestion(question);
             setHasAnswered(false);
             setIsCorrect(null);
             setPointsEarned(0);
@@ -175,14 +205,13 @@ export function PlayGame() {
         });
 
         newSocket.on('answer_received', ({ participantId: pId, newTotalScore }) => {
-            setAllParticipants(prev => {
-                const updated = prev.map(p => (p._id || p.id) === pId ? { ...p, score: newTotalScore } : p);
-                return updated;
-            });
+            setAllParticipants(prev =>
+                prev.map(p => (p._id || p.id) === pId ? { ...p, score: newTotalScore } : p)
+            );
         });
 
         newSocket.on('player_kicked', ({ participantId: kickedId, reason }) => {
-            if ((participantId) === kickedId) {
+            if (participantId === kickedId) {
                 alert(reason || 'You have been kicked from the game.');
                 navigate('/join');
                 disconnectSocket();
@@ -197,16 +226,29 @@ export function PlayGame() {
             ));
         });
 
-        return () => { disconnectSocket(); };
+        // ── 30-second polling fallback for unstable connections ──
+        const pollInterval = setInterval(() => {
+            const code = gameCodeRef.current;
+            if (code && socketRef.current?.connected) {
+                socketRef.current.emit('get_current_state', { gameCode: code });
+            }
+        }, 30000);
+
+        return () => {
+            clearInterval(pollInterval);
+            disconnectSocket();
+        };
     }, [sessionId, playerName, participantId, navigate]);
 
     const getLeaderboardPosition = () => {
-        const sorted = [...allParticipants].sort((a, b) => {
-            if ((b.score || 0) !== (a.score || 0)) {
-                return (b.score || 0) - (a.score || 0);
-            }
-            return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
-        });
+        const sorted = [...allParticipants]
+            .filter(p => !p.disqualified)
+            .sort((a, b) => {
+                if ((b.score || 0) !== (a.score || 0)) {
+                    return (b.score || 0) - (a.score || 0);
+                }
+                return (a.lastAnswerTimeMs || 0) - (b.lastAnswerTimeMs || 0);
+            });
         const index = sorted.findIndex(p => (p._id || p.id) === participantId);
         return index + 1;
     };
@@ -235,44 +277,59 @@ export function PlayGame() {
     };
 
     useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.hidden && gameState === 'playing') {
-                const newCount = violationCount + 1;
-                setViolationCount(newCount);
-                socket?.emit('cheating_violation', {
-                    gameCode: sessionId,
-                    participantId,
-                    reason: 'Tab switching / Window minimized'
-                });
-            }
+        const deviceType = isDesktopDevice.current ? 'desktop' : 'mobile';
+
+        const emitViolation = (reason: string) => {
+            setViolationCount(prev => prev + 1);
+            socket?.emit('cheating_violation', {
+                gameCode: sessionId,
+                participantId,
+                reason,
+                device_type: deviceType,
+            });
         };
 
-        const handleResize = () => {
-            // Detect split screen: on most desktops, < 900px width is a sign of split screen or non-maximized window
-            const isActive = gameState === 'playing' || gameState === 'results';
-            if (isActive && window.innerWidth < 900) {
-                const newCount = violationCount + 1;
-                setViolationCount(newCount);
-                socket?.emit('cheating_violation', {
-                    gameCode: sessionId,
-                    participantId,
-                    reason: `Split screen/Narrow window detected (${window.innerWidth}px)`
-                });
-                alert('Anti-Cheat Warning: Please maximize your window to continue! Split screen is not allowed.');
+        // Tab switch / window blur — applies to ALL devices
+        const handleVisibilityChange = () => {
+            if (document.hidden && gameState === 'playing') {
+                emitViolation('Tab switching / Window minimized');
+            }
+        };
+        const handleWindowBlur = () => {
+            if (gameState === 'playing') {
+                emitViolation('Window lost focus');
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('resize', handleResize);
 
-        // Also check on initial mount/state change
-        handleResize();
+        // Desktop-only: fullscreen enforcement + split-screen detection
+        if (isDesktopDevice.current) {
+            window.addEventListener('blur', handleWindowBlur);
 
+            const handleResize = () => {
+                const isActive = gameState === 'playing' || gameState === 'results';
+                if (isActive && window.innerWidth < 900) {
+                    emitViolation(`Split screen/Narrow window detected (${window.innerWidth}px)`);
+                    alert('Anti-Cheat Warning: Please maximize your window to continue! Split screen is not allowed.');
+                }
+            };
+            window.addEventListener('resize', handleResize);
+            // Check on mount
+            handleResize();
+
+            return () => {
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('blur', handleWindowBlur);
+                window.removeEventListener('resize', handleResize);
+            };
+        }
+
+        // Mobile/tablet: only visibility change
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('resize', handleResize);
         };
-    }, [gameState, socket, sessionId, participantId, violationCount]);
+    }, [gameState, socket, sessionId, participantId]);
 
     useEffect(() => {
         let interval: any;
@@ -304,6 +361,8 @@ export function PlayGame() {
     }, [session?.status, session?.questionStartedAt, questionStatus, currentQuestion?.timerSeconds]);
 
     useEffect(() => {
+        // Only enforce fullscreen on desktop
+        if (!isDesktopDevice.current) return;
         if (gameState === 'playing' && !document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(() => { });
         }
@@ -345,6 +404,16 @@ export function PlayGame() {
 
             <div className="relative z-10 min-h-screen p-6 md:p-12">
                 <div className="max-w-7xl mx-auto h-full flex flex-col">
+                    {/* Syncing overlay */}
+                    {isSyncing && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                            <div className="flex flex-col items-center gap-4 text-white">
+                                <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                                <p className="text-xl font-black uppercase tracking-widest">Syncing...</p>
+                            </div>
+                        </div>
+                    )}
+
                     {violationCount > 0 && (
                         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-red-500 text-white rounded-2xl flex items-center gap-4 shadow-xl shadow-red-500/20">
                             <AlertCircle size={20} />
@@ -503,15 +572,37 @@ export function PlayGame() {
 
                         {gameState === 'ended' && (
                             <motion.div key="ended" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col max-w-4xl mx-auto w-full justify-center text-center py-10">
-                                <Trophy size={80} className="text-brand mx-auto mb-8 drop-shadow-2xl md:w-[100px] md:h-[100px]" />
-                                <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter italic uppercase text-zinc-900 leading-none">GAME OVER</h1>
-                                <p className="text-lg md:text-xl font-bold text-zinc-400 uppercase tracking-widest mb-12">VICTORY LAP COMPLETE</p>
+                                {participant?.disqualified ? (
+                                    <>
+                                        <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8">
+                                            <AlertTriangle size={48} />
+                                        </div>
+                                        <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter italic uppercase text-red-600 leading-none">DISQUALIFIED</h1>
+                                        <p className="text-lg md:text-xl font-bold text-zinc-400 uppercase tracking-widest mb-12">Result Invalidated due to Violations</p>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">#{currentPosition}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Final Rank</div></div>
-                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{(participant?.score || 0).toFixed(1)}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Points</div></div>
-                                    <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{questions.length}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Rounds</div></div>
-                                </div>
+                                        <div className="card !p-10 mb-12 bg-red-50 border-red-100">
+                                            <p className="text-zinc-600 font-medium leading-relaxed max-w-md mx-auto">
+                                                Your result was not submitted because you exceeded the maximum limit of <strong className="text-red-600">3 anti-cheat violations</strong>.
+                                            </p>
+                                            <div className="mt-6 flex items-center justify-center gap-2 text-red-600 font-bold">
+                                                <AlertCircle size={16} />
+                                                Total Violations Recorded: {participant.violationCount}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trophy size={80} className="text-brand mx-auto mb-8 drop-shadow-2xl md:w-[100px] md:h-[100px]" />
+                                        <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter italic uppercase text-zinc-900 leading-none">GAME OVER</h1>
+                                        <p className="text-lg md:text-xl font-bold text-zinc-400 uppercase tracking-widest mb-12">VICTORY LAP COMPLETE</p>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                                            <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">#{currentPosition}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Final Rank</div></div>
+                                            <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{(participant?.score || 0).toFixed(1)}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Points</div></div>
+                                            <div className="card !p-6 md:!p-10"><div className="text-4xl font-black mb-1 text-zinc-900">{questions.length}</div><div className="text-[10px] font-black uppercase text-zinc-400 font-sans tracking-widest">Rounds</div></div>
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="flex gap-4 justify-center">
                                     <button onClick={() => navigate('/student/library')} className="btn btn-primary h-16 px-12 uppercase italic">Library</button>

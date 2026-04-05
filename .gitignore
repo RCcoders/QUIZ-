@@ -29,8 +29,25 @@ server_build_errors.txt
 
 # Environment variables
 .env
-.env.example
 .env.local
-.local
+.env.production
+.env.development
 server/.env
 server/.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Error dump files
+agent_errors.txt
+tsc_errors.txt
+full_errors.txt
+server/full_errors.txt
+server/tsc_errors.txt
+server/agent_errors.txt

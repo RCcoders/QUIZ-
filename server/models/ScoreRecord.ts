@@ -11,6 +11,8 @@ export interface IScoreRecord extends Document {
     subject?: string;
     difficulty?: 'easy' | 'medium' | 'hard';
     timeTakenMs?: number;
+    violationCount: number;
+    disqualified: boolean;
 }
 
 const ScoreRecordSchema: Schema = new Schema({
@@ -24,6 +26,8 @@ const ScoreRecordSchema: Schema = new Schema({
     subject: { type: String }, // Index for subject-wise performance analysis
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
     timeTakenMs: { type: Number },
+    violationCount: { type: Number, default: 0 },
+    disqualified: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Performance Indexes

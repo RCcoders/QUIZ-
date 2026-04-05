@@ -3,21 +3,23 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Mongoose 7+ deprecation: Use returnDocument: 'after'
+mongoose.set('returnDocument', 'after');
+
 const connectDB = async () => {
     const uri = process.env.MONGODB_URI;
     if (!uri) {
         console.error('CRITICAL: MONGODB_URI is not defined in environment variables!');
-        console.log('Current process.env keys:', Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY')));
         process.exit(1);
     }
 
     try {
-        // Log truncated URI for debugging (masking credentials)
-        const maskedUri = uri.replace(/\/\/(.*):(.*)@/, '//****:****@');
-        console.log(`Attempting to connect to MongoDB: ${maskedUri}`);
-
         const conn = await mongoose.connect(uri, {
-            maxPoolSize: 200,
+            minPoolSize: 5,
+            maxPoolSize: 50,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+            waitQueueTimeoutMS: 10000, // Queue the request if pool is exhausted
         });
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {

@@ -35,7 +35,7 @@ router.put('/:id', protect, authorize('teacher'), async (req: any, res) => {
         const quiz = await Quiz.findOneAndUpdate(
             { _id: req.params.id, teacherId: req.user._id },
             updateData,
-            { new: true }
+            { returnDocument: 'after' }
         );
         if (quiz) {
             res.json(quiz);

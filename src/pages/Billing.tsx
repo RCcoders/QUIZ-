@@ -101,7 +101,6 @@ export function Billing() {
                 description: `${plan.name} Subscription (${isAnnual ? 'Annually' : 'Monthly'})`,
                 image: "https://quizly.app/logo.png", // Ideal brand logo
                 handler: function (response: any) {
-                    console.log(`Payment successful. Payment ID: ${response.razorpay_payment_id}`);
                     alert(`Success! Upgraded to ${plan.name} Premium.`);
                 },
                 prefill: {

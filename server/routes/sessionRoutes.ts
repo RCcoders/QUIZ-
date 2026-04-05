@@ -70,6 +70,8 @@ router.post('/join', async (req: any, res: any) => {
             userId: userId || undefined,
             score: 0,
             violationCount: 0,
+            disqualified: false,
+            playerAnswers: [],
             joinedAt: new Date()
         });
 

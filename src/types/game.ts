@@ -53,6 +53,7 @@ export interface GameParticipant {
     joinedAt?: string;
     status: 'active' | 'left' | 'kicked';
     violationCount?: number;
+    disqualified?: boolean;
     lastAnswerTimeMs?: number;
     kickReason?: string | null;
 }

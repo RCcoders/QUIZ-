@@ -54,7 +54,8 @@ export function TeacherProfile() {
                     subjects: formData.subjects.split(',').map(s => s.trim()).filter(s => s !== ''),
                 }),
             });
-            console.log("Profile updated:", data);
+            // Update local state and context if necessary
+            // e.g. setUserProfile(data);
             await refreshUser();
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);

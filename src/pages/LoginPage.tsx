@@ -6,24 +6,25 @@ import { useAuth } from '../contexts/AuthContext';
 import { getRedirectPath } from '../utils/scoring';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 
-function friendlyError(code: string): string {
-    if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
-        return 'Incorrect email or password. Please try again.';
+function friendlyError(code: string | number): string {
+    const s = String(code);
+    if (s.includes('401') || s.includes('wrong-password') || s.includes('invalid-credential') || s.includes('user-not-found')) {
+        return 'Wrong email or password';
     }
-    if (code.includes('too-many-requests')) {
-        return 'Too many failed attempts. Please wait a moment and try again.';
+    if (s.includes('409') || s.includes('already exists')) {
+        return 'Account already exists';
     }
-    if (code.includes('user-disabled')) {
+    if (s.includes('429') || s.includes('too-many-requests') || s.includes('Too many attempts')) {
+        return 'Too many attempts. Wait 60 seconds.';
+    }
+    if (s.includes('500') || s.includes('Server error')) {
+        return 'Server error. Try again in a moment.';
+    }
+    if (s.includes('user-disabled')) {
         return 'This account has been disabled. Contact support.';
     }
-    if (code.includes('network-request-failed')) {
+    if (s.includes('network-request-failed')) {
         return 'Network error. Check your connection and try again.';
-    }
-    if (code.includes('popup-closed-by-user')) {
-        return 'Sign-in popup was closed. Please try again.';
-    }
-    if (code.includes('not supported')) {
-        return code;
     }
     return 'Something went wrong. Please try again.';
 }
@@ -60,8 +61,9 @@ export function LoginPage() {
             localStorage.setItem('userRole', role);
             const { error: signInError } = await signIn(email, password, role);
             if (signInError) {
+                const status = (signInError as { status?: number }).status;
                 const code = (signInError as { code?: string }).code ?? signInError.message ?? '';
-                setError(friendlyError(code));
+                setError(friendlyError(status || code));
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred during sign in');
