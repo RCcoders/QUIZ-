@@ -1,11 +1,17 @@
 import { io, Socket } from 'socket.io-client';
 
 const getSocketUrl = () => {
+    // Prefer dedicated socket URL if provided
+    if (import.meta.env.VITE_SOCKET_URL) {
+        return import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '');
+    }
+
+    // Fallback to API URL (stripped of /api)
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
     }
 
-    // Use current location as fallback
+    // Use current location as fallback (for same-origin deployments)
     return window.location.origin;
 };
 

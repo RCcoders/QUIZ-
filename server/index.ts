@@ -33,8 +33,10 @@ connectDB();
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://quiz-2o1.pages.dev'
-];
+    'https://quiz-2o1.pages.dev',
+    process.env.CLIENT_ORIGIN, // Support dynamic client origin from Render
+    process.env.FRONTEND_URL    // Support alternative naming convention
+].filter(Boolean) as string[];
 
 app.use(cors({
     origin: (origin, callback) => {
