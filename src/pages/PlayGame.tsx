@@ -171,14 +171,13 @@ export function PlayGame() {
         });
 
         newSocket.on('next_question', ({ question, session: updatedSession }) => {
-            // current_state event sets the question authoritatively;
-            // this event carries session metadata update
             if (updatedSession) setSession(updatedSession);
             if (question) setCurrentQuestion(question);
             setGameState('playing');
-            setHasAnswered(false);
+            setHasAnswered(false); // CRITICAL: Reset answer state for new question
             setIsCorrect(null);
             setPointsEarned(0);
+            setQuestionStatus('showing'); // Ensure timer and buttons show
         });
 
         newSocket.on('show_results', ({ participants }) => {
@@ -204,11 +203,7 @@ export function PlayGame() {
             setParticipant(prev => prev ? { ...prev, score: newTotalScore } : null);
         });
 
-        newSocket.on('answer_received', ({ participantId: pId, newTotalScore }) => {
-            setAllParticipants(prev =>
-                prev.map(p => (p._id || p.id) === pId ? { ...p, score: newTotalScore } : p)
-            );
-        });
+        // Removed answer_received listener for students to prevent data leakage of other players' scores
 
         newSocket.on('player_kicked', ({ participantId: kickedId, reason }) => {
             if (participantId === kickedId) {
@@ -440,28 +435,19 @@ export function PlayGame() {
                                             <span className="text-xl md:text-2xl font-black tracking-widest text-brand">{gameCode}</span>
                                         </div>
                                     </div>
-                                    <div className="card text-center min-w-[240px]">
-                                        <div className="text-7xl font-black mb-1 text-zinc-900">{allParticipants.length}</div>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Warriors Ready</div>
+                                    <div className="card text-center min-w-[240px] flex flex-col items-center justify-center py-12">
+                                        <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mb-4" />
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Waiting for Host...</div>
                                     </div>
                                 </div>
 
                                 <div className="grid lg:grid-cols-3 gap-8 flex-1">
-                                    <div className="lg:col-span-2 card flex flex-col">
-                                        <div className="flex justify-between items-center mb-8 pb-6 border-b border-zinc-100">
-                                            <h3 className="text-2xl font-black uppercase italic text-zinc-900">Active Warriors</h3>
-                                            <div className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-[10px] font-black">LIVE SYNC</div>
+                                    <div className="lg:col-span-2 card flex flex-col items-center justify-center text-center p-12">
+                                        <div className="w-20 h-20 bg-brand/10 rounded-full flex items-center justify-center mb-6 text-brand">
+                                            <User size={40} />
                                         </div>
-                                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-[300px]">
-                                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                {(allParticipants || []).map((p, idx) => (
-                                                    <div key={(p?.id || p?._id) || idx} className={`p-4 rounded-2xl border transition-all text-center flex flex-col items-center gap-3 ${(p?.id || p?._id) === participantId ? 'bg-brand/10 border-brand/40 shadow-lg shadow-brand/10 text-zinc-900' : 'bg-zinc-50 border-zinc-100 opacity-60 text-zinc-600'}`}>
-                                                        <div className="w-10 h-10 rounded-xl bg-brand/20 flex items-center justify-center font-black text-brand">{(p?.name || '?').charAt(0).toUpperCase()}</div>
-                                                        <span className="font-bold text-xs truncate uppercase">{p?.name || 'Anonymous'} {(p?.id || p?._id) === participantId && '(Me)'}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <h3 className="text-3xl font-black uppercase italic text-zinc-900 mb-2">Arena Entrance</h3>
+                                        <p className="text-zinc-500 max-w-sm">The battle will begin as soon as the host starts the session. Get ready, <span className="text-brand font-bold">{playerName}</span>!</p>
                                     </div>
 
                                     <div className="card flex flex-col">
@@ -493,11 +479,11 @@ export function PlayGame() {
                                         <span className="text-3xl font-black text-brand italic">Q{(session.currentQuestionIndex || 0) + 1}</span>
                                         <span className="text-[10px] font-black uppercase opacity-20 tracking-widest">of {questions.length}</span>
                                     </div>
-                                    <div className="text-center order-first md:order-none">
+                                    <div className="text-center order-first md:order-none opacity-0 pointer-events-none">
                                         <p className="text-5xl md:text-6xl font-black tabular-nums tracking-tighter text-zinc-900">{(participant?.score || 0).toFixed(1)}</p>
                                         <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Global Arena Points</p>
                                     </div>
-                                    <div className="card !py-3 !px-6 border-l-4 border-orange-500 flex items-center gap-4">
+                                    <div className="card !py-3 !px-6 border-l-4 border-orange-500 flex items-center gap-4 opacity-0 pointer-events-none">
                                         <Trophy size={20} className="text-orange-500" />
                                         <span className="text-xl font-black text-orange-500">#{currentPosition}</span>
                                     </div>
@@ -548,23 +534,16 @@ export function PlayGame() {
                                     </div>
                                     <h2 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter">{isCorrect ? 'PERFECT' : 'FAILED'}</h2>
                                     <div className="mb-8">
-                                        {isCorrect ? (
-                                            <div className="text-4xl font-black text-green-600">+{pointsEarned} PTS</div>
-                                        ) : (
-                                            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                                                <p className="text-[10px] font-black uppercase text-zinc-400 mb-2">Answer was</p>
-                                                <p className="text-xl font-bold uppercase text-red-600">{currentQuestion?.[`option${currentQuestion.correctAnswer}` as keyof Question]}</p>
+                                        <div className="grid grid-cols-1 gap-6 pt-10 border-t border-zinc-100">
+                                            {!isCorrect && (
+                                                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                                                    <p className="text-[10px] font-black uppercase text-zinc-400 mb-2">Answer was</p>
+                                                    <p className="text-xl font-bold uppercase text-red-600">{currentQuestion?.[`option${currentQuestion.correctAnswer}` as keyof Question]}</p>
+                                                </div>
+                                            )}
+                                            <div className="text-zinc-400 font-bold uppercase tracking-widest text-sm">
+                                                Stay tuned for the next question!
                                             </div>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-6 pt-10 border-t border-zinc-100">
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Rank</p>
-                                            <p className="text-3xl font-black text-zinc-900">#{currentPosition}</p>
-                                        </div>
-                                        <div className="border-l border-zinc-100">
-                                            <p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Total</p>
-                                            <p className="text-3xl font-black text-zinc-900">{(participant?.score || 0).toFixed(1)}</p>
                                         </div>
                                     </div>
                                 </div>
