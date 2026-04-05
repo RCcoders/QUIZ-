@@ -4,9 +4,6 @@
     "outDir": "./dist",
     "module": "nodenext",
     "target": "esnext",
-    "types": [
-      "node"
-    ],
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
@@ -26,6 +23,7 @@
   ],
   "exclude": [
     "**/*.test.ts",
+    "vitest.config.ts",
     "dist",
     "node_modules"
   ]
