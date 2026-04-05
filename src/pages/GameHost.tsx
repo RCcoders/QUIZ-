@@ -181,6 +181,18 @@ export function GameHost() {
 
         const onAllAnswered = (data: { session: any }) => {
             setSession(data.session);
+            // Sync participants to ensure scores are updated for the results view
+            if (data.session?.participants) {
+                setParticipants(data.session.participants.map((p: any) => ({
+                    id: p._id || p.id,
+                    socketId: p.socketId,
+                    name: p.name,
+                    score: p.score || 0,
+                    answersCount: (p.playerAnswers || []).length,
+                    status: p.status || 'active',
+                    violationCount: p.violationCount || 0
+                })));
+            }
         };
 
         const onAckNextQuestion = () => {
@@ -189,7 +201,21 @@ export function GameHost() {
 
         const onNextQuestion = (data: { question: any; session: any }) => {
             setSession(data.session);
+            if (data.question) setCurrentQuestion(data.question);
             setNextPending(false);
+
+            // Sync participants for the new question
+            if (data.session?.participants) {
+                setParticipants(data.session.participants.map((p: any) => ({
+                    id: p._id || p.id,
+                    socketId: p.socketId,
+                    name: p.name,
+                    score: p.score || 0,
+                    answersCount: (p.playerAnswers || []).length,
+                    status: p.status || 'active',
+                    violationCount: p.violationCount || 0
+                })));
+            }
         };
 
         if (socket.connected) {
