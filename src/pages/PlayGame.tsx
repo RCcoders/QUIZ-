@@ -271,6 +271,7 @@ export function PlayGame() {
             gameCode: sessionId,
             participantId,
             answer,
+            questionIndex: session.currentQuestionIndex, // Explicitly pass the question index
             isCorrect: correct,
             timeTakenMs: Math.max(0, timeTakenMs)
         });

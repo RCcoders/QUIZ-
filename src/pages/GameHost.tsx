@@ -103,10 +103,17 @@ export function GameHost() {
             });
         };
 
-        const onAnswerReceived = (data: { participantId: string; isCorrect: boolean; pointsEarned: number; timeTakenMs?: number; answer?: string }) => {
+        const onAnswerReceived = (data: {
+            participantId: string;
+            isCorrect: boolean;
+            pointsEarned: number;
+            timeTakenMs?: number;
+            answer?: string;
+            questionIndex?: number;
+        }) => {
             setAnswers(prev => [...prev, {
                 participantId: data.participantId,
-                questionIndex: session.currentQuestionIndex,
+                questionIndex: data.questionIndex !== undefined ? data.questionIndex : session.currentQuestionIndex,
                 answer: (data.answer as any) || 'A',
                 isCorrect: data.isCorrect,
                 pointsEarned: data.pointsEarned,
@@ -115,7 +122,7 @@ export function GameHost() {
             } as GameAnswer]);
 
             setParticipants(prev => prev.map(p =>
-                p.id === data.participantId
+                (p.id === data.participantId)
                     ? { ...p, score: p.score + data.pointsEarned, answersCount: p.answersCount + 1 }
                     : p
             ));
@@ -180,6 +187,11 @@ export function GameHost() {
             setNextPending(false);
         };
 
+        const onNextQuestion = (data: { question: any; session: any }) => {
+            setSession(data.session);
+            setNextPending(false);
+        };
+
         if (socket.connected) {
             onConnect();
         }
@@ -192,6 +204,7 @@ export function GameHost() {
         socket.on('player_kicked', onPlayerKicked);
         socket.on('all_answered', onAllAnswered);
         socket.on('ack_next_question', onAckNextQuestion);
+        socket.on('next_question', onNextQuestion);
         socket.on('game_ended', onGameEnded);
 
         return () => {
@@ -203,6 +216,7 @@ export function GameHost() {
             socket.off('player_kicked', onPlayerKicked);
             socket.off('all_answered', onAllAnswered);
             socket.off('ack_next_question', onAckNextQuestion);
+            socket.off('next_question', onNextQuestion);
             socket.off('game_ended', onGameEnded);
         };
     }, [session?.gameCode, user?.token, session?.currentQuestionIndex]);
@@ -1207,12 +1221,12 @@ export function GameHost() {
                                                         </td>
                                                         <td style={{ padding: '16px 0', textAlign: 'right', fontWeight: 800, color: '#FF5C1A' }}>{(p.score).toFixed(1)}</td>
                                                         <td style={{ padding: '16px 0', textAlign: 'center' }}>
-                                                            {p.violationCount > 0 ? (
+                                                            {(p.violationCount || 0) > 0 ? (
                                                                 <span style={{
                                                                     display: 'inline-flex', padding: '2px 8px', borderRadius: 12,
                                                                     fontSize: 10, fontWeight: 800, background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA'
                                                                 }}>
-                                                                    {p.violationCount} {p.violationCount === 1 ? 'Alert' : 'Alerts'}
+                                                                    {p.violationCount} {(p.violationCount || 0) === 1 ? 'Alert' : 'Alerts'}
                                                                 </span>
                                                             ) : (
                                                                 <span style={{ color: '#E2E8F0' }}>—</span>

@@ -137,11 +137,25 @@ export const setupSocket = (server: HttpServer) => {
         socket.on('next_question', async ({ gameCode, nextIndex }: { gameCode: string; nextIndex: number }) => {
             try {
                 if (!socket.user || socket.user.role !== 'teacher') return;
+                await advanceGame(gameCode, nextIndex, socket);
+            } catch (error) {
+                console.error('[next_question]', error);
+            }
+        });
 
-                const session = await GameSession.findOne({ gameCode })
-                    .select('_id quizId teacherId participants status currentQuestionIndex questionStartedAt currentQuestionAnswers');
-                if (!session || String(session.teacherId) !== String(socket.user._id)) return;
+        // Helper to advance game (shared by manual and auto-progression)
+        const advanceGame = async (gameCode: string, nextIndex: number, teacherSocket?: Socket) => {
+            const session = await GameSession.findOne({ gameCode })
+                .select('_id quizId teacherId participants status currentQuestionIndex questionStartedAt currentQuestionAnswers');
+            if (!session) return;
 
+            const quiz = await Quiz.findById(session.quizId).select('questions title subject');
+            if (!quiz) return;
+
+            if (nextIndex >= quiz.questions.length) {
+                // End game logic
+                await handleEndGame(gameCode);
+            } else {
                 session.status = 'question';
                 session.currentQuestionIndex = nextIndex;
                 session.questionStartedAt = new Date();
@@ -153,10 +167,8 @@ export const setupSocket = (server: HttpServer) => {
                 session.markModified('participants');
                 await session.save();
 
-                const quiz = await Quiz.findById(session.quizId).select('questions title subject');
-                const question = quiz ? quiz.questions[nextIndex] : null;
+                const question = quiz.questions[nextIndex];
 
-                // Update server-side quiz state
                 quizStateMap.set(gameCode, {
                     quizId: String(session.quizId),
                     currentQuestionIndex: nextIndex,
@@ -164,42 +176,49 @@ export const setupSocket = (server: HttpServer) => {
                     startedAt: session.questionStartedAt,
                 });
 
-                // Ack the teacher socket so UI can re-enable the Next button
-                socket.emit('ack_next_question', { nextIndex });
+                if (teacherSocket) teacherSocket.emit('ack_next_question', { nextIndex });
 
-                // Broadcast authoritative state to all students
                 io.to(gameCode).emit('next_question', { question, session });
                 io.to(gameCode).emit('current_state', {
                     currentQuestionIndex: nextIndex,
                     questionData: question,
                     startedAt: session.questionStartedAt,
                 });
-            } catch (error) {
-                console.error('[next_question]', error);
             }
-        });
+        };
 
         // ── Student submits an answer ──
-        socket.on('submit_answer', async ({ gameCode, participantId, answer }: {
-            gameCode: string; participantId: string; answer: string;
+        socket.on('submit_answer', async ({ gameCode, participantId, answer, questionIndex }: {
+            gameCode: string; participantId: string; answer: string; questionIndex?: number;
         }) => {
             try {
                 const session = await GameSession.findOne({ gameCode })
                     .select('_id quizId status currentQuestionIndex questionStartedAt participants currentQuestionAnswers');
-                if (!session || session.status !== 'question') return;
+
+                // Allow submissions for current question, or previous question if within 2s grace
+                const targetIndex = questionIndex !== undefined ? questionIndex : session?.currentQuestionIndex;
+                if (!session || (session.status !== 'question' && session.status !== 'results')) return;
+
+                // If student is answering an old question and we've already moved on, only allow if it's the immediate previous one
+                if (targetIndex !== session.currentQuestionIndex) {
+                    if (targetIndex !== session.currentQuestionIndex - 1) return;
+                    // Grace period check: only allow if current question started < 2s ago
+                    const transitionTime = session.questionStartedAt ? new Date(session.questionStartedAt).getTime() : 0;
+                    if (Date.now() - transitionTime > 2000) return;
+                }
 
                 const now = new Date();
                 const startedAt = session.questionStartedAt || now;
                 const seconds = Math.max(0, (now.getTime() - new Date(startedAt).getTime()) / 1000);
 
-                if (seconds > 30) {
+                if (seconds > 60) { // Increased to 60s for safety
                     return socket.emit('answer_result', { isCorrect: false, pointsEarned: 0, reason: 'Time exceeded' });
                 }
 
                 const quiz = await Quiz.findById(session.quizId).select('questions');
                 if (!quiz) return;
 
-                const currentQ = quiz.questions[session.currentQuestionIndex];
+                const currentQ = quiz.questions[targetIndex ?? 0];
                 if (!currentQ) return;
 
                 const isCorrect = answer === currentQ.correctAnswer;
@@ -212,38 +231,40 @@ export const setupSocket = (server: HttpServer) => {
                 }
                 const pointsEarned = isCorrect ? (10 + bonus) : 0;
 
+                const updateQuery: any = {
+                    $set: {
+                        'participants.$.hasAnsweredCurrentQuestion': (targetIndex === session.currentQuestionIndex),
+                        'participants.$.lastAnswerTimeMs': Math.round(seconds * 1000),
+                    },
+                    $inc: { 'participants.$.score': pointsEarned },
+                    $push: {
+                        'participants.$.playerAnswers': {
+                            questionIndex: targetIndex,
+                            answer,
+                            isCorrect,
+                            pointsEarned,
+                        },
+                    },
+                };
+
+                if (targetIndex === session.currentQuestionIndex) {
+                    updateQuery.$push.currentQuestionAnswers = Math.round(seconds * 1000);
+                }
+
                 const updatedSession = await GameSession.findOneAndUpdate(
                     {
                         _id: session._id,
                         'participants._id': participantId,
-                        'participants.hasAnsweredCurrentQuestion': false,
+                        // Ensure they haven't answered THIS SPECIFIC question yet
+                        'participants.playerAnswers.questionIndex': { $ne: targetIndex }
                     },
-                    {
-                        $set: {
-                            'participants.$.hasAnsweredCurrentQuestion': true,
-                            'participants.$.lastAnswerTimeMs': Math.round(seconds * 1000),
-                        },
-                        $inc: { 'participants.$.score': pointsEarned },
-                        $push: {
-                            currentQuestionAnswers: Math.round(seconds * 1000),
-                            'participants.$.playerAnswers': {
-                                questionIndex: session.currentQuestionIndex,
-                                answer,
-                                isCorrect,
-                                pointsEarned,
-                            },
-                        },
-                    },
+                    updateQuery,
                     { returnDocument: 'after', runValidators: true }
                 );
 
-                if (!updatedSession) {
-                    return socket.emit('answer_result', {
-                        isCorrect: false, pointsEarned: 0, reason: 'Already answered or session mismatch',
-                    });
-                }
+                if (!updatedSession) return;
 
-                const totalTimes = updatedSession.currentQuestionAnswers.reduce((sum, t) => sum + (t || 0), 0);
+                const totalTimes = updatedSession.currentQuestionAnswers.filter(t => t != null).reduce((sum, t) => sum + (t || 0), 0);
                 const avgTimeMs = updatedSession.currentQuestionAnswers.length > 0
                     ? Math.round(totalTimes / updatedSession.currentQuestionAnswers.length)
                     : 0;
@@ -254,6 +275,7 @@ export const setupSocket = (server: HttpServer) => {
 
                 io.to(gameCode).emit('answer_received', {
                     participantId,
+                    questionIndex: targetIndex,
                     answer,
                     isCorrect,
                     pointsEarned,
@@ -269,9 +291,17 @@ export const setupSocket = (server: HttpServer) => {
                 });
 
                 const activeParticipants = updatedSession.participants.filter((p: any) => p.status !== 'kicked');
-                const answeredCount = activeParticipants.filter((p: any) => p.hasAnsweredCurrentQuestion).length;
-                if (answeredCount >= activeParticipants.length && activeParticipants.length > 0) {
+                const answeredCount = activeParticipants.filter((p: any) =>
+                    p.playerAnswers.some((pa: any) => pa.questionIndex === session.currentQuestionIndex)
+                ).length;
+
+                if (answeredCount >= activeParticipants.length && activeParticipants.length > 0 && session.status === 'question') {
                     io.to(gameCode).emit('all_answered', { session: updatedSession });
+
+                    // ── AUTO-PROGRESSION ──
+                    setTimeout(async () => {
+                        await advanceGame(gameCode, session.currentQuestionIndex + 1);
+                    }, 3000);
                 }
             } catch (error) {
                 console.error('[submit_answer]', error);
@@ -360,71 +390,71 @@ export const setupSocket = (server: HttpServer) => {
         socket.on('end_game', async ({ gameCode }: { gameCode: string }) => {
             try {
                 if (!socket.user || socket.user.role !== 'teacher') return;
-
-                // Mark disqualified BEFORE updating status so the flag is persisted
-                await GameSession.updateMany(
-                    { gameCode, 'participants.violationCount': { $gt: 3 } },
-                    { $set: { 'participants.$[p].disqualified': true } },
-                    { arrayFilters: [{ 'p.violationCount': { $gt: 3 } }] }
-                );
-
-                const session = await GameSession.findOneAndUpdate(
-                    { gameCode },
-                    { status: 'ended', endedAt: new Date() },
-                    { returnDocument: 'after' }
-                ).select('_id quizId quizTitle participants gameCode status endedAt');
-
-                if (session) {
-                    const quiz = await Quiz.findById(session.quizId).select('questions title subject');
-                    const totalPossiblePoints = quiz ? (quiz.questions.length * 10) : 100;
-
-                    const ScoreRecord = (await import('./models/ScoreRecord.js')).default;
-                    const scorePromises = session.participants.map((p: any) => {
-                        const percentage = totalPossiblePoints > 0 ? (p.score / totalPossiblePoints) * 100 : 0;
-                        return ScoreRecord.create({
-                            userId: p.userId || p.name,
-                            quizId: session.quizId.toString(),
-                            quizTitle: quiz?.title || 'Unknown Quiz',
-                            // Disqualified students get score=0 in the record
-                            score: p.disqualified ? 0 : p.score,
-                            total: totalPossiblePoints,
-                            percentage: p.disqualified ? 0 : Math.min(100, Math.round(percentage)),
-                            subject: (quiz?.subject || 'General') as any,
-                            completedAt: new Date(),
-                            violationCount: p.violationCount || 0,
-                            disqualified: p.disqualified || false,
-                        });
-                    });
-                    await Promise.allSettled(scorePromises);
-
-                    // Build a flat finalAnswers array from all participants' playerAnswers
-                    const finalAnswers: any[] = [];
-                    session.participants.forEach((p: any) => {
-                        (p.playerAnswers || []).forEach((a: any) => {
-                            finalAnswers.push({
-                                participantId: p._id.toString(),
-                                questionIndex: a.questionIndex,
-                                answer: a.answer,
-                                isCorrect: a.isCorrect,
-                                pointsEarned: a.pointsEarned,
-                                timeTakenMs: p.lastAnswerTimeMs || 0,
-                            });
-                        });
-                    });
-
-                    // Clean up in-memory state for this game
-                    quizStateMap.delete(gameCode);
-
-                    io.to(gameCode).emit('game_ended', {
-                        finalParticipants: session.participants,
-                        finalAnswers,
-                        session,
-                    });
-                }
+                await handleEndGame(gameCode);
             } catch (error) {
                 console.error('[end_game]', error);
             }
         });
+
+        const handleEndGame = async (gameCode: string) => {
+            // Mark disqualified BEFORE updating status so the flag is persisted
+            await GameSession.updateMany(
+                { gameCode, 'participants.violationCount': { $gt: 3 } },
+                { $set: { 'participants.$[p].disqualified': true } },
+                { arrayFilters: [{ 'p.violationCount': { $gt: 3 } }] }
+            );
+
+            const session = await GameSession.findOneAndUpdate(
+                { gameCode },
+                { status: 'ended', endedAt: new Date() },
+                { returnDocument: 'after' }
+            ).select('_id quizId quizTitle participants gameCode status endedAt');
+
+            if (session) {
+                const quiz = await Quiz.findById(session.quizId).select('questions title subject');
+                const totalPossiblePoints = quiz ? (quiz.questions.length * 10) : 100;
+
+                const ScoreRecord = (await import('./models/ScoreRecord.js')).default;
+                const scorePromises = session.participants.map((p: any) => {
+                    const percentage = totalPossiblePoints > 0 ? (p.score / totalPossiblePoints) * 100 : 0;
+                    return ScoreRecord.create({
+                        userId: p.userId || p.name,
+                        quizId: session.quizId.toString(),
+                        quizTitle: quiz?.title || 'Unknown Quiz',
+                        score: p.disqualified ? 0 : p.score,
+                        total: totalPossiblePoints,
+                        percentage: p.disqualified ? 0 : Math.min(100, Math.round(percentage)),
+                        subject: (quiz?.subject || 'General') as any,
+                        completedAt: new Date(),
+                        violationCount: p.violationCount || 0,
+                        disqualified: p.disqualified || false,
+                    });
+                });
+                await Promise.allSettled(scorePromises);
+
+                const finalAnswers: any[] = [];
+                session.participants.forEach((p: any) => {
+                    (p.playerAnswers || []).forEach((a: any) => {
+                        finalAnswers.push({
+                            participantId: p._id.toString(),
+                            questionIndex: a.questionIndex,
+                            answer: a.answer,
+                            isCorrect: a.isCorrect,
+                            pointsEarned: a.pointsEarned,
+                            timeTakenMs: p.lastAnswerTimeMs || 0,
+                        });
+                    });
+                });
+
+                quizStateMap.delete(gameCode);
+
+                io.to(gameCode).emit('game_ended', {
+                    finalParticipants: session.participants,
+                    finalAnswers,
+                    session,
+                });
+            }
+        };
 
         // ── Disconnect: clean up room membership & timers ──
         socket.on('disconnect', () => {
