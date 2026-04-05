@@ -258,9 +258,12 @@ export const setupSocket = (server: HttpServer) => {
                 const updatedSession = await GameSession.findOneAndUpdate(
                     {
                         _id: session._id,
-                        'participants._id': participantId,
-                        // Ensure they haven't answered THIS SPECIFIC question yet
-                        'participants.playerAnswers.questionIndex': { $ne: targetIndex }
+                        participants: {
+                            $elemMatch: {
+                                _id: participantId,
+                                'playerAnswers.questionIndex': { $ne: targetIndex }
+                            }
+                        }
                     },
                     updateQuery,
                     { returnDocument: 'after', runValidators: true }
