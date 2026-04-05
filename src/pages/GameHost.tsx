@@ -73,17 +73,42 @@ export function GameHost() {
         initializeGame();
     }, [id]);
 
-    // Socket orchestration for teacher
+    const socketRef = useRef<any>(null);
+    const sessionRef = useRef<GameSession | null>(null);
+
+    // Always keep sessionRef updated with the freshest session
+    useEffect(() => {
+        sessionRef.current = session;
+    }, [session]);
+
+    // Polling fallback sync (just in case)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (socketRef.current && session?.gameCode) {
+                socketRef.current.emit('get_current_state', {
+                    gameCode: session.gameCode
+                });
+            }
+        }, 5000); // 5 sec fallback poll
+
+        return () => clearInterval(interval);
+    }, [session?.gameCode]);
+
+    // Socket orchestration for teacher (ONLY RUNS ONCE per game code)
     useEffect(() => {
         if (!session?.gameCode || !user?.token) return;
 
+        // Prevent duplicate setups
+        if (socketRef.current) return;
+
         const socket = connectSocket(user.token);
+        socketRef.current = socket;
 
-        const onConnect = () => {
+        socket.on('connect', () => {
             socket.emit('join_room', { gameCode: session.gameCode });
-        };
+        });
 
-        const onPlayerJoined = (data: any) => {
+        socket.on('player_joined', (data: any) => {
             setParticipants(prev => {
                 const existing = prev.find(p =>
                     (data.participantId && p.id === data.participantId) ||
@@ -101,9 +126,9 @@ export function GameHost() {
                     status: 'active'
                 }];
             });
-        };
+        });
 
-        const onAnswerReceived = (data: {
+        socket.on('answer_received', (data: {
             participantId: string;
             isCorrect: boolean;
             pointsEarned: number;
@@ -112,9 +137,10 @@ export function GameHost() {
             answer?: string;
             questionIndex?: number;
         }) => {
+            const fallbackIndex = sessionRef.current?.currentQuestionIndex ?? undefined;
             setAnswers(prev => [...prev, {
                 participantId: data.participantId,
-                questionIndex: data.questionIndex,
+                questionIndex: data.questionIndex !== undefined ? data.questionIndex : fallbackIndex,
                 answer: (data.answer as any) || 'A',
                 isCorrect: data.isCorrect,
                 pointsEarned: data.pointsEarned,
@@ -131,14 +157,13 @@ export function GameHost() {
                     }
                     : p
             ));
-        };
+        });
 
-        const onPlayerLeft = (data: { socketId: string, participantId: string }) => {
+        socket.on('player_left', (data: { socketId: string, participantId: string }) => {
             setParticipants(prev => {
-                // IMPORTANT: If the session has already reached 'results' or 'ended' status,
-                // do NOT filter out the participant. This ensures the leaderboard remains intact
-                // even if students close their devices after finishing a battle.
-                if (session && (session.status === 'results' || session.status === 'ended')) {
+                // Determine using latest sessionRef so we aren't relying on a stale static 'session' from the closure
+                const currSession = sessionRef.current;
+                if (currSession && (currSession.status === 'results' || currSession.status === 'ended')) {
                     return prev;
                 }
 
@@ -147,25 +172,58 @@ export function GameHost() {
                     p.socketId !== data.socketId
                 );
             });
-        };
+        });
 
-        const onViolationReport = (data: { participantId: string, violationCount: number, reason: string }) => {
+        socket.on('violation_report', (data: { participantId: string, violationCount: number, reason: string }) => {
             setParticipants(prev => prev.map(p =>
                 p.id === data.participantId ? { ...p, violationCount: data.violationCount } : p
             ));
-            setActivityMessages(prev => [
-                { id: Date.now(), text: `⚠️ Violation: ${data.reason} by participant`, time: 'now' },
-                ...prev
-            ]);
-        };
+        });
 
-        const onPlayerKicked = (data: { participantId: string }) => {
+        socket.on('player_kicked', (data: { participantId: string }) => {
             setParticipants(prev => prev.map(p =>
                 p.id === data.participantId ? { ...p, status: 'kicked' } : p
             ));
-        };
+        });
 
-        const onGameEnded = (data: { finalParticipants: any[]; finalAnswers?: any[]; session: any }) => {
+        socket.on('all_answered', (data: { session: any }) => {
+            setSession(data.session);
+            if (data.session?.participants) {
+                setParticipants(data.session.participants.map((p: any) => ({
+                    id: p._id || p.id,
+                    socketId: p.socketId,
+                    name: p.name,
+                    score: p.score || 0,
+                    answersCount: (p.playerAnswers || []).length,
+                    status: p.status || 'active',
+                    violationCount: p.violationCount || 0
+                })));
+            }
+        });
+
+        socket.on('ack_next_question', () => {
+            setNextPending(false);
+        });
+
+        socket.on('next_question', (data: { question: any; session: any }) => {
+            console.log("NEXT QUESTION RECEIVED ON HOST", data.session?.currentQuestionIndex);
+            setSession(data.session);
+            setNextPending(false);
+
+            if (data.session?.participants) {
+                setParticipants(data.session.participants.map((p: any) => ({
+                    id: p._id || p.id,
+                    socketId: p.socketId,
+                    name: p.name,
+                    score: p.score || 0,
+                    answersCount: (p.playerAnswers || []).length,
+                    status: p.status || 'active',
+                    violationCount: p.violationCount || 0
+                })));
+            }
+        });
+
+        socket.on('game_ended', (data: { finalParticipants: any[]; finalAnswers?: any[]; session: any }) => {
             setSession(prev => prev ? { ...prev, status: 'ended', endedAt: data.session?.endedAt } : prev);
             setParticipants(data.finalParticipants.map((p: any) => ({
                 id: p._id || p.id,
@@ -178,81 +236,16 @@ export function GameHost() {
                 disqualified: p.disqualified || false,
                 status: p.status || 'active',
             })));
-            // DB-persisted answers — always correct, even if teacher reloaded
             if (data.finalAnswers && data.finalAnswers.length > 0) {
                 setFinalAnswers(data.finalAnswers as GameAnswer[]);
             }
-        };
-
-        const onAllAnswered = (data: { session: any }) => {
-            setSession(data.session);
-            // Sync participants to ensure scores are updated for the results view
-            if (data.session?.participants) {
-                setParticipants(data.session.participants.map((p: any) => ({
-                    id: p._id || p.id,
-                    socketId: p.socketId,
-                    name: p.name,
-                    score: p.score || 0,
-                    answersCount: (p.playerAnswers || []).length,
-                    status: p.status || 'active',
-                    violationCount: p.violationCount || 0
-                })));
-            }
-        };
-
-        const onAckNextQuestion = () => {
-            setNextPending(false);
-        };
-
-        const onNextQuestion = (data: { question: any; session: any }) => {
-            setSession(data.session);
-            setNextPending(false);
-
-            // Sync participants for the new question
-            if (data.session?.participants) {
-                setParticipants(data.session.participants.map((p: any) => ({
-                    id: p._id || p.id,
-                    socketId: p.socketId,
-                    name: p.name,
-                    score: p.score || 0,
-                    answersCount: (p.playerAnswers || []).length,
-                    status: p.status || 'active',
-                    violationCount: p.violationCount || 0
-                })));
-            }
-        };
-
-        socket.on('connect', onConnect);
-        socket.on('player_joined', onPlayerJoined);
-        socket.on('answer_received', onAnswerReceived);
-        socket.on('player_left', onPlayerLeft);
-        socket.on('violation_report', onViolationReport);
-        socket.on('player_kicked', onPlayerKicked);
-        socket.on('all_answered', onAllAnswered);
-        socket.on('ack_next_question', onAckNextQuestion);
-        socket.on('next_question', onNextQuestion);
-        socket.on('game_ended', onGameEnded);
+        });
 
         return () => {
-            socket.off('connect', onConnect);
-            socket.off('player_joined', onPlayerJoined);
-            socket.off('answer_received', onAnswerReceived);
-            socket.off('player_left', onPlayerLeft);
-            socket.off('violation_report', onViolationReport);
-            socket.off('player_kicked', onPlayerKicked);
-            socket.off('all_answered', onAllAnswered);
-            socket.off('ack_next_question', onAckNextQuestion);
-            socket.off('next_question', onNextQuestion);
-            socket.off('game_ended', onGameEnded);
+            socket.disconnect();
+            socketRef.current = null;
         };
     }, [session?.gameCode, user?.token]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            disconnectSocket();
-        };
-    }, []);
 
     const initializeGame = async () => {
         if (!id || !user) return;
