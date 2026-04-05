@@ -92,7 +92,7 @@ describe('firebase-removal-optimization — Property 7: Paginated list responses
           fc.integer({ min: 1, max: 10 }),
           fc.integer({ min: 1, max: 100 }),
           fc.integer({ min: 0, max: 500 }),
-          async (page, limit, total) => {
+          async (page: number, limit: number, total: number) => {
             vi.clearAllMocks();
 
             // Build mock records — at most `limit` items for this page
@@ -266,7 +266,7 @@ describe('firebase-removal-optimization — Property 10: __v fields are omitted 
             }),
             { minLength: 0, maxLength: 20 }
           ),
-          async (mockItems) => {
+          async (mockItems: any[]) => {
             vi.clearAllMocks();
 
             // Simulate DB returning items without __v (lean() strips Mongoose internals)

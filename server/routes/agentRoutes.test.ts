@@ -115,17 +115,17 @@ describe('agentRoutes', () => {
   it('10.4 Property 11: RAG pipeline extracts text and produces valid MCQ schema', async () => {
     const { generateTeacherQuiz } = await import('../ai/teacherAgent.js');
     const minPdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF');
-    
+
     vi.mocked(pdfParse).mockResolvedValueOnce({ text: 'Some readable text' } as any);
-    
+
     vi.mocked(generateTeacherQuiz).mockResolvedValueOnce([{
-      questionText: 'Q1', options: ['A','B','C','D'], correctAnswer: 'A', explanation: 'E', difficulty: 'easy', topic: 't'
+      questionText: 'Q1', options: ['A', 'B', 'C', 'D'], correctAnswer: 'A', explanation: 'E', difficulty: 'easy', topic: 't'
     } as any]);
 
     const res = await request(app)
       .post('/api/teacher/quiz-from-pdf')
       .attach('pdf', minPdf, 'sample.pdf');
-      
+
     expect(res.status).toBe(200);
     expect(res.body.data.questions[0]).toHaveProperty('questionText');
     expect(res.body.data.questions[0].options.length).toBe(4);
@@ -143,7 +143,7 @@ describe('agentRoutes', () => {
           count: fc.integer({ min: 1, max: 10 }),
           questionType: fc.constantFrom('mcq', 'subjective', 'poll') as fc.Arbitrary<'mcq' | 'subjective' | 'poll'>,
         }),
-        async (params) => {
+        async (params: any) => {
           // Reset state for each iteration
           clearRateLimiterCache();
           aiCacheStore.length = 0;
@@ -196,7 +196,7 @@ describe('agentRoutes', () => {
           subject: fc.constantFrom('Math', 'Science', 'History'),
           count: fc.integer({ min: 1, max: 20 }),
         }),
-        async (params) => {
+        async (params: any) => {
           // Reset state for each iteration
           clearRateLimiterCache();
           aiCacheStore.length = 0;

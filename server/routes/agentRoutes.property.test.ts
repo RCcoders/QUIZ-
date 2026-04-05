@@ -107,7 +107,7 @@ describe('firebase-removal-optimization — Property 5: AI cache hit returns cac
             subject: fc.constantFrom('Math', 'Science', 'History'),
             count: fc.integer({ min: 1, max: 20 }),
           }),
-          async (params) => {
+          async (params: any) => {
             clearRateLimiterCache();
             aiCacheStore.length = 0;
             setupCacheMocks();
@@ -164,7 +164,7 @@ describe('firebase-removal-optimization — Property 6: Expired cache entry is t
             subject: fc.constantFrom('Math', 'Science', 'History'),
             count: fc.integer({ min: 1, max: 20 }),
           }),
-          async (params) => {
+          async (params: any) => {
             clearRateLimiterCache();
             vi.clearAllMocks();
 

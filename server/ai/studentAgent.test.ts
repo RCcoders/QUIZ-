@@ -22,10 +22,10 @@ describe('studentAgent Property Tests', () => {
     await fc.assert(
       fc.asyncProperty(
         fc.record({
-          topic: fc.string({ minLength: 1 }).filter(s => s.trim() !== ''),
+          topic: fc.string({ minLength: 1 }).filter((s: string) => s.trim() !== ''),
           noteText: fc.option(fc.string({ maxLength: 10000 }))
         }),
-        async (params) => {
+        async (params: { topic: string; noteText: string | null }) => {
           const mockOpenAIResponse = {
             summary: `Summary of ${params.topic}`,
             keyConcepts: ['Concept 1', 'Concept 2'],
@@ -43,11 +43,11 @@ describe('studentAgent Property Tests', () => {
 
           expect(result).toHaveProperty('summary');
           expect(typeof result.summary).toBe('string');
-          
+
           expect(result).toHaveProperty('keyConcepts');
           expect(Array.isArray(result.keyConcepts)).toBe(true);
           expect(result.keyConcepts.length).toBeGreaterThan(0);
-          
+
           expect(result).toHaveProperty('importantQuestions');
           expect(Array.isArray(result.importantQuestions)).toBe(true);
           expect(result.importantQuestions.length).toBeGreaterThan(0);

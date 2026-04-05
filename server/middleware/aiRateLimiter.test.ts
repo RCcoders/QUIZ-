@@ -36,16 +36,16 @@ describe('aiRateLimiter', () => {
     fc.assert(
       fc.property(
         fc.array(fc.string({ minLength: 1 }), { minLength: 2, maxLength: 5 }),
-        (userIds) => {
+        (userIds: string[]) => {
           clearRateLimiterCache();
-          
+
           for (const uid of userIds) {
             const req = mockReq(uid);
             const res = mockRes();
             const next = mockNext();
-            
+
             for (let i = 0; i < 5; i++) {
-               aiRateLimiter(req, res, next);
+              aiRateLimiter(req, res, next);
             }
             expect(next).toHaveBeenCalledTimes(5);
             expect(res.status).not.toHaveBeenCalled();
