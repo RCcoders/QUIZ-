@@ -254,6 +254,25 @@ export function GameHost() {
             }
         };
 
+        const onGameStarted = (sessionData: any) => {
+            setSession(sessionData);
+        };
+
+        const onCurrentState = (data: { currentQuestionIndex: number; questionData: any; startedAt: string; sessionStatus?: string }) => {
+            setSession(prev => {
+                if (!prev) return prev;
+                // Only update if actually different to avoid churn
+                if (prev.currentQuestionIndex === data.currentQuestionIndex && prev.status === (data.sessionStatus || prev.status)) {
+                    return prev;
+                }
+                return {
+                    ...prev,
+                    currentQuestionIndex: data.currentQuestionIndex,
+                    status: data.sessionStatus || prev.status
+                };
+            });
+        };
+
         socket.on('player_joined', onPlayerJoined);
         socket.on('answer_received', onAnswerReceived);
         socket.on('player_left', onPlayerLeft);
@@ -263,6 +282,8 @@ export function GameHost() {
         socket.on('ack_next_question', onAckNextQuestion);
         socket.on('next_question', onNextQuestion);
         socket.on('game_ended', onGameEnded);
+        socket.on('game_started', onGameStarted);
+        socket.on('current_state', onCurrentState);
 
         return () => {
             socket.off('player_joined', onPlayerJoined);
@@ -274,6 +295,8 @@ export function GameHost() {
             socket.off('ack_next_question', onAckNextQuestion);
             socket.off('next_question', onNextQuestion);
             socket.off('game_ended', onGameEnded);
+            socket.off('game_started', onGameStarted);
+            socket.off('current_state', onCurrentState);
         };
     }, [user?.token]);
 
