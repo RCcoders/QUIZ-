@@ -94,21 +94,36 @@ export function GameHost() {
         return () => clearInterval(interval);
     }, [session?.gameCode]);
 
-    // Socket orchestration for teacher (ONLY RUNS ONCE per game code)
+    // 1. Connection (mount once)
     useEffect(() => {
-        if (!session?.gameCode || !user?.token) return;
-
-        // Prevent duplicate setups
-        if (socketRef.current) return;
+        if (!user?.token) return;
 
         const socket = connectSocket(user.token);
         socketRef.current = socket;
 
-        socket.on('connect', () => {
-            socket.emit('join_room', { gameCode: session.gameCode });
-        });
+        return () => {
+            disconnectSocket();
+            socketRef.current = null;
+        };
+    }, [user?.token]);
 
-        socket.on('player_joined', (data: any) => {
+    // 2. Room Join (when session?.gameCode changes)
+    useEffect(() => {
+        if (!socketRef.current || !session?.gameCode) return;
+
+        socketRef.current.emit('join_room', {
+            gameCode: session.gameCode
+        });
+    }, [session?.gameCode]);
+
+    // 3. Event Listeners (attach once)
+    useEffect(() => {
+        // Fallback to getting socket if ref isn't ready or just use connectSocket payload
+        if (!user?.token) return;
+        const socket = socketRef.current || connectSocket(user.token);
+        if (!socket) return;
+
+        const onPlayerJoined = (data: any) => {
             setParticipants(prev => {
                 const existing = prev.find(p =>
                     (data.participantId && p.id === data.participantId) ||
@@ -126,9 +141,9 @@ export function GameHost() {
                     status: 'active'
                 }];
             });
-        });
+        };
 
-        socket.on('answer_received', (data: {
+        const onAnswerReceived = (data: {
             participantId: string;
             isCorrect: boolean;
             pointsEarned: number;
@@ -157,36 +172,34 @@ export function GameHost() {
                     }
                     : p
             ));
-        });
+        };
 
-        socket.on('player_left', (data: { socketId: string, participantId: string }) => {
+        const onPlayerLeft = (data: { socketId: string, participantId: string }) => {
             setParticipants(prev => {
-                // Determine using latest sessionRef so we aren't relying on a stale static 'session' from the closure
                 const currSession = sessionRef.current;
                 if (currSession && (currSession.status === 'results' || currSession.status === 'ended')) {
                     return prev;
                 }
-
                 return prev.filter(p =>
                     (data.participantId ? p.id !== data.participantId : true) &&
                     p.socketId !== data.socketId
                 );
             });
-        });
+        };
 
-        socket.on('violation_report', (data: { participantId: string, violationCount: number, reason: string }) => {
+        const onViolationReport = (data: { participantId: string, violationCount: number, reason: string }) => {
             setParticipants(prev => prev.map(p =>
                 p.id === data.participantId ? { ...p, violationCount: data.violationCount } : p
             ));
-        });
+        };
 
-        socket.on('player_kicked', (data: { participantId: string }) => {
+        const onPlayerKicked = (data: { participantId: string }) => {
             setParticipants(prev => prev.map(p =>
                 p.id === data.participantId ? { ...p, status: 'kicked' } : p
             ));
-        });
+        };
 
-        socket.on('all_answered', (data: { session: any }) => {
+        const onAllAnswered = (data: { session: any }) => {
             setSession(data.session);
             if (data.session?.participants) {
                 setParticipants(data.session.participants.map((p: any) => ({
@@ -199,13 +212,13 @@ export function GameHost() {
                     violationCount: p.violationCount || 0
                 })));
             }
-        });
+        };
 
-        socket.on('ack_next_question', () => {
+        const onAckNextQuestion = () => {
             setNextPending(false);
-        });
+        };
 
-        socket.on('next_question', (data: { question: any; session: any }) => {
+        const onNextQuestion = (data: { question: any; session: any }) => {
             console.log("NEXT QUESTION RECEIVED ON HOST", data.session?.currentQuestionIndex);
             setSession(data.session);
             setNextPending(false);
@@ -221,9 +234,9 @@ export function GameHost() {
                     violationCount: p.violationCount || 0
                 })));
             }
-        });
+        };
 
-        socket.on('game_ended', (data: { finalParticipants: any[]; finalAnswers?: any[]; session: any }) => {
+        const onGameEnded = (data: { finalParticipants: any[]; finalAnswers?: any[]; session: any }) => {
             setSession(prev => prev ? { ...prev, status: 'ended', endedAt: data.session?.endedAt } : prev);
             setParticipants(data.finalParticipants.map((p: any) => ({
                 id: p._id || p.id,
@@ -239,13 +252,30 @@ export function GameHost() {
             if (data.finalAnswers && data.finalAnswers.length > 0) {
                 setFinalAnswers(data.finalAnswers as GameAnswer[]);
             }
-        });
+        };
+
+        socket.on('player_joined', onPlayerJoined);
+        socket.on('answer_received', onAnswerReceived);
+        socket.on('player_left', onPlayerLeft);
+        socket.on('violation_report', onViolationReport);
+        socket.on('player_kicked', onPlayerKicked);
+        socket.on('all_answered', onAllAnswered);
+        socket.on('ack_next_question', onAckNextQuestion);
+        socket.on('next_question', onNextQuestion);
+        socket.on('game_ended', onGameEnded);
 
         return () => {
-            socket.disconnect();
-            socketRef.current = null;
+            socket.off('player_joined', onPlayerJoined);
+            socket.off('answer_received', onAnswerReceived);
+            socket.off('player_left', onPlayerLeft);
+            socket.off('violation_report', onViolationReport);
+            socket.off('player_kicked', onPlayerKicked);
+            socket.off('all_answered', onAllAnswered);
+            socket.off('ack_next_question', onAckNextQuestion);
+            socket.off('next_question', onNextQuestion);
+            socket.off('game_ended', onGameEnded);
         };
-    }, [session?.gameCode, user?.token]);
+    }, [user?.token]);
 
     const initializeGame = async () => {
         if (!id || !user) return;
@@ -291,30 +321,27 @@ export function GameHost() {
     };
 
     const startGame = () => {
-        if (!session) return;
-        const socket = getSocket();
-        socket.emit('start_game', { gameCode: session.gameCode });
+        if (!session || !socketRef.current) return;
+        socketRef.current.emit('start_game', { gameCode: session.gameCode });
     };
 
     const revealAnswer = () => {
-        if (!session) return;
-        const socket = getSocket();
-        socket.emit('reveal_results', { gameCode: session.gameCode });
+        if (!session || !socketRef.current) return;
+        socketRef.current.emit('reveal_results', { gameCode: session.gameCode });
     };
 
     const nextQuestion = () => {
-        if (!session || nextPending) return;
+        if (!session || nextPending || !socketRef.current) return;
         const nextIndex = session.currentQuestionIndex + 1;
-        const socket = getSocket();
 
         if (nextIndex >= questions.length) {
-            socket.emit('end_game', { gameCode: session.gameCode });
+            socketRef.current.emit('end_game', { gameCode: session.gameCode });
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
             setNextPending(true);
             // Fallback: re-enable after 3 seconds if no ack
             setTimeout(() => setNextPending(false), 3000);
-            socket.emit('next_question', { gameCode: session.gameCode, nextIndex });
+            socketRef.current.emit('next_question', { gameCode: session.gameCode, nextIndex });
         }
     };
 
@@ -325,8 +352,9 @@ export function GameHost() {
 
     const handleKickParticipant = (participantId: string, participantName: string) => {
         if (!confirm(`Are you sure you want to kick ${participantName}?`)) return;
-        const socket = getSocket();
-        socket.emit('kick_player', { gameCode: session?.gameCode, participantId });
+        if (socketRef.current) {
+            socketRef.current.emit('kick_player', { gameCode: session?.gameCode, participantId });
+        }
 
         setParticipants(prev => prev.map(p =>
             p.id === participantId ? { ...p, status: 'kicked' as const } : p
